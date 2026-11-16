@@ -13,7 +13,7 @@ export default class WebGLErrorBoundary extends Component {
   }
 
   componentDidCatch(error) {
-    console.error('[Fire Flapper] 3D renderer failed:', error);
+    console.error('[Fire Flipper] 3D renderer failed:', error);
   }
 
   render() {

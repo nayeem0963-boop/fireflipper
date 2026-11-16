@@ -1,8 +1,8 @@
 {
-  "name": "fireflapper",
+  "name": "fireflipper",
   "private": true,
   "version": "0.1.0",
-  "description": "Fire Flapper — a 3D browser arcade game (fireflapper.com)",
+  "description": "Fire Flipper — a 3D browser arcade game (fireflipper.com)",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -1,6 +1,6 @@
-# Fire Flapper
+# Fire Flipper
 
-**Flap. Burn. Survive.** A 3D fantasy arcade game for the browser, coming to `fireflapper.com`.
+**Flip. Burn. Survive.** A 3D fantasy arcade game for the browser, coming to `fireflipper.com`.
 
 > Status: **pass 2: core flight gameplay.** Playable one-touch flying with physics, procedural
 > obstacles, fire orbs, collisions, scoring, game over and retry. Backend, accounts and deployment

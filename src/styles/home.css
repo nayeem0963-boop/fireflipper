@@ -79,7 +79,7 @@
   color: transparent;
   filter: drop-shadow(0 0 18px rgba(255, 110, 30, 0.55));
 }
-.logo__flapper {
+.logo__flipper {
   font-size: clamp(1.5rem, 6.4vw, 3.4rem);
   letter-spacing: 0.28em;
   margin-right: -0.28em; /* optically recentre the tracked word */
@@ -196,7 +196,7 @@
   .logo__fire {
     font-size: 2.6rem;
   }
-  .logo__flapper {
+  .logo__flipper {
     font-size: 1.3rem;
   }
   .tagline {

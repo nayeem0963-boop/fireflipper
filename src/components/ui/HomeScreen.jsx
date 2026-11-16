@@ -17,7 +17,7 @@ export default function HomeScreen() {
   return (
     <main className="home">
       <header className="home__topbar">
-        <span className="home__domain">fireflapper.com</span>
+        <span className="home__domain">fireflipper.com</span>
         <div className="home__topbar-actions">
           <SoundToggle />
           <IconButton label="Settings" onClick={openSettings}>
@@ -36,9 +36,9 @@ export default function HomeScreen() {
       <section className="home__brand">
         <h1 className="logo">
           <span className="logo__fire">Fire</span>
-          <span className="logo__flapper">Flapper</span>
+          <span className="logo__flipper">Flipper</span>
         </h1>
-        <p className="tagline">Flap. Burn. Survive.</p>
+        <p className="tagline">Flip. Burn. Survive.</p>
       </section>
 
       <section className="home__actions">
