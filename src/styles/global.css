@@ -1,0 +1,204 @@
+/* ==========================================================================
+   Fire Flapper: design tokens + base styles
+   ========================================================================== */
+:root {
+  /* Palette */
+  --bg: #0b0907;
+  --bg-raised: #15100c;
+  --bg-elevated: #1e1610;
+  --line: rgba(255, 150, 70, 0.16);
+  --line-strong: rgba(255, 150, 70, 0.35);
+
+  --text: #fbefe2;
+  --text-muted: #b79f8a;
+  --text-dim: #7d6858;
+
+  --fire-100: #fff1c9;
+  --fire-200: #ffd36b;
+  --fire-300: #ffb347;
+  --fire-400: #ff8a1f;
+  --fire-500: #ff5a14;
+  --fire-600: #d9370b;
+  --fire-700: #8f1f06;
+
+  --glow-sm: 0 0 12px rgba(255, 122, 36, 0.45);
+  --glow-md: 0 0 24px rgba(255, 110, 30, 0.45), 0 0 60px rgba(255, 80, 10, 0.2);
+
+  /* Type */
+  --font-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Spacing & shape */
+  --gutter: clamp(16px, 3vw, 32px);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --tap: 46px; /* minimum touch target */
+
+  /* Safe areas (notches, home indicators) */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--fire-300);
+  outline-offset: 3px;
+}
+
+kbd {
+  font-family: var(--font-ui);
+  font-size: 0.85em;
+  padding: 0.1em 0.45em;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* --------------------------------------------------------------------------
+   Shared controls
+   -------------------------------------------------------------------------- */
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(21, 16, 12, 0.72);
+  color: var(--text);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+.icon-btn:hover {
+  border-color: var(--line-strong);
+  color: var(--fire-200);
+  box-shadow: var(--glow-sm);
+}
+.icon-btn:active {
+  transform: scale(0.94);
+}
+.icon-btn--accent {
+  border-color: var(--line-strong);
+  color: var(--fire-200);
+}
+
+.play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  min-width: 220px;
+  min-height: 60px;
+  padding: 0 2.2em;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--fire-300) 0%, var(--fire-500) 55%, var(--fire-600) 100%);
+  color: #1a0904;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.35rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: var(--glow-md), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: transform 0.12s, box-shadow 0.2s, filter 0.2s;
+  animation: play-pulse 2.6s ease-in-out infinite;
+}
+.play-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.play-btn:active {
+  transform: scale(0.97);
+}
+.play-btn--compact {
+  min-width: 180px;
+  min-height: 52px;
+  font-size: 1.1rem;
+  animation: none;
+}
+
+@keyframes play-pulse {
+  0%,
+  100% {
+    box-shadow: var(--glow-md), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 34px rgba(255, 120, 30, 0.65), 0 0 90px rgba(255, 80, 10, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  }
+}
+
+.ghost-btn {
+  min-height: var(--tap);
+  padding: 0 1.2em;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.ghost-btn:hover {
+  background: rgba(255, 138, 31, 0.1);
+  color: var(--fire-200);
+}
+
+.webgl-fallback {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

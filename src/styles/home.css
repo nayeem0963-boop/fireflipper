@@ -1,0 +1,208 @@
+/* ==========================================================================
+   Home screen
+   Portrait/narrow: stacked (topbar, brand, stage, actions)
+   Landscape/wide:  brand + actions on the left, 3D stage on the right
+   ========================================================================== */
+.home {
+  position: relative;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto minmax(220px, 1fr) auto;
+  grid-template-areas:
+    'top'
+    'brand'
+    'stage'
+    'actions';
+  gap: clamp(8px, 2vh, 20px);
+  padding: calc(var(--safe-top) + 12px) calc(var(--safe-right) + var(--gutter)) calc(var(--safe-bottom) + 20px)
+    calc(var(--safe-left) + var(--gutter));
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 58%, rgba(255, 90, 20, 0.14), transparent 70%),
+    radial-gradient(ellipse 120% 60% at 50% 110%, rgba(143, 31, 6, 0.35), transparent 70%),
+    var(--bg);
+  overflow-x: hidden;
+}
+
+.home__topbar {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.home__domain {
+  font-size: 0.78rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.home__topbar-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.home__stage {
+  grid-area: stage;
+  position: relative;
+  min-height: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  /* Vignette over the canvas edges so it blends into the page */
+  mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, #000 55%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, #000 55%, transparent 100%);
+}
+.home__stage canvas {
+  display: block;
+}
+
+.home__brand {
+  grid-area: brand;
+  text-align: center;
+}
+
+.logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.92;
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.logo__fire {
+  font-size: clamp(2.8rem, 12vw, 6.4rem);
+  background: linear-gradient(180deg, var(--fire-100) 0%, var(--fire-200) 30%, var(--fire-400) 65%, var(--fire-600) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 18px rgba(255, 110, 30, 0.55));
+}
+.logo__flapper {
+  font-size: clamp(1.5rem, 6.4vw, 3.4rem);
+  letter-spacing: 0.28em;
+  margin-right: -0.28em; /* optically recentre the tracked word */
+  color: var(--text);
+  text-shadow: 0 0 22px rgba(255, 120, 40, 0.35);
+}
+
+.tagline {
+  margin-top: 0.9em;
+  font-size: clamp(0.8rem, 2.6vw, 1rem);
+  font-weight: 600;
+  letter-spacing: 0.45em;
+  margin-right: -0.45em;
+  text-transform: uppercase;
+  color: var(--fire-300);
+}
+
+.home__actions {
+  grid-area: actions;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.home__cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 520px;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(30, 22, 16, 0.85), rgba(21, 16, 12, 0.85));
+}
+.card__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 138, 31, 0.12);
+  color: var(--fire-300);
+}
+.card__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.card__value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.card__value--muted {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+.card--challenge {
+  border-color: var(--line-strong);
+}
+
+@media (max-width: 420px) {
+  .home__cards {
+    grid-template-columns: 1fr;
+  }
+  .play-btn {
+    width: 100%;
+  }
+}
+
+/* Wide / landscape: two columns, stage takes the right side */
+@media (min-width: 900px) and (min-aspect-ratio: 1/1) {
+  .home {
+    height: 100dvh;
+    grid-template-columns: minmax(380px, 0.9fr) 1.2fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      'top     top'
+      'brand   stage'
+      'actions stage';
+    column-gap: clamp(16px, 4vw, 64px);
+  }
+  .home__brand {
+    align-self: end;
+  }
+  .home__actions {
+    align-self: start;
+    padding-bottom: 4vh;
+  }
+}
+
+/* Short landscape phones: shrink brand so everything fits */
+@media (max-height: 520px) and (orientation: landscape) {
+  .home {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      'top     top'
+      'brand   stage'
+      'actions stage';
+  }
+  .logo__fire {
+    font-size: 2.6rem;
+  }
+  .logo__flapper {
+    font-size: 1.3rem;
+  }
+  .tagline {
+    margin-top: 0.4em;
+  }
+  .home__cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}

@@ -1,0 +1,115 @@
+/* ==========================================================================
+   Game screen: fullscreen canvas with an overlay HUD
+   ========================================================================== */
+.game {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg);
+  /* No page scrolling, pinch-zoom or text selection during play */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.game__surface {
+  position: absolute;
+  inset: 0;
+}
+.game__surface canvas {
+  display: block;
+}
+
+.hud {
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 10px;
+  padding: calc(var(--safe-top) + 12px) calc(var(--safe-right) + 14px) 0 calc(var(--safe-left) + 14px);
+  pointer-events: none; /* taps fall through to the play surface... */
+}
+.hud button {
+  pointer-events: auto; /* ...except on buttons */
+}
+.hud__left,
+.hud__right {
+  display: flex;
+  gap: 8px;
+}
+
+.hud__stats {
+  justify-self: center;
+  display: flex;
+  gap: clamp(12px, 4vw, 32px);
+  padding: 8px 20px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(11, 9, 7, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+.stat__label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.stat__value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.1rem, 3.4vw, 1.6rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--fire-200);
+  text-shadow: 0 0 12px rgba(255, 120, 30, 0.55);
+}
+
+.game__hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 8vh);
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(11, 9, 7, 0.6);
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: hint-fade 2s ease-in-out infinite;
+}
+@keyframes hint-fade {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Narrow phones: stats move to a second row so buttons keep their size */
+@media (max-width: 560px) {
+  .hud {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'left  right'
+      'stats stats';
+  }
+  .hud__left {
+    grid-area: left;
+  }
+  .hud__right {
+    grid-area: right;
+    justify-self: end;
+  }
+  .hud__stats {
+    grid-area: stats;
+  }
+}
