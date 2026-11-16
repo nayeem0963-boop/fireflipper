@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { MathUtils } from 'three';
-import { BASE_CAMERA_Z, BASE_FOV } from './cameraConfig.js';
+import { BASE_FOV, PORTRAIT_LEAD, cameraDistance } from './cameraConfig.js';
 
 /**
  * Side-on follow camera.
@@ -10,7 +10,6 @@ import { BASE_CAMERA_Z, BASE_FOV } from './cameraConfig.js';
  *  - Follows the bird's height loosely (damped) to avoid seasick motion.
  *  - Small FOV kicks on flap / orb pickup and a short, decaying crash shake.
  */
-const BASE_Z = BASE_CAMERA_Z;
 
 export default function CameraRig({ sim }) {
   const base = useRef({ x: 0, y: 0.5, initialised: false });
@@ -20,10 +19,11 @@ export default function CameraRig({ sim }) {
     const dt = Math.min(delta, 0.05);
     const aspect = size.width / Math.max(1, size.height);
 
-    const z = aspect < 1 ? BASE_Z + (1 - aspect) * 12 : BASE_Z;
+    const z = cameraDistance(aspect);
     const halfWidth = Math.tan(MathUtils.degToRad(BASE_FOV / 2)) * z * aspect;
-    // Narrow screens push the bird further left to maximise look-ahead.
-    const lead = aspect < 1 ? 0.58 : 0.45;
+    // Portrait screens push the bird further left (to ~16% from the edge)
+    // to maximise look-ahead; the tail still stays on screen.
+    const lead = aspect < 1 ? PORTRAIT_LEAD : 0.45;
     const targetX = Math.min(halfWidth * lead, 6);
     const birdY = sim.renderBirdY();
     const targetY = MathUtils.clamp(birdY * 0.3 + 0.55, -0.4, 1.6) + sim.fx.lift * 0.08;

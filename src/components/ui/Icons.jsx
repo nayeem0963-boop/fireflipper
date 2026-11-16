@@ -78,6 +78,14 @@ export const FlameIcon = () => (
   </svg>
 );
 
+export const RotateIcon = () => (
+  <svg {...base} width={18} height={18}>
+    <rect x="7" y="2" width="10" height="16" rx="2" transform="rotate(-90 12 12)" />
+    <path d="M4 7a8 8 0 0 1 8-5" />
+    <path d="M10 1.5 12 2l-1 2" />
+  </svg>
+);
+
 export const TrophyIcon = () => (
   <svg {...base}>
     <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z" />

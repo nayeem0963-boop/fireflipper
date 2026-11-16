@@ -58,7 +58,7 @@ export function fillTrack(track, builder, distance, rng) {
     const center = rng.range(lo, hi);
 
     // Sometimes leave a trail of orbs through the open space before the section.
-    if (rng.chance(0.4)) {
+    if (rng.chance(0.3)) {
       const prev = track.center;
       for (let i = 1; i <= 3; i++) {
         const k = i / 4;

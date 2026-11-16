@@ -107,7 +107,7 @@ function passage(b, x, center, gap, rng) {
   const hi = center + gap / 2;
   b.block(x, x + length, BELOW, lo, 1);
   b.block(x, x + length, hi, ABOVE, -1);
-  for (let ox = 1.2; ox < length - 0.8; ox += 2) b.orb(x + ox, center);
+  for (let ox = 1.5; ox < length - 0.8; ox += 3) b.orb(x + ox, center);
   return { length, lo, hi, free: [lo, hi] };
 }
 

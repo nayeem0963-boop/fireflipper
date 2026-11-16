@@ -93,9 +93,15 @@ scripts/
 - **Fairness:** each corridor's centre is constrained to be reachable from anywhere the bird could
   have left the previous section, using conservative climb (3.2 u/s) and drop (4.5 u/s) rates. An
   autopilot in `npm run test:sim` survives 40 of 40 random tracks to 3,000 m.
-- **Scoring:** 1 point per metre plus 10 per fire orb. Best score is saved locally; session best is
-  kept until the page closes. Crashes and pickups can only register once (orbs leave the pool
-  immediately, and both the simulation and the store guard the end of a run).
+- **Scoring:** 1 point per metre plus 5 per fire orb. Orb supply (passage lines every 3 units, a
+  trail before 30% of sections) is tuned so orbs make up about 39% of a skilled 3,000 m run (~1,950
+  orb points against 3,000 distance points): a bonus, not the main source of points. Best score is
+  saved locally; session best is kept until the page closes. Crashes and pickups can only register
+  once (orbs leave the pool immediately, and both the simulation and the store guard the end of a run).
+- **Portrait screens:** the camera pulls back further and leads the bird more (it sits about 16%
+  from the left edge), giving about 1.0 s of visible track at starting speed. Obstacles just beyond
+  the right edge also glow along that edge up to 0.45 s before they appear, and the dark gaps between
+  glows show where the opening is. The start prompt suggests turning the phone sideways.
 
 ### Performance notes
 

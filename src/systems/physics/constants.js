@@ -49,7 +49,8 @@ export const WORLD = Object.freeze({
 
 export const SCORING = Object.freeze({
   pointsPerMetre: 1,
-  orbPoints: 10,
+  /** Tuned so orbs are ~35-40% of a skilled player's score: a bonus, not the main source. */
+  orbPoints: 5,
 });
 
 export const DYING_DURATION = 1.1; // seconds of crash animation before the game-over screen
