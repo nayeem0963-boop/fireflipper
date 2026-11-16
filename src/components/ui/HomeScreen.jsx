@@ -5,6 +5,7 @@ import IconButton from './IconButton.jsx';
 import SoundToggle from './SoundToggle.jsx';
 import { FlameIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
 import { formatScore } from '../../systems/scoring/scoring.js';
+import { unlockAudio } from '../../systems/audio/sfx.js';
 import '../../styles/home.css';
 
 export default function HomeScreen() {
@@ -41,7 +42,15 @@ export default function HomeScreen() {
       </section>
 
       <section className="home__actions">
-        <button type="button" className="play-btn" onClick={startGame} autoFocus>
+        <button
+          type="button"
+          className="play-btn"
+          onClick={() => {
+            unlockAudio();
+            startGame();
+          }}
+          autoFocus
+        >
           <PlayIcon />
           <span>Play</span>
         </button>

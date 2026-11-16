@@ -3,11 +3,16 @@ import { loadValue, saveValue } from '../utils/storage.js';
 
 export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
 
-/** Run lifecycle. 'over' is reserved for when collisions are implemented. */
+/**
+ * Run lifecycle (mirrors the simulation's phases, plus PAUSED):
+ *   READY → RUNNING → DYING → OVER, with RUNNING ⇄ PAUSED.
+ */
 export const STATUS = Object.freeze({
   IDLE: 'idle',
+  READY: 'ready',
   RUNNING: 'running',
   PAUSED: 'paused',
+  DYING: 'dying',
   OVER: 'over',
 });
 
@@ -16,10 +21,11 @@ export const QUALITY = Object.freeze({ AUTO: 'auto', LOW: 'low', HIGH: 'high' })
 /**
  * Global game/UI state.
  *
- * Rule of thumb: this store holds state the UI needs to *react* to
- * (screens, run status, HUD numbers, settings). Per-frame simulation data
- * (positions, velocities, pooled obstacles) lives in refs/systems and is
- * only pushed here at a throttled rate, so React doesn't re-render at 60 Hz.
+ * This store holds state the UI *reacts* to: screens, run status, HUD
+ * numbers, results and settings. Per-frame simulation data lives in the
+ * plain-JS simulation (systems/game) and only reaches the store through
+ * throttled HUD snapshots and discrete events, so React never re-renders
+ * at frame rate.
  */
 export const useGameStore = create((set, get) => ({
   // --- navigation ---
@@ -30,10 +36,19 @@ export const useGameStore = create((set, get) => ({
   status: STATUS.IDLE,
   score: 0,
   distance: 0,
-  runId: 0, // bumped on every (re)start so systems can reset themselves
+  orbs: 0,
+  runId: 0, // bumped on every (re)start; the game loop resets the sim on change
+  overAt: 0,
+  /** { score, distance, orbs, isNewBest } of the last finished run. */
+  lastResult: null,
 
-  // --- persistent ---
+  // --- scores ---
   bestScore: loadValue('bestScore', 0),
+  /** Best score since the page was opened (not persisted). */
+  sessionBest: 0,
+  runsThisSession: 0,
+
+  // --- settings ---
   soundEnabled: loadValue('soundEnabled', true),
   quality: loadValue('quality', QUALITY.AUTO),
 
@@ -41,19 +56,35 @@ export const useGameStore = create((set, get) => ({
   startGame: () =>
     set((s) => ({
       screen: SCREENS.GAME,
-      status: STATUS.RUNNING,
-      score: 0,
-      distance: 0,
-      runId: s.runId + 1,
+      ...freshRun(s),
     })),
-  exitToMenu: () => {
-    get().commitBestScore();
-    set({ screen: SCREENS.HOME, status: STATUS.IDLE });
-  },
+  exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE }),
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
 
-  // --- run actions ---
+  // --- run lifecycle (driven by simulation events + UI) ---
+  beginRun: () => set((s) => (s.status === STATUS.READY ? { status: STATUS.RUNNING } : s)),
+  crash: () => set((s) => (s.status === STATUS.RUNNING ? { status: STATUS.DYING } : s)),
+  endRun: ({ score, distance, orbs }) => {
+    const s = get();
+    // Guard: a run can only end once.
+    if (s.status !== STATUS.DYING && s.status !== STATUS.RUNNING) return;
+    const isNewBest = score > s.bestScore;
+    if (isNewBest) saveValue('bestScore', score);
+    set({
+      status: STATUS.OVER,
+      overAt: performance.now(),
+      score,
+      distance,
+      orbs,
+      lastResult: { score, distance, orbs, isNewBest },
+      bestScore: Math.max(s.bestScore, score),
+      sessionBest: Math.max(s.sessionBest, score),
+      runsThisSession: s.runsThisSession + 1,
+    });
+  },
+  restart: () => set((s) => freshRun(s)),
+
   pause: () => set((s) => (s.status === STATUS.RUNNING ? { status: STATUS.PAUSED } : s)),
   resume: () => set((s) => (s.status === STATUS.PAUSED ? { status: STATUS.RUNNING } : s)),
   togglePause: () => {
@@ -61,21 +92,11 @@ export const useGameStore = create((set, get) => ({
     if (status === STATUS.RUNNING) pause();
     else if (status === STATUS.PAUSED) resume();
   },
-  restart: () => {
-    get().commitBestScore();
-    set((s) => ({ status: STATUS.RUNNING, score: 0, distance: 0, runId: s.runId + 1 }));
-  },
 
-  // --- HUD updates (called by systems at a throttled rate) ---
-  setDistance: (distance) => set({ distance }),
-  addScore: (points) => set((s) => ({ score: s.score + points })),
-
-  commitBestScore: () => {
-    const { score, bestScore } = get();
-    if (score > bestScore) {
-      saveValue('bestScore', score);
-      set({ bestScore: score });
-    }
+  /** Throttled HUD snapshot from the game loop. Skips no-op updates. */
+  setHud: (distance, score, orbs) => {
+    const s = get();
+    if (s.distance !== distance || s.score !== score || s.orbs !== orbs) set({ distance, score, orbs });
   },
 
   // --- settings ---
@@ -89,3 +110,7 @@ export const useGameStore = create((set, get) => ({
     set({ quality });
   },
 }));
+
+function freshRun(s) {
+  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, lastResult: null, runId: s.runId + 1 };
+}

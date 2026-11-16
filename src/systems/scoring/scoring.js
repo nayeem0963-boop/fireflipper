@@ -1,14 +1,17 @@
-/** Pure scoring helpers: no React, no Three.js, easy to unit test. */
+import { SCORING } from '../physics/constants.js';
 
-/** World units per displayed metre. */
-export const UNITS_PER_METRE = 1;
+/** Pure scoring helpers: no React, no Three.js, unit-testable. */
 
 export function toMetres(distanceUnits) {
-  return Math.floor(distanceUnits / UNITS_PER_METRE);
+  return Math.max(0, Math.floor(distanceUnits));
 }
 
-export function formatDistance(distanceUnits) {
-  return `${toMetres(distanceUnits).toLocaleString()} m`;
+export function computeScore(metres, orbs) {
+  return metres * SCORING.pointsPerMetre + orbs * SCORING.orbPoints;
+}
+
+export function formatDistance(metres) {
+  return `${metres.toLocaleString()} m`;
 }
 
 export function formatScore(score) {

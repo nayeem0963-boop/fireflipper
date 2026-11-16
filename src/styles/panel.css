@@ -72,6 +72,81 @@
   color: var(--text-dim);
 }
 
+/* Game over */
+.overlay--gameover {
+  animation: overlay-in 0.3s ease-out;
+}
+.gameover {
+  gap: 12px;
+  animation: panel-rise 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.gameover__kicker {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.gameover__score {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(2.6rem, 11vw, 3.6rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, var(--fire-100), var(--fire-300) 50%, var(--fire-500));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 16px rgba(255, 110, 30, 0.5));
+}
+.gameover__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  margin: 4px 0 8px;
+}
+.gameover__stats div {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(11, 9, 7, 0.5);
+}
+.gameover__stats dt {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.gameover__stats dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.gameover__sub {
+  font-weight: 500;
+  font-size: 0.8em;
+  color: var(--fire-300);
+}
+.badge {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--fire-300), var(--fire-500));
+  color: #1a0904;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: var(--glow-sm);
+}
+@keyframes panel-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+}
+
 .setting {
   display: flex;
   align-items: center;

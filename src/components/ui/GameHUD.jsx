@@ -10,11 +10,14 @@ import { ExitIcon, FullscreenIcon, PauseIcon, PlayIcon, RestartIcon } from './Ic
 export default function GameHUD() {
   const score = useGameStore((s) => s.score);
   const distance = useGameStore((s) => s.distance);
+  const orbs = useGameStore((s) => s.orbs);
   const status = useGameStore((s) => s.status);
   const togglePause = useGameStore((s) => s.togglePause);
   const restart = useGameStore((s) => s.restart);
   const exitToMenu = useGameStore((s) => s.exitToMenu);
   const paused = status === STATUS.PAUSED;
+  const canPause = status === STATUS.RUNNING || paused;
+  const showStats = status !== STATUS.OVER;
 
   const [fs, setFs] = useState(isFullscreen);
   useEffect(() => {
@@ -35,16 +38,26 @@ export default function GameHUD() {
         </IconButton>
       </div>
 
-      <div className="hud__stats" aria-live="off">
-        <div className="stat">
-          <span className="stat__label">Score</span>
-          <span className="stat__value">{formatScore(score)}</span>
+      {showStats && (
+        <div className="hud__stats" aria-live="off">
+          <div className="stat">
+            <span className="stat__label">Score</span>
+            <span className="stat__value">{formatScore(score)}</span>
+          </div>
+          <div className="stat">
+            <span className="stat__label">Distance</span>
+            <span className="stat__value">{formatDistance(distance)}</span>
+          </div>
+          <div className="stat stat--orbs">
+            <span className="stat__label">Orbs</span>
+            {/* key re-mounts the value so the pop animation replays on each pickup */}
+            <span className="stat__value" key={orbs}>
+              <span className="orb-dot" aria-hidden="true" />
+              {orbs}
+            </span>
+          </div>
         </div>
-        <div className="stat">
-          <span className="stat__label">Distance</span>
-          <span className="stat__value">{formatDistance(distance)}</span>
-        </div>
-      </div>
+      )}
 
       <div className="hud__right">
         <SoundToggle />
@@ -53,10 +66,10 @@ export default function GameHUD() {
             <FullscreenIcon />
           </IconButton>
         )}
-        <IconButton label="Restart" onClick={restart}>
+        <IconButton label="Restart" onClick={restart} className="hud__restart">
           <RestartIcon />
         </IconButton>
-        <IconButton label={paused ? 'Resume' : 'Pause'} onClick={togglePause} className="icon-btn--accent">
+        <IconButton label={paused ? 'Resume' : 'Pause'} onClick={togglePause} className="icon-btn--accent" disabled={!canPause}>
           {paused ? <PlayIcon /> : <PauseIcon />}
         </IconButton>
       </div>

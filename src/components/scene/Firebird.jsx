@@ -2,7 +2,6 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, DoubleSide, Shape } from 'three';
 import { getGlowTexture } from '../../utils/textures.js';
-import { runtime } from '../../systems/runtime.js';
 
 /**
  * Placeholder firebird built from primitive geometry. It faces +X, so a
@@ -15,8 +14,22 @@ import { runtime } from '../../systems/runtime.js';
  *  - wingSpeed:   base wing-beat speed (radians/sec)
  *  - glow:        halo sprite opacity
  *  - lightIntensity: strength of the warm point light the bird casts
+ *  - flight:      optional live flight state { vy, sinceFlap, dead } from the
+ *                 simulation. When given, wings perform a real downstroke on
+ *                 each flap, tuck back in a dive and go limp after a crash.
  */
-const FLAP_BOOST_MS = 380;
+const STROKE_TIME = 0.26; // seconds for one powered wing stroke
+
+const clamp01 = (v) => Math.min(1, Math.max(0, v));
+const easeOut = (u) => 1 - (1 - u) * (1 - u);
+const easeInOut = (u) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
+
+/** Wing angle over one flap: snap up, power down, recover. u ∈ [0, 1). */
+function flapStroke(u) {
+  if (u < 0.12) return 0.4 + (1.05 - 0.4) * easeOut(u / 0.12);
+  if (u < 0.5) return 1.05 + (-0.8 - 1.05) * easeOut((u - 0.12) / 0.38);
+  return -0.8 + (0.3 + 0.8) * easeInOut((u - 0.5) / 0.5);
+}
 
 const COLORS = {
   body: '#ff5a14',
@@ -46,32 +59,64 @@ function createWingShape() {
   return s;
 }
 
-export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lightIntensity = 6, ...props }) {
+export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lightIntensity = 6, flight, ...props }) {
   const root = useRef();
   const leftWing = useRef();
   const rightWing = useRef();
   const tail = useRef();
   const crest = useRef();
+  const halo = useRef();
   const phase = useRef(0);
+  const lift = useRef(0.25);
 
   const wingShape = useMemo(createWingShape, []);
   const glowMap = useMemo(getGlowTexture, []);
 
   useFrame((state, delta) => {
     const t = state.clock.elapsedTime;
-    const sinceFlap = performance.now() - runtime.lastFlapAt;
-    const boost = sinceFlap < FLAP_BOOST_MS ? 1 - sinceFlap / FLAP_BOOST_MS : 0;
+    const dt = Math.min(delta, 0.05);
+    let targetLift;
+    let sweep = 0;
+    let beat;
 
-    // Wing beat: advance phase so speed changes don't cause jumps.
-    phase.current += delta * wingSpeed * (1 + boost * 1.6);
-    const beat = Math.sin(phase.current);
-    const lift = 0.25 + beat * (0.55 + boost * 0.25);
-    if (rightWing.current) rightWing.current.rotation.x = Math.PI / 2 - lift;
-    if (leftWing.current) leftWing.current.rotation.x = -Math.PI / 2 + lift;
+    if (flight) {
+      // Gameplay mode: wings are driven by the flight state.
+      const tuck = flight.dead ? 0 : clamp01((-flight.vy - 5) / 7); // fold back in a dive
+      phase.current += dt * wingSpeed * (1 - tuck * 0.6);
+      beat = Math.sin(phase.current);
+      if (flight.dead) {
+        targetLift = -0.35 + beat * 0.08; // limp
+      } else if (flight.sinceFlap < STROKE_TIME) {
+        targetLift = flapStroke(flight.sinceFlap / STROKE_TIME);
+      } else {
+        targetLift = 0.25 - tuck * 0.2 + beat * 0.5 * (1 - tuck * 0.85);
+      }
+      sweep = tuck * 0.75;
+      if (halo.current) {
+        const target = flight.dead ? glow * 0.35 : glow;
+        halo.current.opacity += (target - halo.current.opacity) * (1 - Math.exp(-4 * dt));
+      }
+    } else {
+      // Showcase mode: steady idle beat.
+      phase.current += dt * wingSpeed;
+      beat = Math.sin(phase.current);
+      targetLift = 0.25 + beat * 0.55;
+    }
+
+    // Smooth toward the target so stroke/idle transitions never pop.
+    lift.current += (targetLift - lift.current) * (1 - Math.exp(-30 * dt));
+    if (rightWing.current) {
+      rightWing.current.rotation.x = Math.PI / 2 - lift.current;
+      rightWing.current.rotation.z = sweep;
+    }
+    if (leftWing.current) {
+      leftWing.current.rotation.x = -Math.PI / 2 + lift.current;
+      leftWing.current.rotation.z = sweep;
+    }
 
     if (root.current) {
-      root.current.position.y = Math.sin(t * 1.6) * float - beat * 0.03 + boost * 0.12;
-      root.current.rotation.z = Math.sin(t * 1.1) * 0.06 + boost * 0.15;
+      root.current.position.y = Math.sin(t * 1.6) * float - beat * 0.03;
+      root.current.rotation.z = Math.sin(t * 1.1) * 0.06;
       root.current.rotation.x = Math.sin(t * 0.8) * 0.04;
     }
     if (tail.current) {
@@ -93,6 +138,7 @@ export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lig
         {/* Halo */}
         <sprite scale={[4.2, 4.2, 1]} renderOrder={-1}>
           <spriteMaterial
+            ref={halo}
             map={glowMap}
             color="#ff7a24"
             transparent

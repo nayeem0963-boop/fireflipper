@@ -1,70 +1,74 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useGameStore, STATUS } from '../../store/useGameStore.js';
 import SceneCanvas from '../scene/SceneCanvas.jsx';
 import EmberValleyScene from '../../scenes/EmberValley/EmberValleyScene.jsx';
 import GameHUD from '../ui/GameHUD.jsx';
 import PauseMenu from '../ui/PauseMenu.jsx';
+import StartPrompt from '../ui/StartPrompt.jsx';
+import GameOverPanel from '../ui/GameOverPanel.jsx';
 import { useGameInput } from '../../hooks/useGameInput.js';
 import { usePauseWhenHidden } from '../../hooks/usePauseWhenHidden.js';
+import { useGameAudio } from '../../hooks/useGameAudio.js';
 import { ACTIONS, onAction } from '../../systems/input/inputBus.js';
-import { runtime } from '../../systems/runtime.js';
-import { isCoarsePointer } from '../../utils/device.js';
+import { game } from '../../systems/game/gameInstance.js';
+import { unlockAudio } from '../../systems/audio/sfx.js';
+import { BASE_FOV } from '../../scenes/EmberValley/cameraConfig.js';
 import '../../styles/game.css';
+
+/** Ignore retry input this soon after the game-over screen appears (avoids accidental restarts). */
+const RETRY_GUARD_MS = 450;
 
 /**
  * Gameplay screen: composes the fullscreen canvas, HUD and overlays, and
- * wires input actions to systems. No game rules live here.
+ * routes input actions to the simulation. Contains no game rules.
  */
 export default function GameScreen() {
   const status = useGameStore((s) => s.status);
-  const runId = useGameStore((s) => s.runId);
   const playSurface = useRef(null);
-  const [showHint, setShowHint] = useState(true);
 
   useGameInput(playSurface);
   usePauseWhenHidden();
+  useGameAudio();
 
-  // Map abstract actions to effects. Flight physics will subscribe here later.
   useEffect(() => {
-    const offFlap = onAction(ACTIONS.FLAP, () => {
-      if (useGameStore.getState().status !== STATUS.RUNNING) return;
-      runtime.lastFlapAt = performance.now();
-      setShowHint(false);
-    });
-    const offPause = onAction(ACTIONS.PAUSE, () => useGameStore.getState().togglePause());
-    return () => {
-      offFlap();
-      offPause();
-    };
+    const store = useGameStore.getState;
+    const offs = [
+      onAction(ACTIONS.FLAP_PRESS, () => {
+        unlockAudio();
+        const { status: st, overAt, restart } = store();
+        if (st === STATUS.OVER) {
+          if (performance.now() - overAt > RETRY_GUARD_MS) restart();
+          return;
+        }
+        if (st === STATUS.READY || st === STATUS.RUNNING) {
+          game.setHolding(true);
+          game.flap();
+        }
+      }),
+      onAction(ACTIONS.FLAP_RELEASE, () => game.setHolding(false)),
+      onAction(ACTIONS.DIVE_PRESS, () => game.setDive(true)),
+      onAction(ACTIONS.DIVE_RELEASE, () => game.setDive(false)),
+      onAction(ACTIONS.PAUSE, () => store().togglePause()),
+    ];
+    return () => offs.forEach((off) => off());
   }, []);
-
-  useEffect(() => setShowHint(true), [runId]);
 
   const paused = status === STATUS.PAUSED;
 
   return (
     <main className="game">
       <div className="game__surface" ref={playSurface}>
-        <SceneCanvas camera={{ position: [0, 0.6, 10], fov: 50 }} frameloop={paused ? 'demand' : 'always'}>
+        <SceneCanvas camera={{ position: [0, 0.5, 10], fov: BASE_FOV }} frameloop={paused ? 'demand' : 'always'}>
           <EmberValleyScene />
         </SceneCanvas>
       </div>
 
       <GameHUD />
 
-      {showHint && !paused && (
-        <p className="game__hint" aria-hidden="true">
-          {isCoarsePointer() ? (
-            'Tap anywhere to flap'
-          ) : (
-            <>
-              Click or press <kbd>Space</kbd> to flap
-            </>
-          )}
-        </p>
-      )}
-
+      {status === STATUS.READY && <StartPrompt />}
+      {status === STATUS.DYING && <div className="game__flash" aria-hidden="true" />}
       {paused && <PauseMenu />}
+      {status === STATUS.OVER && <GameOverPanel />}
     </main>
   );
 }

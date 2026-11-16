@@ -118,6 +118,12 @@ kbd {
 .icon-btn:active {
   transform: scale(0.94);
 }
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  box-shadow: none;
+  color: var(--text);
+}
 .icon-btn--accent {
   border-color: var(--line-strong);
   color: var(--fire-200);

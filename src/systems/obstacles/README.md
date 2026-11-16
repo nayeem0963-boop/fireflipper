@@ -1,9 +1,12 @@
 # Obstacles system
 
-Not implemented in the initial setup pass. Planned shape:
+- `patterns.js`: section builders (gate, single column, floating rocks, rock formation,
+  narrow passage). Each returns its safe corridor and the range the bird may exit at.
+- `spawner.js`: places sections ahead of the bird, scales difficulty with distance and
+  constrains every corridor to be reachable from the previous one.
+- `ObjectPool.js`: recycles obstacle and orb records, so generation never allocates
+  per frame.
 
-- `ObjectPool.js`: generic pool (implemented) used to recycle obstacle instances.
-- `spawner.js`: decides when/where to spawn based on `runtime.distance`.
-- `collision.js`: pure bounds tests against the bird, no React.
-- Rendering lives in `src/components/scene/`, reading pooled data each frame
-  (ideally via `InstancedMesh` to keep draw calls low).
+Rendering lives in `src/components/scene/ObstacleField.jsx` (InstancedMesh per shape);
+collision lives in `src/systems/physics/collision.js`. Fairness is verified headlessly
+by `npm run test:sim`.

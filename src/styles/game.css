@@ -6,7 +6,7 @@
   inset: 0;
   overflow: hidden;
   background: var(--bg);
-  /* No page scrolling, pinch-zoom or text selection during play */
+  /* No page scrolling, pinch-zoom, text selection or callouts during play */
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -16,16 +16,25 @@
 .game__surface {
   position: absolute;
   inset: 0;
+  cursor: pointer;
 }
 .game__surface canvas {
   display: block;
 }
 
+/* --------------------------------------------------------------------------
+   HUD
+   Wide: [back] [stats, centred] [controls]
+   Narrow (<600px): controls on the first row, stats on their own row below,
+   so nothing is clipped at 320-414px widths.
+   -------------------------------------------------------------------------- */
 .hud {
   position: absolute;
   inset: 0 0 auto 0;
+  z-index: 10;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'left stats right';
   align-items: start;
   gap: 10px;
   padding: calc(var(--safe-top) + 12px) calc(var(--safe-right) + 14px) 0 calc(var(--safe-left) + 14px);
@@ -34,20 +43,28 @@
 .hud button {
   pointer-events: auto; /* ...except on buttons */
 }
-.hud__left,
-.hud__right {
+.hud__left {
+  grid-area: left;
   display: flex;
   gap: 8px;
 }
+.hud__right {
+  grid-area: right;
+  display: flex;
+  gap: 8px;
+  justify-self: end;
+}
 
 .hud__stats {
+  grid-area: stats;
   justify-self: center;
   display: flex;
-  gap: clamp(12px, 4vw, 32px);
-  padding: 8px 20px;
+  gap: clamp(12px, 3vw, 28px);
+  max-width: 100%;
+  padding: 7px clamp(14px, 3vw, 22px);
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(11, 9, 7, 0.55);
+  background: rgba(11, 9, 7, 0.6);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -55,61 +72,145 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  line-height: 1.1;
+  min-width: 0;
+  line-height: 1.15;
 }
 .stat__label {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 .stat__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(1.1rem, 3.4vw, 1.6rem);
+  font-size: clamp(1.05rem, 3.2vw, 1.5rem);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   color: var(--fire-200);
   text-shadow: 0 0 12px rgba(255, 120, 30, 0.55);
 }
-
-.game__hint {
-  position: absolute;
-  left: 50%;
-  bottom: calc(var(--safe-bottom) + 8vh);
-  transform: translateX(-50%);
-  padding: 10px 18px;
-  border-radius: 999px;
-  background: rgba(11, 9, 7, 0.6);
-  border: 1px solid var(--line);
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  white-space: nowrap;
-  pointer-events: none;
-  animation: hint-fade 2s ease-in-out infinite;
+.stat--orbs .stat__value {
+  animation: stat-pop 0.35s ease-out;
 }
-@keyframes hint-fade {
-  50% {
-    opacity: 0.55;
+@keyframes stat-pop {
+  0% {
+    transform: scale(1.35);
+    color: #fff4d0;
+  }
+  100% {
+    transform: scale(1);
   }
 }
 
-/* Narrow phones: stats move to a second row so buttons keep their size */
-@media (max-width: 560px) {
+.orb-dot {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #fff6cc, var(--fire-300) 45%, var(--fire-500));
+  box-shadow: 0 0 8px rgba(255, 150, 40, 0.8);
+  vertical-align: middle;
+}
+
+@media (max-width: 599px) {
   .hud {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
     grid-template-areas:
       'left  right'
       'stats stats';
+    gap: 8px;
+    padding-left: calc(var(--safe-left) + 10px);
+    padding-right: calc(var(--safe-right) + 10px);
   }
-  .hud__left {
-    grid-area: left;
+  .hud .icon-btn {
+    --tap: 42px;
   }
   .hud__right {
-    grid-area: right;
-    justify-self: end;
+    gap: 6px;
   }
-  .hud__stats {
-    grid-area: stats;
+}
+
+/* --------------------------------------------------------------------------
+   Start prompt (READY state). Non-interactive so taps reach the surface.
+   -------------------------------------------------------------------------- */
+.start-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + clamp(24px, 9vh, 90px));
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  pointer-events: none;
+  animation: prompt-in 0.35s ease-out;
+}
+.start-prompt__title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(1.4rem, 5vw, 2.1rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fire-200);
+  text-shadow: 0 0 22px rgba(255, 110, 30, 0.7);
+  animation: hint-fade 1.8s ease-in-out infinite;
+}
+.start-prompt__tips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.start-prompt__tips li {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(11, 9, 7, 0.65);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.start-prompt__tips strong {
+  color: var(--text);
+}
+.start-prompt__goal {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+@keyframes prompt-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+}
+@keyframes hint-fade {
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Crash flash (DYING state) */
+.game__flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 30% 50%, rgba(255, 170, 60, 0.55), rgba(200, 40, 0, 0.35) 60%, transparent);
+  animation: flash 0.6s ease-out forwards;
+}
+@keyframes flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
