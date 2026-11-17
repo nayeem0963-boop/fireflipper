@@ -5,6 +5,9 @@ import { PHYSICS } from '../physics/constants.js';
 import { GAME_EVENTS, gameEvents } from '../events/gameEvents.js';
 
 const HUD_INTERVAL = 0.1; // seconds; the HUD only needs ~10 updates/s
+/** Real-time freeze on impact (seconds): a few frames of stillness makes a crash land. Skipped for reduced-motion users. */
+const HIT_PAUSE = 0.07;
+const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 /**
  * Bridges the pure simulation to React/R3F:
@@ -19,16 +22,24 @@ export function useGameLoop(sim) {
   const seed = useGameStore((s) => s.seed);
   const acc = useRef(0);
   const hudTimer = useRef(0);
+  const hitPause = useRef(0);
 
   useEffect(() => {
     sim.reset(seed ?? undefined);
     acc.current = 0;
     hudTimer.current = 0;
+    hitPause.current = 0;
   }, [runId, seed, sim]);
 
   useFrame((_, rawDelta) => {
     const store = useGameStore.getState();
     if (store.status === STATUS.PAUSED || store.status === STATUS.IDLE) return;
+
+    if (hitPause.current > 0) {
+      // Frozen on impact: the sim waits, the camera shake and FOV kick hold, then play resumes.
+      hitPause.current -= rawDelta;
+      return;
+    }
 
     const step = PHYSICS.fixedStep;
     acc.current += Math.min(rawDelta, PHYSICS.maxFrameDelta);
@@ -42,8 +53,10 @@ export function useGameLoop(sim) {
       for (const e of sim.events) {
         if (e.type === GAME_EVENTS.START) store.beginRun();
         else if (e.type === GAME_EVENTS.NEAR_MISS) store.nearMiss(e.streak, e.points);
-        else if (e.type === GAME_EVENTS.CRASH) store.crash();
-        else if (e.type === GAME_EVENTS.OVER) store.endRun(sim.results());
+        else if (e.type === GAME_EVENTS.CRASH) {
+          store.crash();
+          if (!prefersReducedMotion()) hitPause.current = HIT_PAUSE;
+        } else if (e.type === GAME_EVENTS.OVER) store.endRun(sim.results());
         gameEvents.emit(e.type, e);
       }
       sim.events.length = 0;

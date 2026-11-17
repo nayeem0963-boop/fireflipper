@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useGameStore, QUALITY } from '../../store/useGameStore.js';
 import { SKINS, isUnlocked } from '../../systems/skins/skins.js';
 import { useSkin } from '../../hooks/useSkin.js';
+import { isHapticsSupported } from '../../utils/haptics.js';
 import IconButton from './IconButton.jsx';
 import { CloseIcon } from './Icons.jsx';
 import '../../styles/panel.css';
@@ -17,6 +18,8 @@ export default function SettingsPanel() {
   const close = useGameStore((s) => s.closeSettings);
   const soundEnabled = useGameStore((s) => s.soundEnabled);
   const toggleSound = useGameStore((s) => s.toggleSound);
+  const hapticsEnabled = useGameStore((s) => s.hapticsEnabled);
+  const toggleHaptics = useGameStore((s) => s.toggleHaptics);
   const quality = useGameStore((s) => s.quality);
   const setQuality = useGameStore((s) => s.setQuality);
   const bestScore = useGameStore((s) => s.bestScore);
@@ -62,6 +65,22 @@ export default function SettingsPanel() {
             <span className="switch__thumb" />
           </button>
         </div>
+
+        {isHapticsSupported() && (
+          <div className="setting">
+            <span className="setting__label">Vibration</span>
+            <button
+              type="button"
+              className={`switch ${hapticsEnabled ? 'is-on' : ''}`}
+              role="switch"
+              aria-checked={hapticsEnabled}
+              aria-label="Vibration"
+              onClick={toggleHaptics}
+            >
+              <span className="switch__thumb" />
+            </button>
+          </div>
+        )}
 
         <div className="setting">
           <span className="setting__label" id="quality-label">

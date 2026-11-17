@@ -65,6 +65,7 @@ export const useGameStore = create((set, get) => ({
 
   // --- settings ---
   soundEnabled: loadValue('soundEnabled', true),
+  hapticsEnabled: loadValue('hapticsEnabled', true),
   quality: loadValue('quality', QUALITY.AUTO),
   /** Anonymous id for the leaderboard (no accounts yet) and the display name the player picked. */
   playerId: loadPlayerId(),
@@ -184,6 +185,11 @@ export const useGameStore = create((set, get) => ({
     saveValue('skinId', id);
     set({ skinId: id });
   },
+  toggleHaptics: () =>
+    set((s) => {
+      saveValue('hapticsEnabled', !s.hapticsEnabled);
+      return { hapticsEnabled: !s.hapticsEnabled };
+    }),
   setQuality: (quality) => {
     saveValue('quality', quality);
     set({ quality });

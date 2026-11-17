@@ -437,6 +437,7 @@ export function createGameSim() {
     b.vy = Math.max(b.vy, 0) * 0.3 + 4; // knocked upward before falling
     sim.input.holding = sim.input.dive = sim.input.flapQueued = false;
     sim.fx.shake = 0.35;
+    sim.fx.fovKick += 2; // a punch-in on impact
     sim.events.push({ type: GAME_EVENTS.CRASH, x: sim.distance, y: b.y });
   }
 

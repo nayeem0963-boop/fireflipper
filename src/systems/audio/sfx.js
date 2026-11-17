@@ -76,7 +76,16 @@ const ready = () => ctx && ctx.state === 'running';
 export const sfx = {
   flap() {
     if (!ready()) return;
-    noiseBurst({ duration: 0.12, filter: 'bandpass', from: 1300, to: 450, q: 0.9, peak: 0.22 });
+    // Small random pitch and level changes so rapid flapping doesn't sound mechanical.
+    const pitch = 0.85 + Math.random() * 0.3;
+    noiseBurst({
+      duration: 0.1 + Math.random() * 0.04,
+      filter: 'bandpass',
+      from: 1300 * pitch,
+      to: 450 * pitch,
+      q: 0.9,
+      peak: 0.18 + Math.random() * 0.06,
+    });
   },
   orb() {
     if (!ready()) return;

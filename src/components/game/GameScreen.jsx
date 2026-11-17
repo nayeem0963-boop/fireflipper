@@ -10,6 +10,7 @@ import GameOverPanel from '../ui/GameOverPanel.jsx';
 import { useGameInput } from '../../hooks/useGameInput.js';
 import { usePauseWhenHidden } from '../../hooks/usePauseWhenHidden.js';
 import { useGameAudio } from '../../hooks/useGameAudio.js';
+import { useGameHaptics } from '../../hooks/useGameHaptics.js';
 import { ACTIONS, onAction } from '../../systems/input/inputBus.js';
 import { game } from '../../systems/game/gameInstance.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
@@ -30,6 +31,7 @@ export default function GameScreen() {
   useGameInput(playSurface);
   usePauseWhenHidden();
   useGameAudio();
+  useGameHaptics();
 
   useEffect(() => {
     const store = useGameStore.getState;

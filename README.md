@@ -134,6 +134,15 @@ scripts/
 - Procedural textures are disposed on unmount; JSX geometries and materials are disposed by R3F.
 - GLB models will load via drei's `useGLTF` from `public/models/`.
 
+### Feel
+
+- **Crash:** a 70 ms real-time hit-pause (the sim waits while the camera shake and FOV punch hold),
+  skipped when the OS asks for reduced motion.
+- **Sound:** flap pitch and level vary slightly so rapid flapping doesn't sound mechanical.
+- **Vibration:** short pulses on orbs, near misses, power-ups, shield breaks and crashes (not flaps), where
+  the browser supports the Vibration API (Android Chrome and most desktop Chromium; not iOS Safari). A
+  Settings switch turns it off.
+
 ### First-run coaching
 
 New players see short hints during their first ~70 m (`RunCallouts`); after that the
