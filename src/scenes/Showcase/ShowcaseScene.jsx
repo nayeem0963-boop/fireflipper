@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import Firebird from '../../components/scene/Firebird.jsx';
+import AvatarBird from '../../components/scene/AvatarBird.jsx';
 import { useSkin } from '../../hooks/useSkin.js';
 import EmberParticles from '../../components/scene/EmberParticles.jsx';
 import { useRenderSettings } from '../../hooks/useRenderSettings.js';
@@ -24,7 +24,7 @@ export default function ShowcaseScene() {
       <CameraParallax />
 
       <group position={[0, 0.1, 0]}>
-        <Firebird palette={skin.palette} rotation={[0, -0.55, 0]} float={0.16} wingSpeed={5.5} />
+        <AvatarBird avatar={skin} rotation={[0, -0.55, 0]} float={0.16} wingSpeed={5.5} />
         <FireRing />
       </group>
 

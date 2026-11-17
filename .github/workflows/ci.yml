@@ -19,4 +19,5 @@ jobs:
       - run: npm run format:check
       - run: npm run test:sim
       - run: npm run test:leaderboard
+      - run: npm run test:avatars
       - run: npm run build

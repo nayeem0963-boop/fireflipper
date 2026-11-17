@@ -4,6 +4,7 @@ import IconButton from './IconButton.jsx';
 import SoundToggle from './SoundToggle.jsx';
 import { FlameIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
 import { formatScore } from '../../systems/scoring/scoring.js';
+import { useSkin } from '../../hooks/useSkin.js';
 import { todayKey } from '../../utils/daily.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
 import '../../styles/home.css';
@@ -19,6 +20,9 @@ export default function HomeScreen() {
   const settingsOpen = useGameStore((s) => s.settingsOpen);
   const leaderboardOpen = useGameStore((s) => s.leaderboardOpen);
   const openLeaderboard = useGameStore((s) => s.openLeaderboard);
+  const openAvatars = useGameStore((s) => s.openAvatars);
+  const avatarsOpen = useGameStore((s) => s.avatarsOpen);
+  const skin = useSkin();
 
   return (
     <main className="home">
@@ -38,7 +42,7 @@ export default function HomeScreen() {
       <section className="home__stage" aria-label="Firebird preview">
         {/* Stop rendering the preview while the settings modal covers it */}
         <Suspense fallback={null}>
-          <HomeStage paused={settingsOpen || leaderboardOpen} />
+          <HomeStage paused={settingsOpen || leaderboardOpen || avatarsOpen} />
         </Suspense>
       </section>
 
@@ -94,6 +98,11 @@ export default function HomeScreen() {
             </div>
           </button>
         </div>
+
+        <button type="button" className="ghost-btn home__bird" onClick={openAvatars}>
+          <FlameIcon />
+          <span>Your bird: {skin.name}</span>
+        </button>
       </section>
     </main>
   );

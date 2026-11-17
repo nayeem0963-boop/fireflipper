@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending } from 'three';
-import Firebird from './Firebird.jsx';
+import AvatarBird from './AvatarBird.jsx';
 import { useSkin } from '../../hooks/useSkin.js';
 import { POWERUP_INFO } from '../../systems/powerups/appearance.js';
 
@@ -34,10 +34,10 @@ export default function PlayerBird({ sim }) {
   return (
     <group ref={group}>
       {/* Scaled so the body matches the 0.36 collision radius; wings and tail don't collide. */}
-      <Firebird
+      <AvatarBird
+        avatar={skin}
         scale={0.6}
         rotation={[0, -0.12, 0]}
-        palette={skin.palette}
         flight={sim.bird}
         float={0.03}
         wingSpeed={9}

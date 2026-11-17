@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { loadValue, saveValue } from '../utils/storage.js';
 import { seedForKey, todayKey } from '../utils/daily.js';
 import { SIM_VERSION } from '../systems/game/simVersion.js';
-import { DEFAULT_SKIN_ID, isUnlocked, getSkin, newlyUnlocked } from '../systems/skins/skins.js';
+import { newlyUnlocked } from '../systems/skins/skins.js';
+import { DEFAULT_AVATAR_ID, getAvatar, isAvatarUnlocked } from '../systems/avatars/avatars.js';
 
 export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
 
@@ -37,6 +38,8 @@ export const useGameStore = create((set, get) => ({
   screen: SCREENS.HOME,
   settingsOpen: false,
   leaderboardOpen: false,
+  avatarsOpen: false,
+  creditsOpen: false,
 
   // --- current run ---
   mode: MODE.FREE,
@@ -73,8 +76,8 @@ export const useGameStore = create((set, get) => ({
   /** Anonymous id for the leaderboard (no accounts yet) and the display name the player picked. */
   playerId: loadPlayerId(),
   playerName: loadValue('playerName', ''),
-  /** Selected bird skin id; falls back to the default while it is still locked. */
-  skinId: loadValue('skinId', DEFAULT_SKIN_ID),
+  /** Selected avatar id (a colour scheme of the original bird, or a model bird); falls back to the default while locked. */
+  skinId: loadValue('skinId', DEFAULT_AVATAR_ID),
   /** First-run coaching hints are shown until the player has flown a short distance. */
   tutorialDone: loadValue('tutorialDone', false),
 
@@ -92,6 +95,10 @@ export const useGameStore = create((set, get) => ({
       };
     }),
   exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE }),
+  openAvatars: () => set({ avatarsOpen: true }),
+  closeAvatars: () => set({ avatarsOpen: false }),
+  openCredits: () => set({ creditsOpen: true }),
+  closeCredits: () => set({ creditsOpen: false }),
   openLeaderboard: () => set({ leaderboardOpen: true }),
   closeLeaderboard: () => set({ leaderboardOpen: false }),
   setPlayerName: (name) => {
@@ -190,7 +197,7 @@ export const useGameStore = create((set, get) => ({
     }),
   selectSkin: (id) => {
     const s = get();
-    if (!isUnlocked(getSkin(id), s.bestScore)) return;
+    if (!isAvatarUnlocked(getAvatar(id), s.bestScore)) return;
     saveValue('skinId', id);
     set({ skinId: id });
   },

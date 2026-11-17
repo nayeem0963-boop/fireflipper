@@ -28,6 +28,7 @@ npm run preview   # serve the production build
 npm run lint      # ESLint
 npm run format    # Prettier (format:check in CI)
 npm run test:leaderboard  # replay verification and leaderboard logic
+npm run test:avatars  # bird list, model files and credits
 npm run balance   # simulated players of four skill levels: where runs end, score mix (informational)
 npm run test:sim  # headless gameplay tests (physics, collisions, scoring, track fairness)
 ```
@@ -178,6 +179,29 @@ every attempt, so the ghost is meaningful there (free-play seeds are random, so 
 second simulation (`systems/replay/ghost.js`) fed the recorded inputs and stepped in lockstep with the live run,
 so it flies exactly the path it did before. Only today's best attempt is kept (in local storage, capped at 6,000
 input entries).
+
+### Choosing your bird
+
+**Your bird** on the menu (or Settings > Bird) opens a picker with a live preview. There are ten birds:
+
+- **Fire Flipper** (the original bird in four colour schemes: Ember, Azure Flame, Verdant Blaze, Void Phoenix). The
+  last three unlock by best free-play score.
+- **Fire-lit wildlife** (always free): six real 3D bird models re-lit as fire birds: **Blaze Macaw**, **Rainbow
+  Phoenix**, **Sapphire Macaw**, **Ember Toucan**, **Inferno Harpy** and **Magma Hoatzin**.
+
+The choice is cosmetic: every bird has the same physics and collision size. It is remembered between visits.
+
+How a model becomes a fire bird (`components/scene/ModelBird.jsx`, `fireMaterial.js`): the model's texture still
+supplies the detail, but a shader patch replaces its colour with a flame gradient that climbs the body (deep ember
+low, orange in the middle, bright gold or white along the top) and adds an emissive glow; a soft flame tail, a halo and
+a warm light are added. The models are static (no skeleton), so wing beats are suggested by a gentle body pulse and each
+flap by a quick nose-up kick. Each bird's turn, tilt, size and flame colours are data in
+`systems/avatars/avatars.js`. Model files (about 2.8 MB for all six) load on demand, only when a bird is chosen, and if
+one fails to load the original bird stands in.
+
+**Credits.** The six models are by other artists under CC BY 4.0, which requires crediting the author, linking the
+licence and stating changes. All three are shown in the app (Settings > Credits, and under each model bird in the
+picker) and in `CREDITS.md`; `npm run test:avatars` checks that the two agree. Keep that if you add birds.
 
 ### First-run coaching
 

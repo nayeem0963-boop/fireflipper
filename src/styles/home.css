@@ -231,3 +231,14 @@
 .card--button .card__value {
   font-size: 0.95rem;
 }
+
+/* "Your bird" button under the menu cards */
+.home__bird {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.home__bird svg {
+  width: 1.1em;
+  height: 1.1em;
+}

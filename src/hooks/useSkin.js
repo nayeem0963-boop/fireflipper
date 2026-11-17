@@ -1,9 +1,9 @@
 import { useGameStore } from '../store/useGameStore.js';
-import { resolveSkin } from '../systems/skins/skins.js';
+import { resolveAvatar } from '../systems/avatars/avatars.js';
 
-/** The skin currently worn by the bird (the selected one, or the default while it is locked). */
+/** The bird the player is flying as: the selected avatar, or the default while it is still locked. */
 export function useSkin() {
   const skinId = useGameStore((s) => s.skinId);
   const bestScore = useGameStore((s) => s.bestScore);
-  return resolveSkin(skinId, bestScore);
+  return resolveAvatar(skinId, bestScore);
 }
