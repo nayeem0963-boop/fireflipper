@@ -220,7 +220,7 @@ export default function Firebird({
           {/* Eyes: big and glowing so they read against the flame-coloured head */}
           <AvatarEyes
             at={[0.17, 0.09, 0.2]}
-            size={0.105}
+            size={0.07}
             outwardAxis="z"
             forward={1}
             palette={colors}

@@ -148,7 +148,7 @@ export default function TanagerBird({
             {/* Big glowing eyes, on the head so they nod with it (the builder's own tiny eyes were removed). */}
             <AvatarEyes
               at={[0.05, 0.222 - hy, 0.14 - hz]}
-              size={0.026}
+              size={0.017}
               outwardAxis="x"
               forward={1}
               palette={palette}

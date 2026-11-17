@@ -127,7 +127,7 @@ export default function BulbuliBird({
               </mesh>
               <AvatarEyes
                 at={[0.14, 0.385, 0.36]}
-                size={0.09}
+                size={0.062}
                 outwardAxis="x"
                 forward={1}
                 palette={palette}

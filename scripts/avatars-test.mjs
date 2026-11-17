@@ -404,8 +404,8 @@ section('Eyes');
     check(`${m.id}: has eye settings`, Boolean(e) && Array.isArray(e.at) && e.at.length === 3);
     if (!e) continue;
     check(
-      `${m.id}: eye is big enough to see, small enough for a head`,
-      e.size >= 0.01 && e.size <= 0.1,
+      `${m.id}: eye is sized to the head (a third of its height, not bigger)`,
+      e.size >= 0.003 && e.size <= 0.03,
       `${e.size}`,
     );
     check(`${m.id}: eye sits at the head end`, Math.sign(e.at[2]) === Math.sign(m.facing), `${e.at[2]}`);
