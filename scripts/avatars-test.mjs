@@ -17,6 +17,7 @@ import {
 import { CREDITS, FIRE_FLIPPER_CHANGES, LICENCE, getCredit } from '../src/systems/avatars/credits.js';
 import { SKINS } from '../src/systems/skins/skins.js';
 import { AVATAR_GROUPS } from '../src/systems/avatars/avatars.js';
+import { createFireMaterial, createFireUniforms } from '../src/components/scene/fireMaterial.js';
 import { splitWing } from '../src/systems/avatars/splitWing.js';
 import { BufferGeometry, Float32BufferAttribute, Vector3 } from 'three';
 import { TANAGER, createTanagerParts, wingSegment } from '../src/systems/avatars/tanager.js';
@@ -55,7 +56,7 @@ section('Avatar list');
     'the original bird colour schemes are all still there',
     SKINS.every((s) => ids.includes(s.id)),
   );
-  check('there are model birds to choose from', MODEL_BIRDS.length >= 7, `${MODEL_BIRDS.length}`);
+  check('there are model birds to choose from', MODEL_BIRDS.length >= 6, `${MODEL_BIRDS.length}`);
   check(
     'model birds are free to choose',
     MODEL_BIRDS.every((m) => isAvatarUnlocked({ ...m, kind: 'model' }, 0)),
@@ -224,6 +225,68 @@ section('Model birds');
     0,
   );
   check('all model files together are under 4 MB', total < 4_000_000, `${total} bytes`);
+}
+
+section('Wing beats on every bird');
+{
+  // Every model bird must really flap: either a butterfly (split wings) or a bird with wing-bend settings.
+  for (const m of MODEL_BIRDS) {
+    if (m.form === 'butterfly') continue;
+    check(`${m.id}: has wing-bend settings`, Boolean(m.flap));
+    const f = m.flap ?? {};
+    check(
+      `${m.id}: the settings are sane`,
+      f.start > 0 &&
+        f.full > f.start &&
+        f.full <= 1 &&
+        f.hingeFrac > 0 &&
+        f.hingeFrac < 1 &&
+        f.strength > 0 &&
+        f.strength <= 1.5,
+      JSON.stringify(f),
+    );
+  }
+  check(
+    'no model bird is left without wing beats',
+    MODEL_BIRDS.every((m) => m.form === 'butterfly' || m.flap),
+  );
+  check(
+    'birds whose wings are folded (a perched eagle) are not in the list',
+    !MODEL_BIRDS.some((m) => m.id === 'harpy-eagle'),
+  );
+
+  // The shader patch: with settings it bends wings, without them it changes nothing.
+  const flapped = createFireUniforms(MODEL_BIRDS[0].palette, 0, 1, {
+    start: 0.2,
+    full: 0.5,
+    hinge: [0, 0.4, 0],
+    axis: [0, 0, 2],
+  });
+  check(
+    'wing settings reach the uniforms',
+    flapped.uWing.value.x === 0.2 && flapped.uWing.value.y === 0.5 && flapped.uHinge.value.y === 0.4,
+  );
+  check('the axis is normalised', Math.abs(flapped.uAxis.value.length() - 1) < 1e-9);
+  const still = createFireUniforms(MODEL_BIRDS[0].palette, 0, 1);
+  check('without settings nothing can bend', still.uWing.value.x > 1e8 && still.uFlap.value === 0);
+
+  const material = createFireMaterial({ map: null, side: 0 }, flapped, 'test');
+  const shader = {
+    uniforms: {},
+    vertexShader: '#include <common>\n#include <beginnormal_vertex>\n#include <begin_vertex>',
+    fragmentShader: '#include <common>\n#include <map_fragment>\n#include <emissivemap_fragment>',
+  };
+  material.onBeforeCompile(shader);
+  check(
+    'the vertex shader rotates positions and normals',
+    shader.vertexShader.includes('transformed = uHinge + flapRotate') &&
+      shader.vertexShader.includes('objectNormal = flapRotate'),
+  );
+  check(
+    'the flap uniforms are shared with the bird',
+    shader.uniforms.uFlap === flapped.uFlap && shader.uniforms.uWing === flapped.uWing,
+  );
+  check('the fire colour is still applied', shader.fragmentShader.includes('fireGradient'));
 }
 
 section('Butterfly');

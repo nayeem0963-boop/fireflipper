@@ -31,6 +31,8 @@ export const MODEL_BIRDS = Object.freeze([
     pitch: 0,
     length: 2.0,
     lift: 0,
+    // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
+    flap: { start: 0.2, full: 0.5, hingeFrac: 0.4, strength: 0.8 },
     palette: {
       low: '#a3120a',
       mid: '#ff5a14',
@@ -50,6 +52,8 @@ export const MODEL_BIRDS = Object.freeze([
     pitch: -0.55,
     length: 2.4,
     lift: 0,
+    // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
+    flap: { start: 0.2, full: 0.5, hingeFrac: 0.4, strength: 0.8 },
     palette: {
       low: '#b01540',
       mid: '#ff7a1a',
@@ -69,6 +73,8 @@ export const MODEL_BIRDS = Object.freeze([
     pitch: -0.25,
     length: 2.0,
     lift: 0,
+    // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
+    flap: { start: 0.2, full: 0.5, hingeFrac: 0.4, strength: 0.8 },
     palette: {
       low: '#0b3fb8',
       mid: '#2ea6ff',
@@ -88,6 +94,8 @@ export const MODEL_BIRDS = Object.freeze([
     pitch: 0,
     length: 2.0,
     lift: 0,
+    // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
+    flap: { start: 0.25, full: 0.6, hingeFrac: 0.4, strength: 0.8 },
     palette: {
       low: '#5a0a06',
       mid: '#e0361a',
@@ -99,25 +107,6 @@ export const MODEL_BIRDS = Object.freeze([
     },
   },
   {
-    id: 'harpy-eagle',
-    name: 'Inferno Harpy',
-    tagline: 'The harpy eagle, burning white-hot at the crest',
-    file: 'harpy-eagle.glb',
-    facing: Math.PI / 2,
-    pitch: -1.15,
-    length: 2.0,
-    lift: 0,
-    palette: {
-      low: '#2a0612',
-      mid: '#d4281c',
-      high: '#ffd9a0',
-      glow: '#ff6a2a',
-      mix: 0.9,
-      glowStrength: 1,
-      lumFloor: 0.25,
-    },
-  },
-  {
     id: 'hoatzin',
     name: 'Magma Hoatzin',
     tagline: 'The crested hoatzin, molten from tail to crown',
@@ -126,6 +115,8 @@ export const MODEL_BIRDS = Object.freeze([
     pitch: 0,
     length: 2.0,
     lift: 0,
+    // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
+    flap: { start: 0.25, full: 0.55, hingeFrac: 0.4, strength: 0.8 },
     palette: {
       low: '#8a0a5a',
       mid: '#ff4a1a',

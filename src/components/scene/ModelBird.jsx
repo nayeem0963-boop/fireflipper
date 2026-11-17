@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
-import { Box3, Euler, Matrix4, Vector3 } from 'three';
+import { Box3, Euler, MathUtils, Matrix4, Vector3 } from 'three';
 import { modelUrl } from '../../systems/avatars/avatars.js';
 import FlameAura from './FlameAura.jsx';
+import { wingLiftTarget } from './birdMotion.js';
 import { createFireMaterial, createFireUniforms } from './fireMaterial.js';
 
 /**
@@ -29,12 +30,23 @@ export default function ModelBird({
   const wrap = useRef();
   const phase = useRef(Math.random() * 6);
   const kick = useRef(0);
+  const lift = useRef(0.25);
 
   // A private copy of the model with fire materials, centred and scaled to the avatar's length.
   const prepared = useMemo(() => {
     const box = new Box3().setFromObject(scene);
     const center = box.getCenter(new Vector3());
-    const uniforms = createFireUniforms(avatar.palette, box.min.y, box.max.y);
+    // Wing beats are done in the shader (see fireMaterial.js): everything beyond `start` from the body's centre line
+    // bends about the shoulder. `start`/`full` are fractions of the half wingspan.
+    const f = avatar.flap;
+    const half = (box.max.x - box.min.x) / 2;
+    const flap = f && {
+      start: f.start * half,
+      full: f.full * half,
+      hinge: [center.x, box.min.y + (box.max.y - box.min.y) * f.hingeFrac, center.z],
+      axis: f.axis,
+    };
+    const uniforms = createFireUniforms(avatar.palette, box.min.y, box.max.y, flap);
     const root = scene.clone(true);
     const materials = [];
     root.traverse((o) => {
@@ -51,7 +63,7 @@ export default function ModelBird({
       .applyMatrix4(turn)
       .applyMatrix4(tilt)
       .getSize(new Vector3());
-    return { root, materials, center, scale: avatar.length / Math.max(seen.x, seen.y, 0.001) };
+    return { root, materials, center, uniforms, scale: avatar.length / Math.max(seen.x, seen.y, 0.001) };
   }, [scene, avatar]);
 
   useEffect(() => () => prepared.materials.forEach((m) => m.dispose()), [prepared]);
@@ -80,7 +92,15 @@ export default function ModelBird({
     // Flap suggestion: nose-up kick, a little stretch, and a soft pulse and rock in between.
     g.rotation.z = k * 0.2;
     g.rotation.x = dead ? 1.1 : beat * 0.05;
-    g.scale.set(s * (1 - 0.04 * k), s * (1 + 0.07 * k + (dead ? 0 : beat * 0.025)), s);
+    if (avatar.flap) {
+      // Real wing beats: the same stroke as the other birds, bending the wings about the shoulders in the shader.
+      lift.current = MathUtils.damp(lift.current, wingLiftTarget(flight, beat), 22, dt);
+      prepared.uniforms.uFlap.value = (lift.current - 0.25) * avatar.flap.strength;
+      g.scale.set(s, s, s);
+    } else {
+      // No wing data for this model: suggest the beat with a body pulse.
+      g.scale.set(s * (1 - 0.04 * k), s * (1 + 0.07 * k + (dead ? 0 : beat * 0.025)), s);
+    }
   });
 
   const { palette } = avatar;

@@ -56,16 +56,6 @@ export const CREDITS = Object.freeze([
     ],
   },
   {
-    id: 'harpy-eagle',
-    title: 'Harpy Eagle',
-    author: 'G-Box',
-    authorUrl: 'https://sketchfab.com/gabszf',
-    sourceUrl: 'https://sketchfab.com/3d-models/harpy-eagle-3ced481e50d24b38a87406708cb7a2c4',
-    changes: [
-      'Simplified to about 17,500 triangles, scaled to life size, textures reduced to one JPEG, re-centred; baked into static geometry.',
-    ],
-  },
-  {
     id: 'hoatzin',
     title: 'hoatzin',
     author: 'graduisc',
