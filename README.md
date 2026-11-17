@@ -4,7 +4,7 @@
 
 > Status: **pass 2: core flight gameplay.** Playable one-touch flying with physics, procedural
 > obstacles, fire orbs, collisions, scoring, game over and retry. Backend, accounts and deployment
-> are intentionally not implemented yet. The firebird is still a placeholder built from primitives.
+> are intentionally not implemented yet. The firebird is a GLB eagle restyled at runtime as a fire avatar (with a primitive fallback).
 
 ## Tech stack
 
@@ -113,7 +113,9 @@ scripts/
 - Obstacles and orbs are pooled records rendered through InstancedMesh: about 7 draw calls for
   the whole field, with no per-frame allocations. Spark bursts use one pooled `THREE.Points`.
 - Procedural textures are disposed on unmount; JSX geometries and materials are disposed by R3F.
-- GLB models will load via drei's `useGLTF` from `public/models/`.
+- GLB models load via drei's `useGLTF` from `public/models/`. The fire eagle (`eagle.glb`, ~100 kB) is
+  recolored and given a flame shell in `FireEagle.jsx`; `Firebird.jsx` shows the primitive
+  `PlaceholderFirebird.jsx` while it loads or if loading fails. See `public/models/CREDITS.md`.
 
 ## Controls
 
