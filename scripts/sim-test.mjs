@@ -19,7 +19,7 @@ import { PATTERNS, pickPattern } from '../src/systems/obstacles/patterns.js';
 import { createRng } from '../src/utils/random.js';
 import { applyFlap, stepFlight } from '../src/systems/physics/flight.js';
 import { escalationAt, speedAt } from '../src/systems/obstacles/spawner.js';
-import { computeScore } from '../src/systems/scoring/scoring.js';
+import { computeScore, scoreBreakdown } from '../src/systems/scoring/scoring.js';
 
 const DT = PHYSICS.fixedStep;
 let failures = 0;
@@ -48,6 +48,30 @@ check('dispatch circle', !circleHitsObstacle(0, 0, 0.4, { shape: 'circle', x: 2,
 // ---------------------------------------------------------------- scoring
 section('Scoring');
 check('score formula', computeScore(100, 3) === 100 * SCORING.pointsPerMetre + 3 * SCORING.orbPoints);
+
+section('Score breakdown (game-over screen)');
+{
+  // The reference run from the game-over screenshot: 912 m, 81 orbs, 5 unchained near misses.
+  const ref = scoreBreakdown({ score: 1332, distance: 912, orbs: 81 });
+  check('breakdown: distance points', ref.distancePoints === 912);
+  check('breakdown: orb points', ref.orbPoints === 405);
+  check('breakdown: near-miss points', ref.nearMissPoints === 15);
+  // Over real sim runs the three parts must add up to the score and near-miss points can never be negative.
+  let ok = true;
+  for (let seed = 1; seed <= 12; seed++) {
+    const sim = createGameSim();
+    sim.reset(seed);
+    for (let i = 0; i < 120 * 40 && sim.phase !== PHASE.OVER && sim.phase !== PHASE.DYING; i++) {
+      if (sim.bird.y < 0.2 + (seed % 4) * 0.3 && sim.bird.vy < 1) sim.flap();
+      sim.step(DT);
+    }
+    const r = sim.results();
+    const b = scoreBreakdown(r);
+    if (b.distancePoints + b.orbPoints + b.nearMissPoints !== r.score || b.nearMissPoints < 0) ok = false;
+    if (b.nearMissPoints !== sim.bonus) ok = false;
+  }
+  check('breakdown sums to the score and matches the sim bonus', ok);
+}
 
 // ---------------------------------------------------------------- flight
 section('Flight physics');

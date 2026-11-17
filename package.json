@@ -14,7 +14,8 @@
     "format:check": "prettier --check .",
     "test:leaderboard": "node scripts/leaderboard-test.mjs",
     "balance": "node scripts/balance.mjs",
-    "test:avatars": "node scripts/avatars-test.mjs"
+    "test:avatars": "node scripts/avatars-test.mjs",
+    "test:ui": "node scripts/ui-test.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^11.1.9",

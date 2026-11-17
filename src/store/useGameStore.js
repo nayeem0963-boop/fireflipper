@@ -56,7 +56,7 @@ export const useGameStore = create((set, get) => ({
   power: { shield: false, magnet: 0, slow: 0 },
   runId: 0, // bumped on every (re)start; the game loop resets the sim on change
   overAt: 0,
-  /** { score, distance, orbs, isNewBest } of the last finished run. */
+  /** { score, distance, orbs, nearMisses, isNewBest, isNewDailyBest, previousBest, mode, unlockedSkins } of the last finished run. */
   lastResult: null,
 
   // --- scores ---
@@ -121,6 +121,8 @@ export const useGameStore = create((set, get) => ({
     if (isNewBest) saveValue('bestScore', score);
     let dailyBests = s.dailyBests;
     let isNewDailyBest = false;
+    // The best this run was measured against (shown by the game-over screen as the margin of a new best).
+    const previousBest = daily ? (dailyBests[s.dailyKey] ?? 0) : s.bestScore;
     if (daily) {
       const previous = dailyBests[s.dailyKey] ?? 0;
       isNewDailyBest = score > previous;
@@ -150,6 +152,7 @@ export const useGameStore = create((set, get) => ({
         nearMisses,
         isNewBest,
         isNewDailyBest,
+        previousBest,
         mode: s.mode,
         unlockedSkins: daily ? [] : newlyUnlocked(s.bestScore, score).map((k) => k.name),
       },

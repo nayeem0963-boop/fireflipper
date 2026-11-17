@@ -74,20 +74,80 @@
   color: var(--text-dim);
 }
 
-/* Game over */
+/* Game over
+   Layout: a scrolling body above a fixed footer, so Retry is always on screen however short the window is
+   (125% display scaling on a laptop leaves only ~600px). Everything in the body can scroll; the actions cannot. */
 .overlay--gameover {
   animation: overlay-in 0.3s ease-out;
 }
 .gameover {
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px);
   animation: panel-rise 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
-.gameover__kicker {
-  font-size: 0.72rem;
+.gameover--record {
+  border-color: rgba(255, 211, 107, 0.55);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.6),
+    0 0 46px rgba(255, 150, 40, 0.28);
+}
+.gameover__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 22px 8px;
+  overflow-y: auto;
+  text-align: center;
+  overscroll-behavior: contain;
+}
+.gameover__head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.gameover__tag {
+  font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: 0.3em;
+  letter-spacing: 0.26em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--fire-300);
+}
+.gameover__record {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  line-height: 1.2;
+}
+.gameover__record-label {
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--fire-200), var(--fire-400));
+  color: #1a0904;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: var(--glow-sm);
+  animation: record-pulse 1.8s ease-in-out infinite;
+}
+.gameover__record-label::before {
+  content: '\2605\00a0';
+}
+.gameover__record-sub {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--fire-200);
+  font-variant-numeric: tabular-nums;
 }
 .gameover__score {
   font-family: var(--font-display);
@@ -101,38 +161,103 @@
   color: transparent;
   filter: drop-shadow(0 0 16px rgba(255, 110, 30, 0.5));
 }
-.gameover__stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  width: 100%;
-  margin: 4px 0 8px;
+.gameover--record .gameover__score {
+  animation: record-glow 1.8s ease-in-out infinite;
 }
-.gameover__stats div {
-  padding: 8px 10px;
+.gameover__breakdown {
+  width: 100%;
+  margin: 0;
+  padding: 4px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: rgba(11, 9, 7, 0.5);
 }
-.gameover__stats div:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
+.gameover__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  column-gap: 12px;
+  padding: 7px 0;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
 }
-.gameover__stats dt {
-  font-size: 0.66rem;
+.gameover__row + .gameover__row {
+  border-top: 1px solid var(--line);
+}
+.gameover__row dt {
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
-.gameover__stats dd {
+.gameover__row dd {
   margin: 0;
+}
+.gameover__detail {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.gameover__points {
+  min-width: 3.4rem;
+  text-align: right;
   font-weight: 700;
+  color: var(--fire-200);
+}
+.gameover__best {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
-.gameover__sub {
-  font-weight: 500;
-  font-size: 0.8em;
-  color: var(--fire-300);
+.gameover__best strong {
+  margin-left: 6px;
+  font-size: 1rem;
+  color: var(--text);
+}
+.gameover__session strong {
+  font-size: 0.9rem;
+}
+.gameover__actions {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px 16px;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(21, 16, 12, 0.6), var(--bg-raised));
+}
+.gameover__retry {
+  width: 100%;
+  min-width: 0;
+  min-height: 56px;
+  font-size: 1.15rem;
+}
+.gameover__key {
+  margin-left: 0.4em;
+  padding: 0.1em 0.5em;
+  border-color: rgba(26, 9, 4, 0.45);
+  background: rgba(26, 9, 4, 0.18);
+  color: #1a0904;
+  font-family: var(--font-ui);
+  font-size: 0.6em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+.gameover__menu {
+  min-height: 40px;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+.gameover__menu:hover {
+  color: var(--fire-200);
 }
 .badge {
   padding: 4px 12px;
@@ -144,6 +269,63 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   box-shadow: var(--glow-sm);
+}
+@keyframes record-pulse {
+  50% {
+    box-shadow: 0 0 22px rgba(255, 170, 60, 0.85);
+  }
+}
+@keyframes record-glow {
+  50% {
+    filter: drop-shadow(0 0 26px rgba(255, 170, 60, 0.85));
+  }
+}
+
+/* Short windows (a laptop at 125-150% scaling, a phone held sideways): tighten the spacing. */
+@media (max-height: 640px) {
+  .gameover__body {
+    gap: 8px;
+    padding-top: 14px;
+  }
+  .gameover .panel__title--big {
+    font-size: 1.65rem;
+  }
+  .gameover__score {
+    font-size: clamp(2.2rem, 9vw, 3rem);
+  }
+  .gameover__row {
+    padding: 5px 0;
+  }
+  .gameover__actions {
+    padding-top: 10px;
+    padding-bottom: 12px;
+  }
+  .gameover__retry {
+    min-height: 50px;
+  }
+  .gameover__menu {
+    min-height: 36px;
+  }
+}
+/* Wide and very short (phone landscape): the summary on the left, the actions on the right. */
+@media (max-height: 520px) and (min-width: 560px) {
+  .gameover {
+    width: min(640px, 100%);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 240px;
+  }
+  .gameover__actions {
+    justify-content: center;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    padding: 16px;
+  }
+  .gameover__retry {
+    padding: 0 0.7em;
+    font-size: 1.02rem;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
 }
 @keyframes panel-rise {
   from {

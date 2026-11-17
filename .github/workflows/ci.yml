@@ -20,4 +20,5 @@ jobs:
       - run: npm run test:sim
       - run: npm run test:leaderboard
       - run: npm run test:avatars
+      - run: npm run test:ui
       - run: npm run build
