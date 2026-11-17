@@ -1,4 +1,4 @@
-import { POWERUPS, WORLD } from '../physics/constants.js';
+import { POWERUPS, WIND, WORLD } from '../physics/constants.js';
 import { PATTERNS, gapFor, pickPattern, swingExtent } from './patterns.js';
 
 /**
@@ -23,6 +23,9 @@ const LATE_EXTRA_SPEED = 1.0;
 
 /** Rhythm: after a run of hazard sections the track opens into a breather (orbs, no hazards). */
 const BREATHER_MIN_DISTANCE = 60;
+/** Air currents appear in some breathers once past this distance. */
+const WIND_MIN_DISTANCE = 180;
+const WIND_CHANCE = 0.5;
 const BAND_LOW = WORLD.groundY + 0.4;
 const BAND_HIGH = WORLD.ceilingY;
 
@@ -77,8 +80,14 @@ function buildBreather(track, builder, rng, t) {
   const length = rng.range(16, 20) - 6 * t;
   const x0 = track.nextX;
   const from = clamp(track.center, BAND_LOW + 0.8, BAND_HIGH - 0.8);
-  const to = rng.range(BAND_LOW + 1.2, BAND_HIGH - 0.9);
-  const wave = rng.range(0.6, 1.3) * (rng.chance(0.5) ? 1 : -1);
+  const toOpen = rng.range(BAND_LOW + 1.2, BAND_HIGH - 0.9);
+  // Open stretches are where air currents live: no hazards to collide with while the wind pushes.
+  // An updraft carries the bird up toward its orbs; a downdraft makes it work to keep them.
+  const windKind =
+    x0 > WIND_MIN_DISTANCE && rng.chance(WIND_CHANCE) ? (rng.chance(0.6) ? 'up' : 'down') : null;
+  const to = windKind === 'up' ? BAND_HIGH - 0.9 : windKind === 'down' ? rng.range(0.4, 1.6) : toOpen;
+  const wave = rng.range(0.6, 1.3) * (rng.chance(0.5) ? 1 : -1) * (windKind ? 0.4 : 1);
+  if (windKind) builder.wind(x0 + 3, x0 + length - 3, windKind === 'up' ? WIND.updraft : WIND.downdraft);
   const count = Math.floor((length - 4) / 2);
   let endY = from;
   for (let i = 0; i < count; i++) {

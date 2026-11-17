@@ -9,6 +9,7 @@ import GhostBird from '../../components/scene/GhostBird.jsx';
 import ObstacleField from '../../components/scene/ObstacleField.jsx';
 import OrbField from '../../components/scene/OrbField.jsx';
 import PowerUpField from '../../components/scene/PowerUpField.jsx';
+import WindField from '../../components/scene/WindField.jsx';
 import BurstParticles from '../../components/scene/BurstParticles.jsx';
 import { useRenderSettings } from '../../hooks/useRenderSettings.js';
 import { useGameLoop } from '../../systems/game/useGameLoop.js';
@@ -52,6 +53,7 @@ export default function EmberValleyScene() {
       <CameraRig sim={game} />
       <Backdrop sim={game} />
       <ObstacleField sim={game} />
+      <WindField sim={game} />
       <OrbField sim={game} />
       <PowerUpField sim={game} />
       <GhostBird sim={game} />

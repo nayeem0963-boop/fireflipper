@@ -15,6 +15,7 @@ import { POWERUP_INFO } from '../../systems/powerups/appearance.js';
 const CAPACITY = 160;
 const ORB_COLOR = [1.0, 0.82, 0.4];
 const CRASH_COLOR = [1.0, 0.42, 0.1];
+const DUST_COLOR = [0.7, 0.45, 0.3];
 
 export default function BurstParticles({ sim }) {
   const points = useRef();
@@ -61,7 +62,9 @@ export default function BurstParticles({ sim }) {
     const offShield = gameEvents.on(GAME_EVENTS.SHIELD_BREAK, (e) =>
       emit(e.x, e.y, 34, 5, POWERUP_INFO.shield.rgb, 0.7),
     );
+    const offRock = gameEvents.on(GAME_EVENTS.ROCK_IMPACT, (e) => emit(e.x, e.y, 22, 3.4, DUST_COLOR, 0.9));
     return () => {
+      offRock();
       offPower();
       offShield();
       offOrb();

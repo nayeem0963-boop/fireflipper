@@ -37,6 +37,8 @@ export function createGhost(seed, log) {
         next += 2;
       }
       sim.step(PHYSICS.fixedStep);
+      // Nothing consumes the ghost's events (the live run owns feedback), so don't let them pile up.
+      sim.events.length = 0;
     },
   };
 }

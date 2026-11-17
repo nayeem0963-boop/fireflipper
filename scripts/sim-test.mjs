@@ -9,11 +9,14 @@ import {
   circleHitsObstacle,
 } from '../src/systems/physics/collision.js';
 import { clearanceToObstacle } from '../src/systems/physics/collision.js';
-import { PHYSICS, WORLD, SCORING, POWERUPS } from '../src/systems/physics/constants.js';
+import { PHYSICS, WORLD, SCORING, POWERUPS, WIND } from '../src/systems/physics/constants.js';
 import { seedForKey, todayKey } from '../src/utils/daily.js';
 import { SKINS, getSkin, isUnlocked, resolveSkin, newlyUnlocked } from '../src/systems/skins/skins.js';
 import { BIOME_SHIFT, biomeBlendAt, biomeIdAt } from '../src/systems/biomes/biomes.js';
-import { DYN, GEYSER, geyserState, swingEdge } from '../src/systems/obstacles/dynamics.js';
+import { DYN, GEYSER, geyserState, rockfallState, swingEdge } from '../src/systems/obstacles/dynamics.js';
+import { PATTERNS } from '../src/systems/obstacles/patterns.js';
+import { createRng } from '../src/utils/random.js';
+import { applyFlap, stepFlight } from '../src/systems/physics/flight.js';
 import { escalationAt, speedAt } from '../src/systems/obstacles/spawner.js';
 import { computeScore } from '../src/systems/scoring/scoring.js';
 
@@ -566,6 +569,265 @@ section('Moving hazards');
   clock.flap();
   for (let i = 0; i < 120; i++) clock.step(DT);
   check('...then counts run time', Math.abs(clock.runTime - 1) < 1e-6, `${clock.runTime}`);
+}
+
+// ---------------------------------------------------------------- falling rocks
+section('Falling rocks');
+{
+  const R = PHYSICS.birdRadius;
+  // Run the real pattern against a recording builder, then rebuild the rock record the way the sim does.
+  const build = (center, gap, seed = 1) => {
+    const calls = { rockfall: null, column: 0 };
+    const builder = {
+      rockfall: (...a) => (calls.rockfall = a),
+      column: () => calls.column++,
+      orb: () => {},
+    };
+    const rng = createRng(seed);
+    const section = PATTERNS.rockfall(builder, 100, center, gap, rng);
+    if (!calls.rockfall) return { calls, section };
+    const [x, r, y0, drop, trigger] = calls.rockfall;
+    const rock = { dyn: DYN.ROCKFALL, x, r, cr: r * 0.86, y0, drop, trigger };
+    return { calls, section, rock };
+  };
+
+  let combos = 0;
+  let hits = 0;
+  let neverHung = 0;
+  let fallbacks = 0;
+  for (let c = -1.6; c <= 3.6; c += 0.25) {
+    for (let gap = 2.5; gap <= 4.6; gap += 0.3) {
+      for (let seed = 1; seed <= 3; seed++) {
+        const { calls, section, rock } = build(c, gap, seed);
+        if (!rock) {
+          fallbacks++;
+          if (calls.column !== 1) hits++; // the fallback must still place something
+          continue;
+        }
+        combos++;
+        const laneTop = c + gap / 2;
+        check;
+        // Every height in the guaranteed lane, crossing the whole width of the rock.
+        for (let h = WORLD.groundY + 0.4; h <= laneTop + 1e-9; h += 0.1) {
+          for (let d = rock.x - (rock.cr + R + 1.5); d <= rock.x + (rock.cr + R + 1.5); d += 0.02) {
+            const st = rockfallState(rock, d);
+            if (st.live && Math.hypot(rock.x - d, st.y - h) < rock.cr + R) hits++;
+          }
+        }
+        // Before the trigger it hangs clear above anywhere the bird can be.
+        if (rockfallState(rock, rock.x - rock.trigger - 1).y - rock.cr <= WORLD.ceilingY + R) neverHung++;
+        if (section.hi !== laneTop) hits++;
+      }
+    }
+  }
+  check('rockfall patterns were generated across the range', combos > 100, `${combos}`);
+  check('the lane below a falling rock is never hit', hits === 0, `${hits} hits`);
+  check('a rock hangs clear above the ceiling until it is triggered', neverHung === 0, `${neverHung}`);
+  check('high corridors fall back to a plain column', fallbacks > 0);
+
+  const { rock } = build(0, 3.4);
+  const before = rockfallState(rock, rock.x - rock.trigger - 3);
+  const atTrigger = rockfallState(rock, rock.x - rock.trigger);
+  const mid = rockfallState(rock, rock.x - rock.trigger / 2);
+  const at = rockfallState(rock, rock.x);
+  const after = rockfallState(rock, rock.x + 5);
+  check(
+    "not lethal while hanging, and out of the bird's reach at the trigger",
+    !before.live && atTrigger.y - rock.cr > WORLD.ceilingY + PHYSICS.birdRadius,
+  );
+  check('lethal once falling', mid.live && at.live);
+  check(
+    'it is falling toward the bird',
+    atTrigger.y > mid.y && mid.y > at.y,
+    `${atTrigger.y} ${mid.y} ${at.y}`,
+  );
+  check(
+    'it speeds up as it falls',
+    mid.y - at.y > atTrigger.y - mid.y,
+    `${mid.y - at.y} vs ${atTrigger.y - mid.y}`,
+  );
+  check('it keeps falling after the bird passes', rockfallState(rock, rock.x + 2).y < at.y);
+  check('it lands and shatters on the ground', after.landed && !after.live && after.y < WORLD.groundY + 1);
+  check(
+    '...within a few units behind where the bird crossed it',
+    !rockfallState(rock, rock.x + 2).landed && rockfallState(rock, rock.x + 6).landed,
+  );
+  check('the shattered rock fades away', rockfallState(rock, rock.x + 14).fade === 0 && after.fade <= 1);
+
+  // In the simulation: the lane is safe (even in slow-mo), the blocked band is deadly, and landing fires one event.
+  const fly = ({ height, slow = false }) => {
+    const { rock: spec, section } = build(0, 3.4, 7);
+    const sim = createGameSim();
+    sim.reset(51);
+    sim.obstacles.releaseAll();
+    sim.orbs.releaseAll();
+    sim.powerups.releaseAll();
+    sim.winds.releaseAll();
+    sim.track.nextX = 1e9;
+    sim.flap();
+    sim.step(DT);
+    if (slow) sim.power.slow = 30;
+    const o = sim.obstacles.acquire();
+    Object.assign(o, {
+      kind: 'rock',
+      shape: 'circle',
+      z: 0,
+      sx: 1,
+      sy: 1,
+      sz: 1,
+      rot: 0,
+      spin: 0,
+      cap: 0,
+      extent: spec.r,
+      live: true,
+      gap: Infinity,
+      passed: false,
+      landed: false,
+      announced: false,
+      fade: 1,
+      ...spec,
+      x: 40,
+    });
+    let impacts = 0;
+    for (let i = 0; i < 120 * 40 && sim.phase === PHASE.RUNNING && sim.distance < 60; i++) {
+      sim.bird.y = sim.bird.prevY = height ?? section.hi - 0.3;
+      sim.bird.vy = 0;
+      sim.step(DT);
+      impacts += sim.events.filter((e) => e.type === 'rockImpact').length;
+      sim.events.length = 0;
+    }
+    return { sim, impacts };
+  };
+  const lane = fly({});
+  check(
+    'flying the lane under a falling rock is safe',
+    lane.sim.phase === PHASE.RUNNING && lane.sim.distance >= 59,
+    `${lane.sim.phase} ${lane.sim.distance}`,
+  );
+  check('the landing fires exactly one impact event', lane.impacts === 1, `${lane.impacts}`);
+  const slowLane = fly({ slow: true });
+  check(
+    'the lane stays safe in slow-mo',
+    slowLane.sim.phase === PHASE.RUNNING && slowLane.sim.distance >= 59,
+  );
+  const band = fly({ height: 3.7 });
+  check(
+    'flying into the falling rock is fatal',
+    band.sim.phase !== PHASE.RUNNING && band.sim.death?.kind === 'rock',
+    `${band.sim.phase} ${band.sim.death?.kind}`,
+  );
+}
+
+// ---------------------------------------------------------------- air currents
+section('Air currents');
+{
+  const fresh = () => ({ y: 0, vy: 0, pitch: 0, sinceFlap: 99 });
+  const input = { holding: false, dive: false };
+  const run = (wind, seconds, start = fresh()) => {
+    const b = start;
+    for (let i = 0; i < seconds / DT; i++) {
+      stepFlight(b, input, DT, wind);
+      b.y = Math.max(-100, Math.min(b.y, WORLD.ceilingY));
+    }
+    return b;
+  };
+
+  const calm = run(0, 0.5);
+  const up = run(WIND.updraft, 0.5);
+  const down = run(WIND.downdraft, 0.5);
+  check('an updraft slows the fall', up.vy > calm.vy, `${up.vy} vs ${calm.vy}`);
+  check('a downdraft speeds the fall', down.vy < calm.vy, `${down.vy} vs ${calm.vy}`);
+  check('an updraft carries the bird upward', run(WIND.updraft, 2).y > 0 || run(WIND.updraft, 2).vy > 0);
+  check('an updraft is capped', run(WIND.updraft, 3).vy <= WIND.liftCap + 1e-9, `${run(WIND.updraft, 3).vy}`);
+  check(
+    'the downdraft still has a terminal speed',
+    run(WIND.downdraft, 4).vy >= WIND.fallCap - 1e-9,
+    `${run(WIND.downdraft, 4).vy}`,
+  );
+  check(
+    'a flap is never cut by the lift cap',
+    (() => {
+      const b = fresh();
+      applyFlap(b);
+      const v = b.vy;
+      stepFlight(b, input, DT, WIND.updraft);
+      return b.vy > WIND.liftCap && b.vy <= v + 1e-9 + WIND.updraft * DT;
+    })(),
+  );
+  check(
+    'no wind leaves flight unchanged',
+    (() => {
+      const a = fresh();
+      const b = fresh();
+      for (let i = 0; i < 100; i++) {
+        stepFlight(a, input, DT);
+        stepFlight(b, input, DT, 0);
+      }
+      return a.vy === b.vy && a.y === b.y;
+    })(),
+  );
+
+  // In the simulation: the zone only acts inside its x-range, and expired zones are dropped.
+  const sim = createGameSim();
+  sim.reset(61);
+  sim.obstacles.releaseAll();
+  sim.orbs.releaseAll();
+  sim.powerups.releaseAll();
+  sim.track.nextX = 1e9;
+  sim.flap();
+  const zone = sim.winds.acquire();
+  Object.assign(zone, { x0: 10, x1: 16, accel: WIND.updraft });
+  const heightAt = (distanceLimit) => {
+    sim.bird.y = sim.bird.prevY = 0.5;
+    sim.bird.vy = 0;
+    while (sim.distance < distanceLimit && sim.phase === PHASE.RUNNING) {
+      sim.bird.y = Math.max(sim.bird.y, -2);
+      sim.step(DT);
+    }
+    return sim.bird.vy;
+  };
+  const vyBefore = heightAt(9.5);
+  check('the bird falls normally before the zone', vyBefore < 0, `${vyBefore}`);
+  sim.bird.vy = -3;
+  const inside = heightAt(14);
+  check('inside the zone the fall is arrested', inside > -3, `${inside}`);
+  heightAt(60);
+  check('a zone far behind is dropped', sim.winds.active.size === 0, `${sim.winds.active.size}`);
+
+  // On generated tracks, zones appear only in breathers and only after the minimum distance.
+  const zones = [];
+  const breathers = [];
+  for (let seed = 1; seed <= 25; seed++) {
+    const s2 = createGameSim();
+    s2.reset(seed);
+    s2.flap();
+    const seen = new Set();
+    for (let i = 0; i < 120 * 300 && s2.phase === PHASE.RUNNING && s2.distance < 1500; i++) {
+      const c = s2.track.corridors.find((k) => k.x1 > s2.distance - 0.3);
+      const target = c ? Math.max(c.lo + 0.8, c.center - 0.6) : 0;
+      if (s2.bird.vy < 0 && (s2.bird.y < target || (c && s2.bird.y < c.lo + 0.5))) s2.flap();
+      s2.step(DT);
+      if (i % 30 === 0) {
+        for (const k of s2.track.corridors)
+          if (k.type === 'breather' && !seen.has(k)) (seen.add(k), breathers.push(k));
+        for (const w of s2.winds.active) if (!seen.has(w)) (seen.add(w), zones.push({ ...w, seed }));
+      }
+    }
+  }
+  check('air currents appear on generated tracks', zones.length >= 5, `${zones.length}`);
+  check(
+    'both updrafts and downdrafts appear',
+    zones.some((w) => w.accel > 0) && zones.some((w) => w.accel < 0),
+  );
+  check(
+    'zones only occur inside breathers',
+    zones.every((w) => breathers.some((k) => w.x0 >= k.x0 && w.x1 <= k.x1)),
+    `${zones.filter((w) => !breathers.some((k) => w.x0 >= k.x0 && w.x1 <= k.x1)).length} outside`,
+  );
+  check(
+    'none before the minimum distance',
+    zones.every((w) => w.x0 > 180),
+  );
 }
 
 // ---------------------------------------------------------------- daily challenge

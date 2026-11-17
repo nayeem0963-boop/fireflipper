@@ -76,4 +76,14 @@ export const POWERUPS = Object.freeze({
   invulnDuration: 1.1,
 });
 
+/** Air currents: vertical push (units/s², added to gravity) inside a wind zone. */
+export const WIND = Object.freeze({
+  updraft: 30,
+  downdraft: -10,
+  /** An updraft only lifts the bird up to this climb speed (flaps can still go faster). */
+  liftCap: 4.5,
+  /** A downdraft pulls a little faster than normal terminal fall speed, but not without limit. */
+  fallCap: -13.5,
+});
+
 export const DYING_DURATION = 1.1; // seconds of crash animation before the game-over screen

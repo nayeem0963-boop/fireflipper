@@ -67,10 +67,21 @@ function createObstacle() {
     maxH: 0,
     /** Phase offset into the motion: radians for a swinging gate, seconds for a geyser. */
     offset: 0,
+    /** Falling rock: hang height, total drop to the bird's crossing point, trigger distance. */
+    y0: 0,
+    drop: 0,
+    trigger: 0,
+    /** Falling rock has hit the ground (shattering), whether that was announced, and render scale 1 -> 0. */
+    landed: false,
+    announced: false,
+    fade: 1,
   };
 }
 function createOrb() {
   return { x: 0, y: 0, phase: 0 };
+}
+function createWind() {
+  return { x0: 0, x1: 0, accel: 0 };
 }
 function createPowerup() {
   return { type: 'shield', x: 0, y: 0, phase: 0 };
@@ -81,6 +92,7 @@ export function createGameSim() {
   const obstacles = new ObjectPool(createObstacle, undefined, 64);
   const orbs = new ObjectPool(createOrb, undefined, 32);
   const powerups = new ObjectPool(createPowerup, undefined, 8);
+  const winds = new ObjectPool(createWind, undefined, 8);
   const track = createTrack();
 
   /** Clears per-run state on a pooled obstacle record. */
@@ -90,6 +102,9 @@ export function createGameSim() {
     o.dyn = 0;
     o.live = true;
     o.glow = 0;
+    o.landed = false;
+    o.announced = false;
+    o.fade = 1;
   }
 
   /** Pool-backed builder handed to obstacle patterns. */
@@ -156,7 +171,7 @@ export function createGameSim() {
         o.amp = amp;
         o.freq = freq;
         o.offset = phase;
-        animate(o, 0);
+        animate(o, 0, sim.distance);
       }
     },
     /** A lava geyser vent on the ground: quiet, then a telegraphed eruption up to `maxH`, on a cycle. */
@@ -178,7 +193,39 @@ export function createGameSim() {
       o.maxH = maxH;
       o.period = period;
       o.offset = phaseSeconds;
-      animate(o, 0);
+      animate(o, 0, sim.distance);
+    },
+    /**
+     * A rock that hangs above the ceiling and falls when the bird gets within `trigger` units. At the moment the
+     * bird crosses it the rock is at y0 - drop; `y0` and `drop` are chosen by the pattern so a lane stays clear.
+     */
+    rockfall(x, r, y0, drop, trigger) {
+      const o = obstacles.acquire();
+      reset(o);
+      o.kind = 'rock';
+      o.shape = 'circle';
+      o.x = x;
+      o.z = 0;
+      o.r = r;
+      o.cr = r * 0.86;
+      o.sx = o.sy = o.sz = 1;
+      o.rot = rng() * Math.PI * 2;
+      o.spin = rng.range(-0.8, 0.8);
+      o.cap = 0;
+      o.extent = r;
+      o.dyn = DYN.ROCKFALL;
+      o.y0 = y0;
+      o.drop = drop;
+      o.trigger = trigger;
+      o.y = y0;
+      animate(o, 0, sim.distance);
+    },
+    /** An air current: while the bird is between x0 and x1 it gets a vertical push (see WIND). */
+    wind(x0, x1, accel) {
+      const w = winds.acquire();
+      w.x0 = x0;
+      w.x1 = x1;
+      w.accel = accel;
     },
     rock(x, y, r) {
       const o = obstacles.acquire();
@@ -255,6 +302,7 @@ export function createGameSim() {
     obstacles,
     orbs,
     powerups,
+    winds,
     /** Active power-ups: shield is a flag, the rest are seconds remaining. invuln follows a shield hit. */
     power: { shield: false, magnet: 0, slow: 0, invuln: 0 },
     track,
@@ -279,6 +327,7 @@ export function createGameSim() {
       obstacles.releaseAll();
       orbs.releaseAll();
       powerups.releaseAll();
+      winds.releaseAll();
       const pw = sim.power;
       pw.shield = false;
       pw.magnet = pw.slow = pw.invuln = 0;
@@ -377,7 +426,7 @@ export function createGameSim() {
       sim.fx.lift = 1;
       sim.events.push(FLAP_EVENT);
     }
-    stepFlight(b, sim.input, dt);
+    stepFlight(b, sim.input, dt, windAt(sim.distance));
 
     const pw = sim.power;
     pw.magnet = Math.max(0, pw.magnet - dt);
@@ -408,7 +457,13 @@ export function createGameSim() {
         obstacles.release(o);
         continue;
       }
-      if (o.dyn) animate(o, sim.runTime);
+      if (o.dyn) animate(o, sim.runTime, bx);
+      if (o.landed && !o.announced) {
+        // A falling rock just hit the ground: a thud and some dust, felt a little if it is close.
+        o.announced = true;
+        sim.events.push({ type: GAME_EVENTS.ROCK_IMPACT, x: o.x, y: o.y });
+        if (Math.abs(o.x - bx) < 14) sim.fx.shake = Math.max(sim.fx.shake, 0.12);
+      }
       if (!o.live) continue; // e.g. a geyser that is charging or resting
       const dx = Math.abs(o.x - bx);
       if (dx > o.extent + R + SCORING.nearMissMargin) continue; // broad phase
@@ -444,6 +499,16 @@ export function createGameSim() {
     }
 
     collectPowerups(bx, b.y, R);
+  }
+
+  /** Total vertical push from any air current the bird is in at track position `x`. */
+  function windAt(x) {
+    let accel = 0;
+    for (const w of winds.active) {
+      if (x > w.x1 + WORLD.despawnBehind) winds.release(w);
+      else if (x >= w.x0 && x <= w.x1) accel += w.accel;
+    }
+    return accel;
   }
 
   /** Pulls an orb toward the bird while the magnet is active. */

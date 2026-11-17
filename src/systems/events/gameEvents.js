@@ -12,6 +12,7 @@ export const GAME_EVENTS = Object.freeze({
   NEAR_MISS: 'nearMiss',
   POWERUP: 'powerup',
   SHIELD_BREAK: 'shieldBreak',
+  ROCK_IMPACT: 'rockImpact',
   CRASH: 'crash',
   OVER: 'over',
 });

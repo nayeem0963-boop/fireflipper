@@ -93,10 +93,17 @@ scripts/
 - **Flight:** a flap sets upward speed. Holding softens gravity while rising (a higher climb), and
   releasing lets gravity take over. Down/S dives faster, with a smooth recovery afterwards. The ground
   is lava, and the ceiling is a soft limit.
-- **Sections:** gates, single columns, floating rocks, rock formations and narrow passages, plus two moving
+- **Sections:** gates, single columns, floating rocks, rock formations and narrow passages, plus three moving
   hazards: **swinging gates** (from 150 m; the opening slides up and down) and **lava geysers** (from 260 m;
   a telegraphed glow, then an eruption, on a cycle, with low orbs as bait). Gaps shrink, spacing tightens,
   speed rises (6.5 → 10.5 u/s) and new section types unlock with distance.
+- **Falling rocks** (from 200 m): a rock hangs above the ceiling, trembling as you approach, and drops when you are 13
+  units away, slamming into the ground just behind you. The fall is tied to your _distance_ (not time), so it
+  reaches the same height when you cross it at any speed (slow-mo can't shift it), and the lane below it is
+  guaranteed clear. Going over the top is the risky route.
+- **Air currents** (from 180 m, only in breathers): zones with streaks rising (an **updraft**: lifts you up to
+  4.5 u/s, carries you toward an orb arc) or falling (a **downdraft**: pulls harder than gravity, up to -13.5 u/s,
+  so holding on to the orbs takes work). They sit in hazard-free stretches, so a wind-blown bird has nothing to hit.
 - **Rhythm:** after every 4-6 hazard sections the track opens into a **breather**: an orb arc and no hazards
   (the last two sections before one come slightly faster, so tension builds and releases).
 - **Late game:** past the main ramp (about 1,640 m) the track keeps escalating over the next 2,400 m: gaps
@@ -104,8 +111,9 @@ scripts/
   player never met anything harder than the 1,640 m track.
 - **Moving hazards stay fair:** a swinging gate always has a lane that is open at every moment of the swing
   (at least about 2.5 units wide), so no timing is needed, though timing the wide moment gives more room. A
-  geyser never erupts above the corridor it guards. Motion is a pure function of run time since the first flap
-  (`systems/obstacles/dynamics.js`), so replays, the server check and the ghost all see the same hazards.
+  geyser never erupts above the corridor it guards. Motion is a pure function of run time since the first flap (or,
+  for falling rocks, of distance; `systems/obstacles/dynamics.js`), so replays, the server check and the ghost all see
+  the same hazards.
 - **Fairness:** each corridor's centre is constrained to be reachable from anywhere the bird could
   have left the previous section, using conservative climb (3.2 u/s) and drop (4.5 u/s) rates. An
   autopilot in `npm run test:sim` survives 40 of 40 random tracks to 3,000 m (late game and moving hazards

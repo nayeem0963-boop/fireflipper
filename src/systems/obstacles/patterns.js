@@ -1,4 +1,4 @@
-import { WORLD } from '../physics/constants.js';
+import { PHYSICS, WORLD } from '../physics/constants.js';
 import { GEYSER_MIN_PERIOD } from './dynamics.js';
 
 /**
@@ -18,6 +18,7 @@ import { GEYSER_MIN_PERIOD } from './dynamics.js';
  *   b.rock(x, y, radius)
  *   b.swingGate(xCenter, width, center, gap, amp, freq, phase)  moving opening
  *   b.geyser(xCenter, width, maxHeight, period, phaseSeconds)    periodic eruption from the ground
+ *   b.rockfall(xCenter, radius, y0, drop, triggerDistance)       rock that falls as the bird approaches
  *   b.orb(x, y)
  */
 const BELOW = WORLD.groundY - 1.5; // bases sink below the ground plane
@@ -164,7 +165,40 @@ function geyser(b, x, center, gap, rng) {
   return { length, lo: top, hi: WORLD.ceilingY, free: [top, WORLD.ceilingY] };
 }
 
-export const PATTERNS = { gate, column, floatingRocks, formation, passage, swingGate, geyser };
+/** Distance from the rock at which it starts to fall (units). About 1.5 s of warning at cruising speed. */
+export const ROCKFALL_TRIGGER = 13;
+
+/**
+ * Rocks that drop from above as the bird approaches. The fall is tied to the bird's distance, so the rock is at a
+ * known height when the bird crosses it, and the lane below it is guaranteed clear: the rock's lowest point during
+ * the crossing stays above the lane. Anything higher is the risky route. (A bird high enough to be above the rock
+ * by then is also safe, but that sliver is not relied on.)
+ */
+function rockfall(b, x, center, gap, rng) {
+  const r = rng.range(0.8, 1.05);
+  const cr = r * 0.86;
+  const laneTop = center + gap / 2;
+  // Lowest height the rock may reach before the bird has fully crossed it.
+  const yExit = laneTop + cr + PHYSICS.birdRadius + 0.15;
+  // No room for a rock above this lane: fall back to a plain column.
+  if (yExit > WORLD.ceilingY - 0.3) return column(b, x, center, gap, rng);
+
+  const y0 = Math.max(WORLD.ceilingY + 1.7, yExit + 2.2);
+  const pExit = 1 + (cr + PHYSICS.birdRadius) / ROCKFALL_TRIGGER; // progress when the bird has just cleared it
+  const drop = (y0 - yExit) / (pExit * pExit);
+  const cx = x + r;
+  b.rockfall(cx, r, y0, drop, ROCKFALL_TRIGGER);
+  if (rng.chance(0.6)) b.orb(cx, center);
+  return {
+    length: 2 * r,
+    lo: WORLD.groundY + 0.4,
+    hi: laneTop,
+    // The bird may have taken the lane or the riskier way over the top: assume anywhere.
+    free: [WORLD.groundY + 0.4, WORLD.ceilingY],
+  };
+}
+
+export const PATTERNS = { gate, column, floatingRocks, formation, passage, swingGate, geyser, rockfall };
 
 /** Corridor height per pattern, shrinking with difficulty t ∈ [0, 1]. */
 export function gapFor(type, t, rng) {
@@ -190,6 +224,7 @@ export function pickPattern(distance, t, rng, previous) {
     ['swingGate', distance > 150 ? 1.2 + t : 0],
     ['floatingRocks', distance > 80 ? 1.6 : 0],
     ['geyser', distance > 260 ? 1.0 + t : 0],
+    ['rockfall', distance > 200 ? 1.0 + t : 0],
     ['formation', distance > 180 ? 1.2 + t : 0],
     ['passage', distance > 320 && previous !== 'passage' ? 0.7 + t : 0],
   ];

@@ -23,4 +23,5 @@ export const HAPTIC = Object.freeze({
   powerup: [14, 30, 14],
   shieldBreak: 35,
   crash: [60, 40, 90],
+  rockImpact: 12,
 });

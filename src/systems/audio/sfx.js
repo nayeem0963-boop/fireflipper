@@ -109,6 +109,11 @@ export const sfx = {
     noiseBurst({ duration: 0.3, filter: 'highpass', from: 1500, to: 5000, q: 0.8, peak: 0.3 });
     tone({ type: 'sine', from: 900, to: 220, duration: 0.3, peak: 0.2 });
   },
+  rockImpact() {
+    if (!ready()) return;
+    noiseBurst({ duration: 0.35, filter: 'lowpass', from: 900, to: 90, q: 0.8, peak: 0.3 });
+    tone({ from: 110, to: 45, duration: 0.3, peak: 0.28 });
+  },
   start() {
     if (!ready()) return;
     tone({ type: 'triangle', from: 330, to: 660, duration: 0.3, peak: 0.12 });

@@ -15,6 +15,7 @@ export function useGameHaptics() {
       gameEvents.on(GAME_EVENTS.POWERUP, buzz(HAPTIC.powerup)),
       gameEvents.on(GAME_EVENTS.SHIELD_BREAK, buzz(HAPTIC.shieldBreak)),
       gameEvents.on(GAME_EVENTS.CRASH, buzz(HAPTIC.crash)),
+      gameEvents.on(GAME_EVENTS.ROCK_IMPACT, buzz(HAPTIC.rockImpact)),
     ];
     return () => offs.forEach((off) => off());
   }, []);

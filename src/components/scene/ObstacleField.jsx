@@ -56,10 +56,11 @@ export default function ObstacleField({ sim }) {
       if (x < -20 - o.extent || x > 60) continue;
 
       if (o.kind === 'rock') {
-        if (nRock >= MAX.rock) continue;
+        if (nRock >= MAX.rock || o.fade <= 0.01) continue;
         dummy.position.set(x, o.y, o.z);
         dummy.rotation.set(o.rot + t * o.spin, o.rot * 1.3 + t * o.spin * 0.7, o.rot * 0.5);
-        dummy.scale.set(o.r * o.sx, o.r * o.sy, o.r * o.sz);
+        // A shattering rock shrinks away (fade runs 1 -> 0 after it lands).
+        dummy.scale.set(o.r * o.sx * o.fade, o.r * o.sy * o.fade, o.r * o.sz * o.fade);
         dummy.updateMatrix();
         rocks.current.setMatrixAt(nRock++, dummy.matrix);
         continue;
