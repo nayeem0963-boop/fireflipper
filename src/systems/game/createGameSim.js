@@ -1,9 +1,9 @@
-import { DYING_DURATION, PHYSICS, WORLD } from '../physics/constants.js';
+import { DYING_DURATION, PHYSICS, SCORING, WORLD } from '../physics/constants.js';
 import { applyFlap, stepFlight } from '../physics/flight.js';
-import { circleHitsObstacle } from '../physics/collision.js';
+import { circleHitsObstacle, clearanceToObstacle } from '../physics/collision.js';
 import { ObjectPool } from '../obstacles/ObjectPool.js';
 import { createTrack, fillTrack, resetTrack, speedAt } from '../obstacles/spawner.js';
-import { computeScore, toMetres } from '../scoring/scoring.js';
+import { computeScore, streakMultiplier, toMetres } from '../scoring/scoring.js';
 import { GAME_EVENTS } from '../events/gameEvents.js';
 import { createRng, randomSeed } from '../../utils/random.js';
 
@@ -43,6 +43,9 @@ function createObstacle() {
     spin: 0,
     cap: 0,
     extent: 0,
+    /** Closest approach so far (near-miss tracking) and whether the bird has cleared it. */
+    gap: Infinity,
+    passed: false,
   };
 }
 function createOrb() {
@@ -59,6 +62,8 @@ export function createGameSim() {
   const builder = {
     column(cx, yBottom, yTop, w, cap) {
       const o = obstacles.acquire();
+      o.gap = Infinity;
+      o.passed = false;
       o.kind = 'column';
       o.shape = 'box';
       o.x = cx;
@@ -76,6 +81,8 @@ export function createGameSim() {
     },
     block(x0, x1, yBottom, yTop, cap) {
       const o = obstacles.acquire();
+      o.gap = Infinity;
+      o.passed = false;
       o.kind = 'block';
       o.shape = 'box';
       o.x = (x0 + x1) / 2;
@@ -93,6 +100,8 @@ export function createGameSim() {
     },
     rock(x, y, r) {
       const o = obstacles.acquire();
+      o.gap = Infinity;
+      o.passed = false;
       o.kind = 'rock';
       o.shape = 'circle';
       o.x = x;
@@ -126,6 +135,11 @@ export function createGameSim() {
     scoredDistance: 0,
     speed: WORLD.baseSpeed,
     orbsCollected: 0,
+    /** Near-miss bonus points, count, current streak, and the sim time of the last near miss. */
+    bonus: 0,
+    nearMisses: 0,
+    streak: 0,
+    lastNearMissAt: -99,
     deathTime: 0,
     /** Interpolation factor between the last two fixed steps (set by the loop). */
     alpha: 1,
@@ -153,10 +167,10 @@ export function createGameSim() {
       );
     },
     get score() {
-      return computeScore(sim.metres, sim.orbsCollected);
+      return computeScore(sim.metres, sim.orbsCollected, sim.bonus);
     },
     results() {
-      return { score: sim.score, distance: sim.metres, orbs: sim.orbsCollected };
+      return { score: sim.score, distance: sim.metres, orbs: sim.orbsCollected, nearMisses: sim.nearMisses };
     },
 
     reset(seed = randomSeed()) {
@@ -169,6 +183,8 @@ export function createGameSim() {
       sim.distance = sim.prevDistance = sim.scoredDistance = 0;
       sim.speed = WORLD.baseSpeed;
       sim.orbsCollected = 0;
+      sim.bonus = sim.nearMisses = sim.streak = 0;
+      sim.lastNearMissAt = -99;
       sim.deathTime = 0;
       sim.alpha = 1;
       const b = sim.bird;
@@ -258,11 +274,13 @@ export function createGameSim() {
         obstacles.release(o);
         continue;
       }
-      if (Math.abs(o.x - bx) > o.extent + R) continue; // broad phase
-      if (circleHitsObstacle(bx, b.y, R, o)) {
+      const dx = Math.abs(o.x - bx);
+      if (dx > o.extent + R + SCORING.nearMissMargin) continue; // broad phase
+      if (dx <= o.extent + R && circleHitsObstacle(bx, b.y, R, o)) {
         die();
         return;
       }
+      trackNearMiss(o, bx, b.y, R);
     }
 
     const reach = R + ORB_RADIUS;
@@ -282,6 +300,23 @@ export function createGameSim() {
         sim.events.push({ type: GAME_EVENTS.ORB, x: orb.x, y: orb.y });
       }
     }
+  }
+
+  /** Tracks the closest approach to an obstacle; pays out once the bird has cleared it. */
+  function trackNearMiss(o, bx, by, R) {
+    if (o.passed) return;
+    const gap = clearanceToObstacle(bx, by, R, o);
+    if (gap < o.gap) o.gap = gap;
+    if (bx <= o.x + o.extent + R) return; // still alongside it
+    o.passed = true;
+    if (o.gap >= SCORING.nearMissMargin) return;
+    sim.streak = sim.time - sim.lastNearMissAt <= SCORING.streakWindow ? sim.streak + 1 : 1;
+    sim.lastNearMissAt = sim.time;
+    sim.nearMisses += 1;
+    const points = SCORING.nearMissPoints * streakMultiplier(sim.streak);
+    sim.bonus += points;
+    sim.fx.fovKick += 0.6;
+    sim.events.push({ type: GAME_EVENTS.NEAR_MISS, x: bx, y: by, streak: sim.streak, points });
   }
 
   function die() {

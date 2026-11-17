@@ -8,6 +8,7 @@ import {
   circleIntersectsCircle,
   circleHitsObstacle,
 } from '../src/systems/physics/collision.js';
+import { clearanceToObstacle } from '../src/systems/physics/collision.js';
 import { PHYSICS, WORLD, SCORING } from '../src/systems/physics/constants.js';
 import { computeScore } from '../src/systems/scoring/scoring.js';
 
@@ -149,6 +150,88 @@ section('Orbs');
   check('orb event once', countEvents(sim, 'orb') === 1);
   check('orb removed from pool', sim.orbs.active.size === 0);
   check('orb adds bonus', sim.score === sim.metres + SCORING.orbPoints);
+}
+
+// ---------------------------------------------------------------- near misses
+section('Near misses');
+{
+  check(
+    'clearance: box side',
+    Math.abs(clearanceToObstacle(0, 0, 0.5, { shape: 'box', x: 2, y: 0, hw: 1, hh: 5 }) - 0.5) < 1e-9,
+  );
+  check(
+    'clearance: circle',
+    Math.abs(clearanceToObstacle(0, 0, 0.5, { shape: 'circle', x: 3, y: 0, cr: 1 }) - 1.5) < 1e-9,
+  );
+  check(
+    'clearance: negative when overlapping',
+    clearanceToObstacle(0, 0, 0.5, { shape: 'box', x: 0.5, y: 0, hw: 1, hh: 1 }) < 0,
+  );
+
+  // Hold the bird at a fixed height by pinning y each step (isolates the near-miss logic).
+  const pinned = (offset, rocks = 1, spacing = 2, steps = 400) => {
+    const sim = createGameSim();
+    sim.reset(21);
+    sim.obstacles.releaseAll();
+    sim.orbs.releaseAll();
+    sim.track.nextX = 1e9;
+    sim.flap();
+    sim.step(DT);
+    for (let k = 0; k < rocks; k++) {
+      const o = sim.obstacles.acquire();
+      Object.assign(o, {
+        kind: 'rock',
+        shape: 'circle',
+        x: 3 + k * spacing,
+        y: 0 + offset,
+        r: 0.5,
+        cr: 0.43,
+        extent: 0.5,
+        gap: Infinity,
+        passed: false,
+      });
+    }
+    const y = 0;
+    for (let i = 0; i < steps && sim.phase === PHASE.RUNNING; i++) {
+      sim.bird.y = sim.bird.prevY = y;
+      sim.bird.vy = 0;
+      sim.step(DT);
+    }
+    return sim;
+  };
+
+  const close = pinned(PHYSICS.birdRadius + 0.43 + 0.1);
+  check('close pass still alive', close.phase === PHASE.RUNNING);
+  check('close pass counts a near miss', close.nearMisses === 1, `got ${close.nearMisses}`);
+  check('near miss bonus', close.bonus === SCORING.nearMissPoints);
+  check('near miss event once', countEvents(close, 'nearMiss') === 1);
+  check('near miss adds to score', close.score === close.metres + SCORING.nearMissPoints);
+
+  const wide = pinned(PHYSICS.birdRadius + 0.43 + 1.5);
+  check('wide pass is not a near miss', wide.nearMisses === 0 && wide.bonus === 0);
+
+  const streak = pinned(PHYSICS.birdRadius + 0.43 + 0.1, 3);
+  check('three close passes', streak.nearMisses === 3, `got ${streak.nearMisses}`);
+  check(
+    'streak multiplies bonus',
+    streak.bonus === SCORING.nearMissPoints * (1 + 2 + 3),
+    `bonus ${streak.bonus}`,
+  );
+
+  const slow = pinned(PHYSICS.birdRadius + 0.43 + 0.1, 2, 60, 1800);
+  check(
+    'streak resets after the window',
+    slow.streak === 1 && slow.bonus === SCORING.nearMissPoints * 2,
+    `streak ${slow.streak} bonus ${slow.bonus}`,
+  );
+
+  const crashed = createGameSim();
+  crashed.reset(22);
+  crashed.obstacles.releaseAll();
+  crashed.track.nextX = 1e9;
+  crashed.flap();
+  for (let i = 0; i < 600 && crashed.phase === PHASE.RUNNING; i++) crashed.step(DT);
+  check('no near-miss events when nothing was passed', crashed.nearMisses === 0);
 }
 
 // ---------------------------------------------------------------- restarts / pooling

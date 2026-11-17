@@ -66,6 +66,11 @@ function tone({ type = 'sine', from, to, duration, peak, delay = 0 }) {
   osc.stop(t + duration + 0.05);
 }
 
+/** Shared audio graph for other audio modules (music). Null until the first user gesture. */
+export function getAudio() {
+  return ctx && master ? { ctx, master } : null;
+}
+
 const ready = () => ctx && ctx.state === 'running';
 
 export const sfx = {
@@ -77,6 +82,17 @@ export const sfx = {
     if (!ready()) return;
     tone({ type: 'triangle', from: 880, to: 1760, duration: 0.16, peak: 0.16 });
     tone({ type: 'sine', from: 1320, to: 2640, duration: 0.2, peak: 0.08, delay: 0.05 });
+  },
+  nearMiss(streak = 1) {
+    if (!ready()) return;
+    // A rising whoosh plus a bright ping that climbs with the streak.
+    noiseBurst({ duration: 0.22, filter: 'bandpass', from: 600, to: 2600, q: 1.4, peak: 0.2 });
+    const base = 660 * Math.pow(1.122, Math.min(streak, 6) - 1);
+    tone({ type: 'sine', from: base, to: base * 1.5, duration: 0.22, peak: 0.14, delay: 0.04 });
+  },
+  start() {
+    if (!ready()) return;
+    tone({ type: 'triangle', from: 330, to: 660, duration: 0.3, peak: 0.12 });
   },
   crash() {
     if (!ready()) return;

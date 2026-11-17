@@ -51,6 +51,13 @@ export const SCORING = Object.freeze({
   pointsPerMetre: 1,
   /** Tuned so orbs are ~35-40% of a skilled player's score: a bonus, not the main source. */
   orbPoints: 5,
+  /** Squeezing past an obstacle closer than this (surface to bird edge, in units) is a near miss. */
+  nearMissMargin: 0.28,
+  /** Base bonus for a near miss; multiplied by the current streak (capped). */
+  nearMissPoints: 3,
+  /** A streak survives this long (seconds) without another near miss. */
+  streakWindow: 4,
+  maxStreakMultiplier: 5,
 });
 
 export const DYING_DURATION = 1.1; // seconds of crash animation before the game-over screen

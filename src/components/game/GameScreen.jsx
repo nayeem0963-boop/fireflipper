@@ -3,6 +3,7 @@ import { useGameStore, STATUS } from '../../store/useGameStore.js';
 import SceneCanvas from '../scene/SceneCanvas.jsx';
 import EmberValleyScene from '../../scenes/EmberValley/EmberValleyScene.jsx';
 import GameHUD from '../ui/GameHUD.jsx';
+import RunCallouts from '../ui/RunCallouts.jsx';
 import PauseMenu from '../ui/PauseMenu.jsx';
 import StartPrompt from '../ui/StartPrompt.jsx';
 import GameOverPanel from '../ui/GameOverPanel.jsx';
@@ -67,6 +68,7 @@ export default function GameScreen() {
       </div>
 
       <GameHUD />
+      <RunCallouts />
 
       {status === STATUS.READY && <StartPrompt />}
       {status === STATUS.DYING && <div className="game__flash" aria-hidden="true" />}

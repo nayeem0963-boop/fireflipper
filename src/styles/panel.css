@@ -114,6 +114,9 @@
   border-radius: var(--radius-sm);
   background: rgba(11, 9, 7, 0.5);
 }
+.gameover__stats div:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
 .gameover__stats dt {
   font-size: 0.66rem;
   font-weight: 600;

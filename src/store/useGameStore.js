@@ -37,6 +37,8 @@ export const useGameStore = create((set, get) => ({
   score: 0,
   distance: 0,
   orbs: 0,
+  /** Latest near-miss callout { id, streak, points } for the HUD; null between runs. */
+  callout: null,
   runId: 0, // bumped on every (re)start; the game loop resets the sim on change
   overAt: 0,
   /** { score, distance, orbs, isNewBest } of the last finished run. */
@@ -51,6 +53,8 @@ export const useGameStore = create((set, get) => ({
   // --- settings ---
   soundEnabled: loadValue('soundEnabled', true),
   quality: loadValue('quality', QUALITY.AUTO),
+  /** First-run coaching hints are shown until the player has flown a short distance. */
+  tutorialDone: loadValue('tutorialDone', false),
 
   // --- navigation actions ---
   startGame: () =>
@@ -65,7 +69,7 @@ export const useGameStore = create((set, get) => ({
   // --- run lifecycle (driven by simulation events + UI) ---
   beginRun: () => set((s) => (s.status === STATUS.READY ? { status: STATUS.RUNNING } : s)),
   crash: () => set((s) => (s.status === STATUS.RUNNING ? { status: STATUS.DYING } : s)),
-  endRun: ({ score, distance, orbs }) => {
+  endRun: ({ score, distance, orbs, nearMisses = 0 }) => {
     const s = get();
     // Guard: a run can only end once.
     if (s.status !== STATUS.DYING && s.status !== STATUS.RUNNING) return;
@@ -77,7 +81,7 @@ export const useGameStore = create((set, get) => ({
       score,
       distance,
       orbs,
-      lastResult: { score, distance, orbs, isNewBest },
+      lastResult: { score, distance, orbs, nearMisses, isNewBest },
       bestScore: Math.max(s.bestScore, score),
       sessionBest: Math.max(s.sessionBest, score),
       runsThisSession: s.runsThisSession + 1,
@@ -91,6 +95,15 @@ export const useGameStore = create((set, get) => ({
     const { status, pause, resume } = get();
     if (status === STATUS.RUNNING) pause();
     else if (status === STATUS.PAUSED) resume();
+  },
+
+  nearMiss: (streak, points) =>
+    set((s) =>
+      s.status === STATUS.RUNNING ? { callout: { id: (s.callout?.id ?? 0) + 1, streak, points } } : s,
+    ),
+  completeTutorial: () => {
+    saveValue('tutorialDone', true);
+    set({ tutorialDone: true });
   },
 
   /** Throttled HUD snapshot from the game loop. Skips no-op updates. */
@@ -112,5 +125,13 @@ export const useGameStore = create((set, get) => ({
 }));
 
 function freshRun(s) {
-  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, lastResult: null, runId: s.runId + 1 };
+  return {
+    status: STATUS.READY,
+    score: 0,
+    distance: 0,
+    orbs: 0,
+    callout: null,
+    lastResult: null,
+    runId: s.runId + 1,
+  };
 }

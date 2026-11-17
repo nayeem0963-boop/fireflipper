@@ -60,7 +60,7 @@ src/
     scoring/            pure scoring helpers
     input/              input action bus (flap press/release, dive, pause)
     events/             gameplay event bus (start, flap, orb, crash, over)
-    audio/              synthesized Web Audio sound effects
+    audio/              synthesized Web Audio sound effects (sfx.js) and procedural music (music.js)
   hooks/                React hooks: input binding, audio, render quality, auto-pause
 scripts/
   sim-test.mjs          headless tests (npm run test:sim)
@@ -95,6 +95,9 @@ scripts/
 - **Fairness:** each corridor's centre is constrained to be reachable from anywhere the bird could
   have left the previous section, using conservative climb (3.2 u/s) and drop (4.5 u/s) rates. An
   autopilot in `npm run test:sim` survives 40 of 40 random tracks to 3,000 m.
+- **Near misses:** passing within 0.28 units of an obstacle's surface without touching it pays a
+  "Close call" bonus (3 points). Consecutive close calls within 4 s build a streak that multiplies
+  the bonus up to 5x. Tracked in the simulation (`trackNearMiss`) and covered by `npm run test:sim`.
 - **Scoring:** 1 point per metre plus 5 per fire orb. Orb supply (passage lines every 3 units, a
   trail before 30% of sections) is tuned so orbs make up about 39% of a skilled 3,000 m run (~1,950
   orb points against 3,000 distance points): a bonus, not the main source of points. Best score is
@@ -118,6 +121,11 @@ scripts/
   the whole field, with no per-frame allocations. Spark bursts use one pooled `THREE.Points`.
 - Procedural textures are disposed on unmount; JSX geometries and materials are disposed by R3F.
 - GLB models will load via drei's `useGLTF` from `public/models/`.
+
+### First-run coaching
+
+New players see short hints during their first ~70 m (`RunCallouts`); after that the
+`tutorialDone` flag is stored locally and they never return.
 
 ## Controls
 

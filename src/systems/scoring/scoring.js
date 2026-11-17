@@ -6,8 +6,13 @@ export function toMetres(distanceUnits) {
   return Math.max(0, Math.floor(distanceUnits));
 }
 
-export function computeScore(metres, orbs) {
-  return metres * SCORING.pointsPerMetre + orbs * SCORING.orbPoints;
+export function computeScore(metres, orbs, bonus = 0) {
+  return metres * SCORING.pointsPerMetre + orbs * SCORING.orbPoints + bonus;
+}
+
+/** Near-miss streak multiplier: 1x, 2x, ... capped. */
+export function streakMultiplier(streak) {
+  return Math.min(Math.max(streak, 1), SCORING.maxStreakMultiplier);
 }
 
 export function formatDistance(metres) {

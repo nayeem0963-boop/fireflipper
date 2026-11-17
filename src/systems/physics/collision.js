@@ -23,3 +23,14 @@ export function circleHitsObstacle(cx, cy, r, o) {
     ? circleIntersectsCircle(cx, cy, r, o.x, o.y, o.cr)
     : circleIntersectsBox(cx, cy, r, o.x, o.y, o.hw, o.hh);
 }
+
+/**
+ * Gap between the bird's edge and the obstacle's collider surface
+ * (negative once they overlap). Used for near-miss detection.
+ */
+export function clearanceToObstacle(cx, cy, r, o) {
+  if (o.shape === 'circle') return Math.hypot(cx - o.x, cy - o.y) - o.cr - r;
+  const dx = Math.max(Math.abs(cx - o.x) - o.hw, 0);
+  const dy = Math.max(Math.abs(cy - o.y) - o.hh, 0);
+  return Math.hypot(dx, dy) - r;
+}

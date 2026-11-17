@@ -40,6 +40,7 @@ export function useGameLoop(sim) {
     if (sim.events.length) {
       for (const e of sim.events) {
         if (e.type === GAME_EVENTS.START) store.beginRun();
+        else if (e.type === GAME_EVENTS.NEAR_MISS) store.nearMiss(e.streak, e.points);
         else if (e.type === GAME_EVENTS.CRASH) store.crash();
         else if (e.type === GAME_EVENTS.OVER) store.endRun(sim.results());
         gameEvents.emit(e.type, e);

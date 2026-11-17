@@ -43,6 +43,10 @@ export default function GameOverPanel() {
             </dd>
           </div>
           <div>
+            <dt>Near misses</dt>
+            <dd>{result.nearMisses}</dd>
+          </div>
+          <div>
             <dt>Session best</dt>
             <dd>{formatScore(sessionBest)}</dd>
           </div>
