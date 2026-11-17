@@ -80,7 +80,7 @@ export const MODEL_BIRDS = Object.freeze([
     // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
     flap: { start: 0.2, full: 0.5, hingeFrac: 0.4, strength: 0.8 },
     // Eyes (model units from the model's centre): `at` is one eye's centre, mirrored for the other.
-    eye: { at: [0.058, 0.035, 0.3], size: 0.05 },
+    eye: { at: [0.058, 0.035, 0.3], size: 0.056 },
     palette: {
       low: '#0b3fb8',
       mid: '#2ea6ff',
