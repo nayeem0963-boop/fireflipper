@@ -1,18 +1,20 @@
 /**
- * Firebird skins. Pure data: a skin is a colour palette for the bird, and
+ * The original bird's colours (Fire, Blue, White). Pure data: a skin is a colour palette for the bird, and
  * unlocks once the player's best free-play score reaches `unlockScore`.
  * (A typical skilled 3,000 m run scores about 5,000.)
  */
 export const SKINS = Object.freeze([
   {
-    id: 'ember',
-    name: 'Ember',
+    id: 'flipper-fire',
+    name: 'Fire',
+    color: 'fire',
     unlockScore: 0,
     palette: {},
   },
   {
-    id: 'azure',
-    name: 'Azure Flame',
+    id: 'flipper-blue',
+    name: 'Blue',
+    color: 'blue',
     unlockScore: 600,
     palette: {
       body: '#1f8fff',
@@ -29,39 +31,22 @@ export const SKINS = Object.freeze([
     },
   },
   {
-    id: 'verdant',
-    name: 'Verdant Blaze',
+    id: 'flipper-white',
+    name: 'White',
+    color: 'white',
     unlockScore: 1500,
     palette: {
-      body: '#27d96a',
-      bodyEmissive: '#0a8a3a',
-      belly: '#d8ff9a',
-      bellyEmissive: '#7aff5a',
-      wing: '#3df07a',
-      wingEmissive: '#10b04a',
-      wingInner: '#eaffb8',
-      flame: '#e6ffb0',
-      beak: '#fff2a8',
-      beakEmissive: '#d6ff4a',
-      glow: '#5aff7a',
-    },
-  },
-  {
-    id: 'void',
-    name: 'Void Phoenix',
-    unlockScore: 3000,
-    palette: {
-      body: '#8a3dff',
-      bodyEmissive: '#4a14b8',
-      belly: '#ff7ad9',
-      bellyEmissive: '#d12aa8',
-      wing: '#a24dff',
-      wingEmissive: '#6a1fff',
-      wingInner: '#ffb3f0',
-      flame: '#ffd0f6',
-      beak: '#ffe0fa',
-      beakEmissive: '#ff6ad2',
-      glow: '#b04dff',
+      body: '#e8eef7',
+      bodyEmissive: '#9fb4d6',
+      belly: '#ffffff',
+      bellyEmissive: '#cfe0ff',
+      wing: '#f4f7ff',
+      wingEmissive: '#b8cdf5',
+      wingInner: '#ffffff',
+      flame: '#e6f2ff',
+      beak: '#ffd88a',
+      beakEmissive: '#ffcf6a',
+      glow: '#cfe4ff',
     },
   },
 ]);

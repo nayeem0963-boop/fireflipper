@@ -182,16 +182,21 @@ input entries).
 
 ### Choosing your bird
 
-**Your bird** on the menu (or Settings > Bird) opens a picker with a live preview. There are thirteen birds:
+**Your bird** on the menu (or Settings > Bird) opens a picker with a live preview. There are seven birds, each named
+for its species and each in three colours (**Fire**, **Blue** and **White**), so 21 looks in all. Pick the bird, then
+its colour:
 
-- **Fire Flipper** (the original bird in four colour schemes: Ember, Azure Flame, Verdant Blaze, Void Phoenix). The
-  last three unlock by best free-play score.
-- **Bulbuli** (always free): birds built in code, ported from the Bulbuli project, with real wing beats: four
-  colourways of **Bulbuli** the red-whiskered bulbul (**Fire**, **Sunburst**, **Blue-Flame** and **Obsidian
-  Bulbuli**). No files to download and no third-party licence.
-- **Fire-lit wildlife** (always free): five real 3D models re-lit as fire birds: **Blaze Macaw**, **Rainbow
-  Phoenix**, **Sapphire Macaw**, **Ember Toucan** and a butterfly, the **Fire Morpho**. The butterfly's wings beat for real: its model joins them only at the body, so each wing mesh is split into
-  a left and right half at run time (`systems/avatars/splitWing.js`) and hung from a hinge along its tilted body.
+- **Flipper**, the original bird. Its Fire colour is free; **Blue** and **White** unlock by best free-play score.
+- **Bulbuli**: the red-whiskered bulbul, built in code and ported from the Bulbuli project, with real wing beats. No
+  files to download and no third-party licence.
+- **Scarlet Macaw**, **Rainbow Macaw**, **Blue-and-Yellow Macaw**, **Toco Toucan** and **Morpho Butterfly**: five real
+  3D models re-lit as fire birds. The butterfly's wings beat for real: its model joins them only at the body, so each
+  wing mesh is split into a left and right half at run time (`systems/avatars/splitWing.js`) and hung from a hinge
+  along its tilted body.
+
+Blue and White change the plumage tint, the glow and the flame trail (a white glow texture keeps them from turning
+orange), not the bird. Only Flipper's colours are locked; everything else is free. A choice saved before birds had
+colours is mapped to the nearest bird and colour.
 
 The choice is cosmetic: every bird has the same physics and collision size. It is remembered between visits.
 

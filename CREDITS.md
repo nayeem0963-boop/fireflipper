@@ -11,13 +11,13 @@ in the bird picker). The same list lives in code in `src/systems/avatars/credits
 The models came to this project via the Bulbuli World Explorer game, where they were already simplified and baked into
 static geometry (noted per model below).
 
-| Bird in the game | Model                                            | Author                                         | Source                                                                                                                       |
-| ---------------- | ------------------------------------------------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Blaze Macaw      | "Scarlet Macaw"                                  | [Mateus Schwaab](https://sketchfab.com/Mehrus) | [Sketchfab](https://sketchfab.com/3d-models/scarlet-macaw-0bb61160866b4811bd79b6d11e3d8907)                                  |
-| Rainbow Phoenix  | "Low poly Rainbow Macaw In Flying 3D Model Free" | [iRahulRajput](https://sketchfab.com/rt699448) | [Sketchfab](https://sketchfab.com/3d-models/low-poly-rainbow-macaw-in-flying-3d-model-free-7ac34a313b63475cabcadaf48b92b80b) |
-| Sapphire Macaw   | "Macaw+3d+model"                                 | [iRahulRajput](https://sketchfab.com/rt699448) | [Sketchfab](https://sketchfab.com/3d-models/macaw3dmodel-0a16d7ad853e475f87a3694baa8ed46c)                                   |
-| Ember Toucan     | "Toco Toucan Bird 3D Model Free"                 | [iRahulRajput](https://sketchfab.com/rt699448) | [Sketchfab](https://sketchfab.com/3d-models/toco-toucan-bird-3d-model-free-384e7f893a1d4148b2ced5cb184956b3)                 |
-| Fire Morpho      | "morpho" (a butterfly)                           | [Qween](https://sketchfab.com/QweenH)          | [Sketchfab](https://sketchfab.com/3d-models/morpho-0f2f9980584749fda6875b8ef8617b98)                                         |
+| Bird in the game      | Model                                            | Author                                         | Source                                                                                                                       |
+| --------------------- | ------------------------------------------------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Scarlet Macaw         | "Scarlet Macaw"                                  | [Mateus Schwaab](https://sketchfab.com/Mehrus) | [Sketchfab](https://sketchfab.com/3d-models/scarlet-macaw-0bb61160866b4811bd79b6d11e3d8907)                                  |
+| Rainbow Macaw         | "Low poly Rainbow Macaw In Flying 3D Model Free" | [iRahulRajput](https://sketchfab.com/rt699448) | [Sketchfab](https://sketchfab.com/3d-models/low-poly-rainbow-macaw-in-flying-3d-model-free-7ac34a313b63475cabcadaf48b92b80b) |
+| Blue-and-Yellow Macaw | "Macaw+3d+model"                                 | [iRahulRajput](https://sketchfab.com/rt699448) | [Sketchfab](https://sketchfab.com/3d-models/macaw3dmodel-0a16d7ad853e475f87a3694baa8ed46c)                                   |
+| Toco Toucan           | "Toco Toucan Bird 3D Model Free"                 | [iRahulRajput](https://sketchfab.com/rt699448) | [Sketchfab](https://sketchfab.com/3d-models/toco-toucan-bird-3d-model-free-384e7f893a1d4148b2ced5cb184956b3)                 |
+| Morpho Butterfly      | "morpho" (a butterfly)                           | [Qween](https://sketchfab.com/QweenH)          | [Sketchfab](https://sketchfab.com/3d-models/morpho-0f2f9980584749fda6875b8ef8617b98)                                         |
 
 ### Changes made to the models
 
@@ -34,8 +34,8 @@ Before Fire Flipper (for the Bulbuli World Explorer game):
 
 By Fire Flipper (all five):
 
-- Re-coloured at run time as a fire bird: the plumage is tinted with a flame gradient, and extra glow, a flame tail and
-  a light are added.
+- Re-coloured at run time in three colours (Fire, Blue and White): the plumage is tinted with a flame gradient, and extra
+  glow, a flame tail and a light are added.
 - Turned to face the direction of flight (and, for the rainbow macaw, tilted to fly level) and scaled to fit the game.
 - Given wing beats at run time: the wings are bent about the shoulders by a small shader patch, so they flap without
   the model file being changed.
@@ -43,7 +43,7 @@ By Fire Flipper (all five):
 
 ## Code-built birds from the Bulbuli project
 
-The **Bulbuli** birds (Fire, Sunburst, Blue-Flame and Obsidian Bulbuli) are not downloaded models. They are built in
+The **Bulbuli** birds (in Fire, Blue and White) are not downloaded models. They are built in
 code, from primitive shapes, and were ported from the Bulbuli project (the same author as Fire Flipper): the player
 bird in `games/PlayerBird3D.jsx`. There is no third-party licence to carry for them. Here they were given fire colour
 schemes, glow and a flame tail, and wing beats driven by the game's flight state.

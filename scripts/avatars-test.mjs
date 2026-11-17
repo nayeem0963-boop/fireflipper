@@ -7,8 +7,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   AVATARS,
+  AVATAR_SPECIES,
+  COLOURS,
   DEFAULT_AVATAR_ID,
   MODEL_BIRDS,
+  avatarFor,
   getAvatar,
   isAvatarUnlocked,
   modelUrl,
@@ -16,7 +19,6 @@ import {
 } from '../src/systems/avatars/avatars.js';
 import { CREDITS, FIRE_FLIPPER_CHANGES, LICENCE, getCredit } from '../src/systems/avatars/credits.js';
 import { SKINS } from '../src/systems/skins/skins.js';
-import { AVATAR_GROUPS } from '../src/systems/avatars/avatars.js';
 import { createFireMaterial, createFireUniforms } from '../src/components/scene/fireMaterial.js';
 import { splitWing } from '../src/systems/avatars/splitWing.js';
 import { BufferGeometry, Float32BufferAttribute } from 'three';
@@ -74,12 +76,109 @@ section('Avatar list');
   check('a locked choice resolves to the default', resolveAvatar(SKINS[2].id, 0).id === DEFAULT_AVATAR_ID);
   check(
     'a model bird resolves to itself at any score',
-    resolveAvatar(MODEL_BIRDS[0].id, 0).id === MODEL_BIRDS[0].id,
+    resolveAvatar(`${MODEL_BIRDS[0].id}-fire`, 0).species === MODEL_BIRDS[0].id,
   );
   check(
     'model URLs are under /models/birds',
     MODEL_BIRDS.every((m) => modelUrl(m).endsWith(`/models/birds/${m.file}`)),
   );
+}
+
+section('Species and colours');
+{
+  const hexKeys = ['low', 'mid', 'high', 'glow'];
+  const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+  check('there are seven species', AVATAR_SPECIES.length === 7, `${AVATAR_SPECIES.length}`);
+  check('the colours are Fire, Blue and White', COLOURS.map((c) => c.id).join() === 'fire,blue,white');
+  const themed = /fire|flame|ember|blaze|azure|sapphire|phoenix|magma|sunburst|obsidian|verdant|void/i;
+  check(
+    'species names are unique',
+    new Set(AVATAR_SPECIES.map((sp) => sp.name)).size === AVATAR_SPECIES.length,
+  );
+  check(
+    'species are named for what they are, not for a colour or a flame theme',
+    AVATAR_SPECIES.every((sp) => !themed.test(sp.name)),
+    AVATAR_SPECIES.map((sp) => sp.name).join(', '),
+  );
+  for (const sp of AVATAR_SPECIES) {
+    check(
+      `${sp.id}: comes in Fire, Blue and White`,
+      sp.variants.map((v) => v.color).join() === 'fire,blue,white',
+    );
+    check(
+      `${sp.id}: every colour has the species' name and its own id`,
+      sp.variants.every((v) => v.name === sp.name && v.id === `${sp.id}-${v.color}` && v.species === sp.id),
+    );
+    check(
+      `${sp.id}: colours are named Fire, Blue, White`,
+      sp.variants.map((v) => v.colorName).join() === 'Fire,Blue,White',
+    );
+    for (const v of sp.variants) {
+      if (v.kind === 'firebird') continue; // the original bird's palettes are its own colour table (skins.js)
+      check(
+        `${v.id}: flame colours are hex`,
+        hexKeys.every((k) => hex.test(v.palette[k])),
+      );
+      if (v.kind === 'model') {
+        const p = v.palette;
+        check(
+          `${v.id}: plumage settings are sane`,
+          p.mix >= 0 && p.mix <= 1 && p.glowStrength > 0 && p.lumFloor >= 0 && p.lumFloor <= 1,
+        );
+      }
+    }
+    // Each colour must read as its name: Fire warm, Blue cool, White bright.
+    const [fire, blue, white] = sp.variants.map((v) =>
+      rgb(v.kind === 'firebird' ? (v.palette.glow ?? '#ff7a2a') : v.palette.mid),
+    );
+    check(`${sp.id}: Fire is warm`, fire[0] > fire[2], `${fire}`);
+    check(`${sp.id}: Blue is cool`, blue[2] > blue[0], `${blue}`);
+    check(`${sp.id}: White is bright`, Math.min(...white) > 0xc0, `${white}`);
+  }
+  check(
+    'only the original bird is locked: its Blue and White unlock by score',
+    AVATARS.every((a) => (a.species === 'flipper' ? true : isAvatarUnlocked(a, 0))) &&
+      !isAvatarUnlocked(avatarFor('flipper', 'blue'), 0) &&
+      !isAvatarUnlocked(avatarFor('flipper', 'white'), 0) &&
+      isAvatarUnlocked(avatarFor('flipper', 'fire'), 0),
+  );
+  check(
+    'every colour of a model has its own palette',
+    MODEL_BIRDS.every((m) => new Set(Object.values(m.variants).map((p) => p.mid)).size === 3),
+  );
+  check(
+    'an unknown colour falls back to the species Fire version',
+    avatarFor('bulbuli', 'purple').id === 'bulbuli-fire',
+  );
+  const legacy = {
+    ember: 'flipper-fire',
+    azure: 'flipper-blue',
+    void: 'flipper-white',
+    'bulbuli-blue': 'bulbuli-blue',
+    'macaw-blue-yellow': 'macaw-blue-yellow-blue',
+    morpho: 'morpho-fire',
+  };
+  check(
+    'choices saved before colours existed map to the nearest bird and colour',
+    Object.entries(legacy).every(([old, now]) => getAvatar(old).id === now),
+  );
+}
+
+section('Colours of the flame');
+{
+  const aura = fs.readFileSync(path.join(root, 'src/components/scene/FlameAura.jsx'), 'utf8');
+  const tex = fs.readFileSync(path.join(root, 'src/utils/textures.js'), 'utf8');
+  check(
+    'there is a neutral (white) glow texture for Blue and White flames',
+    tex.includes('getNeutralGlowTexture'),
+  );
+  check('the flame aura can use it', aura.includes('neutral') && aura.includes('getNeutralGlowTexture'));
+  for (const f of ['BulbuliBird', 'ModelBird', 'ButterflyBird']) {
+    const src = fs.readFileSync(path.join(root, 'src/components/scene', `${f}.jsx`), 'utf8');
+    check(`${f} uses the neutral glow for Blue and White`, /neutral=\{avatar\.color !== 'fire'\}/.test(src));
+  }
+  const fb = fs.readFileSync(path.join(root, 'src/components/scene/AvatarBird.jsx'), 'utf8');
+  check('the original bird gets the neutral halo too', /neutralGlow=\{avatar\.color !== 'fire'\}/.test(fb));
 }
 
 section('Removed birds');
@@ -89,7 +188,11 @@ section('Removed birds');
     'the tanagers and the hoatzin are no longer offered',
     gone.every((id) => !AVATARS.some((a) => a.id === id)),
   );
-  check('thirteen birds are offered', AVATARS.length === 13, `${AVATARS.length}`);
+  check(
+    'twenty-one birds are offered (seven species in three colours)',
+    AVATARS.length === 21,
+    `${AVATARS.length}`,
+  );
   check(
     'a saved choice of a removed bird falls back to the default bird',
     gone.every((id) => resolveAvatar(id, 0).id === DEFAULT_AVATAR_ID),
@@ -100,18 +203,10 @@ section('Removed birds');
 section('Code-built birds');
 {
   const built = AVATARS.filter((a) => a.kind === 'bird');
-  check('there are code-built birds', built.length >= 4, `${built.length}`);
+  check('there are code-built birds', built.length >= 3, `${built.length}`);
   check(
     'they are all free',
     built.every((a) => isAvatarUnlocked(a, 0)),
-  );
-  check(
-    'every avatar sits in a known group',
-    AVATARS.every((a) => AVATAR_GROUPS.includes(a.group)),
-  );
-  check(
-    'every group has birds',
-    AVATAR_GROUPS.every((g) => AVATARS.some((a) => a.group === g)),
   );
   const flame = ['glow', 'low', 'mid', 'high'];
   for (const a of built) {

@@ -127,6 +127,7 @@ export default function ButterflyBird({
     <group {...props}>
       <FlameAura
         palette={avatar.palette}
+        neutral={avatar.color !== 'fire'}
         tailX={-avatar.length / 2}
         glow={glow}
         lightIntensity={lightIntensity}

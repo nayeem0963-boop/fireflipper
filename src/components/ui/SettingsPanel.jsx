@@ -111,7 +111,7 @@ export default function SettingsPanel() {
               openAvatars();
             }}
           >
-            {skin.name}
+            {skin.name} ({skin.colorName})
           </button>
         </div>
 

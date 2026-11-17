@@ -140,7 +140,13 @@ export default function ModelBird({
   const { palette } = avatar;
   return (
     <group {...props}>
-      <FlameAura palette={palette} tailX={tail} glow={glow} lightIntensity={lightIntensity} />
+      <FlameAura
+        palette={palette}
+        neutral={avatar.color !== 'fire'}
+        tailX={tail}
+        glow={glow}
+        lightIntensity={lightIntensity}
+      />
 
       <group ref={wrap}>
         <group rotation={[0, 0, avatar.pitch]}>

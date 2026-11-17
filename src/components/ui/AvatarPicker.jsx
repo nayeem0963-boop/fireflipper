@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useGameStore } from '../../store/useGameStore.js';
-import { AVATARS, AVATAR_GROUPS, isAvatarUnlocked } from '../../systems/avatars/avatars.js';
+import { AVATAR_SPECIES, avatarFor, isAvatarUnlocked } from '../../systems/avatars/avatars.js';
 import { LICENCE, getCredit } from '../../systems/avatars/credits.js';
 import { useSkin } from '../../hooks/useSkin.js';
 import SceneCanvas from '../scene/SceneCanvas.jsx';
@@ -22,7 +22,7 @@ export default function AvatarPicker() {
   const selectSkin = useGameStore((s) => s.selectSkin);
   const current = useSkin();
   const dialogRef = useRef(null);
-  const credit = current.kind === 'model' ? getCredit(current.id) : null;
+  const credit = current.kind === 'model' ? getCredit(current.species) : null;
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -31,32 +31,12 @@ export default function AvatarPicker() {
     return () => window.removeEventListener('keydown', onKey);
   }, [close]);
 
-  const group = (title) => (
-    <section key={title} className="avatars__group" aria-label={title}>
-      <h3 className="avatars__heading">{title}</h3>
-      <div className="avatars__grid" role="radiogroup" aria-label={title}>
-        {AVATARS.filter((a) => a.group === title).map((a) => {
-          const unlocked = isAvatarUnlocked(a, bestScore);
-          return (
-            <button
-              key={a.id}
-              type="button"
-              role="radio"
-              aria-checked={current.id === a.id}
-              disabled={!unlocked}
-              className={`skin ${current.id === a.id ? 'is-active' : ''}`}
-              style={swatch(a)}
-              onClick={() => selectSkin(a.id)}
-            >
-              <span className="skin__swatch" aria-hidden="true" />
-              <span className="skin__name">{a.name}</span>
-              {!unlocked && <span className="skin__lock">Best score {a.unlockScore.toLocaleString()}</span>}
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
+  // Choosing a species keeps the colour you are on when that colour is free for it, else its Fire version.
+  const pickSpecies = (species) => {
+    const same = avatarFor(species.id, current.color);
+    selectSkin(isAvatarUnlocked(same, bestScore) ? same.id : avatarFor(species.id, 'fire').id);
+  };
+  const colours = AVATAR_SPECIES.find((sp) => sp.id === current.species).variants;
 
   return (
     <div className="overlay" onPointerDown={(e) => e.target === e.currentTarget && close()}>
@@ -77,12 +57,14 @@ export default function AvatarPicker() {
           </IconButton>
         </div>
 
-        <div className="avatars__preview" aria-label={`Preview of ${current.name}`}>
+        <div className="avatars__preview" aria-label={`Preview of ${current.name} in ${current.colorName}`}>
           <SceneCanvas camera={{ position: [0, 0.2, 6], fov: 40 }}>
             <AvatarStage avatar={current} />
           </SceneCanvas>
         </div>
-        <p className="avatars__name">{current.name}</p>
+        <p className="avatars__name">
+          {current.name} <span className="avatars__colour">{current.colorName}</span>
+        </p>
         {current.tagline && <p className="avatars__tagline">{current.tagline}</p>}
         {credit && (
           <p className="avatars__credit">
@@ -101,7 +83,56 @@ export default function AvatarPicker() {
           </p>
         )}
 
-        {AVATAR_GROUPS.map((title) => group(title))}
+        <section className="avatars__group" aria-label="Colour">
+          <h3 className="avatars__heading">Colour</h3>
+          <div className="avatars__colours" role="radiogroup" aria-label="Colour">
+            {colours.map((v) => {
+              const unlocked = isAvatarUnlocked(v, bestScore);
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={current.id === v.id}
+                  disabled={!unlocked}
+                  className={`skin ${current.id === v.id ? 'is-active' : ''}`}
+                  style={swatch(v)}
+                  onClick={() => selectSkin(v.id)}
+                >
+                  <span className="skin__swatch" aria-hidden="true" />
+                  <span className="skin__name">{v.colorName}</span>
+                  {!unlocked && (
+                    <span className="skin__lock">Best score {v.unlockScore.toLocaleString()}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="avatars__group" aria-label="Bird">
+          <h3 className="avatars__heading">Bird</h3>
+          <div className="avatars__grid" role="radiogroup" aria-label="Bird">
+            {AVATAR_SPECIES.map((sp) => {
+              const shown = avatarFor(sp.id, current.color);
+              const active = current.species === sp.id;
+              return (
+                <button
+                  key={sp.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  className={`skin ${active ? 'is-active' : ''}`}
+                  style={swatch(isAvatarUnlocked(shown, bestScore) ? shown : avatarFor(sp.id, 'fire'))}
+                  onClick={() => pickSpecies(sp)}
+                >
+                  <span className="skin__swatch" aria-hidden="true" />
+                  <span className="skin__name">{sp.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
         <p className="panel__note">Your choice changes how your bird looks, not how it flies.</p>
       </div>
     </div>

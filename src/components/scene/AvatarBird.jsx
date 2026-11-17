@@ -26,7 +26,8 @@ class ModelBoundary extends Component {
  * Firebird. While a model loads, the original bird stands in, so the scene is never empty.
  */
 export default function AvatarBird({ avatar, ...props }) {
-  if (avatar.kind === 'firebird') return <Firebird palette={avatar.palette} {...props} />;
+  if (avatar.kind === 'firebird')
+    return <Firebird palette={avatar.palette} neutralGlow={avatar.color !== 'fire'} {...props} />;
   // Code-built birds (no file to load, so no waiting).
   if (avatar.kind === 'bird') return <BulbuliBird avatar={avatar} {...props} />;
   const stand = <Firebird {...props} />;

@@ -1,13 +1,17 @@
 import { SKINS, isUnlocked } from '../skins/skins.js';
 
 /**
- * Every bird the player can fly as. Two kinds:
+ * Every bird the player can fly as: seven species, each in three colours (Fire, Blue and White), so 21 avatars.
+ * A species is named for what it is (never for its colour); the colour is chosen separately.
  *
- *  - 'firebird': the original Fire Flipper bird in one of its colour schemes (unlocked by best score; see skins.js).
- *  - 'bird': a code-built bird from the Bulbuli project (the Bulbuli mascot in four fire colourways), with real
- *    wing beats. No model file and no third-party licence: it is built from primitives. `form` says which
- *    ('bulbuli'); `palette` gives its colours.
- *  - 'model': a real 3D bird model re-lit as a fire bird at run time (flame-coloured plumage, glow and a flame
+ * Each avatar carries its species' fields plus `species` (the species id), `color` ('fire' | 'blue' | 'white'),
+ * `colorName`, and that colour's `palette`. Its `id` is `<species>-<color>`; that is what is saved as the choice.
+ *
+ * Three kinds of species:
+ *  - 'firebird': the original Fire Flipper bird (unlocked colour by colour by best score; see skins.js).
+ *  - 'bird': a code-built bird from the Bulbuli project (Bulbuli the red-whiskered bulbul), with real wing beats.
+ *    No model file and no third-party licence: it is built from primitives. `form` says which ('bulbuli').
+ *  - 'model': a real 3D bird model re-lit as a fire bird at run time (colour-tinted plumage, glow and a flame
  *    tail). The models are third-party (CC BY 4.0); credits are in credits.js and shown in the app. They are
  *    free to choose: the choice is cosmetic and changes nothing about the physics or the collision size.
  *
@@ -19,13 +23,14 @@ import { SKINS, isUnlocked } from '../skins/skins.js';
  *  - lift:    vertical offset after centring
  *  - palette: low / mid / high flame colours, glow colour, how strongly the flame replaces the original plumage
  *             (mix), glow strength, and a floor for how dark the original plumage may be (lumFloor), so black
- *             feathers still catch fire
+ *             feathers still catch fire. The base palette here is the Fire version; Blue and White are made
+ *             below (see `modelVariants`).
  */
-export const MODEL_BIRDS = Object.freeze([
+const MODEL_BASE = Object.freeze([
   {
     id: 'scarlet-macaw',
-    name: 'Blaze Macaw',
-    tagline: 'A scarlet macaw trailing a ribbon of fire',
+    name: 'Scarlet Macaw',
+    tagline: 'A macaw trailing a ribbon of flame',
     file: 'scarlet-macaw.glb',
     facing: Math.PI / 2,
     pitch: 0,
@@ -47,8 +52,8 @@ export const MODEL_BIRDS = Object.freeze([
   },
   {
     id: 'macaw-flying',
-    name: 'Rainbow Phoenix',
-    tagline: 'A rainbow macaw reborn in flame',
+    name: 'Rainbow Macaw',
+    tagline: 'A painted macaw in full flight',
     file: 'macaw-flying.glb',
     facing: Math.PI / 2,
     pitch: -0.35,
@@ -71,8 +76,8 @@ export const MODEL_BIRDS = Object.freeze([
   },
   {
     id: 'macaw-blue-yellow',
-    name: 'Sapphire Macaw',
-    tagline: 'Blue-and-yellow macaw wreathed in blue fire',
+    name: 'Blue-and-Yellow Macaw',
+    tagline: 'A big-hearted macaw, wings spread wide',
     file: 'macaw-blue-yellow.glb',
     facing: Math.PI / 2,
     pitch: -0.25,
@@ -94,8 +99,8 @@ export const MODEL_BIRDS = Object.freeze([
   },
   {
     id: 'toco-toucan',
-    name: 'Ember Toucan',
-    tagline: 'A toco toucan with a glowing coal of a beak',
+    name: 'Toco Toucan',
+    tagline: 'A toucan with a glowing coal of a beak',
     file: 'toco-toucan.glb',
     facing: Math.PI / 2,
     pitch: 0,
@@ -117,8 +122,8 @@ export const MODEL_BIRDS = Object.freeze([
   },
   {
     id: 'morpho',
-    name: 'Fire Morpho',
-    tagline: 'A blue morpho butterfly set ablaze',
+    name: 'Morpho Butterfly',
+    tagline: 'A butterfly whose wings beat like flame',
     form: 'butterfly',
     file: 'morpho.glb',
     // The model's head is at its -z end and its body is tilted about 39 degrees nose-up in the resting pose.
@@ -147,93 +152,202 @@ export const MODEL_BIRDS = Object.freeze([
   },
 ]);
 
-const BULBULI = (id, name, tagline, p) => ({
-  id,
-  name,
-  tagline,
+/** Colour presets for the model birds. Fire is each model's own palette; Blue and White are shared. */
+const FIRE_ORANGE = {
+  low: '#a3120a',
+  mid: '#ff5a14',
+  high: '#ffd36b',
+  glow: '#ff7a2a',
+  mix: 0.85,
+  glowStrength: 0.9,
+  lumFloor: 0.2,
+};
+const BLUE = {
+  low: '#0b3fb8',
+  mid: '#2ea6ff',
+  high: '#d8f6ff',
+  glow: '#3aa8ff',
+  mix: 0.85,
+  glowStrength: 1,
+  lumFloor: 0.2,
+};
+const WHITE = {
+  low: '#8fa3c4',
+  mid: '#e6edf8',
+  high: '#ffffff',
+  glow: '#cfe4ff',
+  mix: 0.9,
+  glowStrength: 0.6,
+  lumFloor: 0.35,
+};
+/** Per-species exceptions: a model whose own colours are blue starts as Blue, and the morpho keeps its real wings. */
+const VARIANT_OVERRIDES = {
+  'macaw-blue-yellow': { fire: FIRE_ORANGE },
+  morpho: {
+    // Its real wing is iridescent blue and its markings are the point, so the texture shows through strongly.
+    blue: {
+      low: '#0a2f8f',
+      mid: '#2e8cff',
+      high: '#aee6ff',
+      glow: '#3aa8ff',
+      mix: 0.3,
+      glowStrength: 0.7,
+      lumFloor: 0.1,
+    },
+    white: { ...WHITE, mix: 0.75, lumFloor: 0.4 },
+  },
+};
+
+/** The Fire, Blue and White palettes of a model species. */
+function modelVariants(m) {
+  const o = VARIANT_OVERRIDES[m.id] ?? {};
+  return {
+    fire: o.fire ?? m.palette,
+    blue: o.blue ?? (o.fire ? m.palette : BLUE),
+    white: o.white ?? WHITE,
+  };
+}
+
+/** The model species: each with its three colour palettes (`variants`); `palette` is the Fire one. */
+export const MODEL_BIRDS = Object.freeze(
+  MODEL_BASE.map((m) => {
+    const variants = modelVariants(m);
+    return { ...m, palette: variants.fire, variants };
+  }),
+);
+
+/** Bulbuli the red-whiskered bulbul, in three colours. */
+const BULBULI_SPECIES = {
+  id: 'bulbuli',
+  name: 'Bulbuli',
+  tagline: 'The red-whiskered bulbul, crest alight',
   form: 'bulbuli',
   length: 1.9,
-  palette: { eye: '#ffe9b0', ...p },
-});
+  variants: {
+    fire: {
+      body: '#3a1410',
+      wing: '#6a1c10',
+      belly: '#ffe9c4',
+      crest: '#ff5a14',
+      cheek: '#ff2e1a',
+      accent: '#ff9a2e',
+      beak: '#ffb347',
+      glow: '#ff6a2a',
+      low: '#a3120a',
+      mid: '#ff5a14',
+      high: '#ffd36b',
+    },
+    blue: {
+      body: '#0d2a5c',
+      wing: '#14407f',
+      belly: '#e8fbff',
+      crest: '#3aa8ff',
+      cheek: '#7ad8ff',
+      accent: '#9fe8ff',
+      beak: '#d8f6ff',
+      glow: '#3aa8ff',
+      low: '#0b3fb8',
+      mid: '#2ea6ff',
+      high: '#d8f6ff',
+    },
+    white: {
+      body: '#b4c0d6',
+      wing: '#e6edf8',
+      belly: '#ffffff',
+      crest: '#dcebff',
+      cheek: '#8fc4ff',
+      accent: '#f0f6ff',
+      beak: '#ffe9a8',
+      glow: '#cfe4ff',
+      low: '#8fa3c4',
+      mid: '#e6edf8',
+      high: '#ffffff',
+    },
+  },
+};
 
-/** Bulbuli the red-whiskered bulbul, in four fire colourways. */
-const BULBULI_BIRDS = [
-  BULBULI('bulbuli-fire', 'Fire Bulbuli', 'Bulbuli the red-whiskered bulbul, crest ablaze', {
-    body: '#3a1410',
-    wing: '#6a1c10',
-    belly: '#ffe9c4',
-    crest: '#ff5a14',
-    cheek: '#ff2e1a',
-    accent: '#ff9a2e',
-    beak: '#ffb347',
-    glow: '#ff6a2a',
-    low: '#a3120a',
-    mid: '#ff5a14',
-    high: '#ffd36b',
-  }),
-  BULBULI('bulbuli-sunburst', 'Sunburst Bulbuli', 'A golden Bulbuli trailing sunlight', {
-    body: '#5a3208',
-    wing: '#8a5412',
-    belly: '#fff3c4',
-    crest: '#ffd23a',
-    cheek: '#ffb000',
-    accent: '#ffe27a',
-    beak: '#fff0a8',
-    glow: '#ffb02a',
-    low: '#c27a0a',
-    mid: '#ffb02a',
-    high: '#fff0a8',
-  }),
-  BULBULI('bulbuli-blue', 'Blue-Flame Bulbuli', 'Bulbuli wrapped in cold blue fire', {
-    body: '#0d2a5c',
-    wing: '#14407f',
-    belly: '#e8fbff',
-    crest: '#3aa8ff',
-    cheek: '#7ad8ff',
-    accent: '#9fe8ff',
-    beak: '#d8f6ff',
-    glow: '#3aa8ff',
-    low: '#0b3fb8',
-    mid: '#2ea6ff',
-    high: '#d8f6ff',
-  }),
-  BULBULI('bulbuli-obsidian', 'Obsidian Bulbuli', 'A shadow Bulbuli with a violet flame', {
-    body: '#150a22',
-    wing: '#2a1244',
-    belly: '#d9c4ff',
-    crest: '#c04aff',
-    cheek: '#ff4ad2',
-    accent: '#e08aff',
-    beak: '#f0d4ff',
-    glow: '#b04dff',
-    low: '#4a0f8a',
-    mid: '#b04dff',
-    high: '#ffd4f6',
-  }),
-];
-
-/** The full list, in the order the picker shows it. `group` is the section heading. */
-export const AVATARS = Object.freeze([
-  ...SKINS.map((s) => ({ ...s, kind: 'firebird', group: 'Fire Flipper' })),
-  ...BULBULI_BIRDS.map((b) => ({
-    ...b,
-    kind: 'bird',
-    group: 'Bulbuli',
-    unlockScore: 0,
-  })),
-  ...MODEL_BIRDS.map((m) => ({ ...m, kind: 'model', group: 'Fire-lit wildlife', unlockScore: 0 })),
+/** The three colours every species comes in, in the order the picker shows them. */
+export const COLOURS = Object.freeze([
+  { id: 'fire', name: 'Fire' },
+  { id: 'blue', name: 'Blue' },
+  { id: 'white', name: 'White' },
 ]);
 
-/** Section headings, in order. */
-export const AVATAR_GROUPS = Object.freeze(['Fire Flipper', 'Bulbuli', 'Fire-lit wildlife']);
+/** The original bird as a species: its colours come from skins.js (which also holds their unlock scores). */
+const FLIPPER_SPECIES = {
+  id: 'flipper',
+  name: 'Flipper',
+  tagline: 'The original flyer, light on its wings',
+  kind: 'firebird',
+};
+
+/** One avatar per species and colour. */
+function make(species, color, extra) {
+  const { variants: _variants, ...rest } = species;
+  return {
+    unlockScore: 0,
+    ...rest,
+    ...extra,
+    species: species.id,
+    id: `${species.id}-${color.id}`,
+    color: color.id,
+    colorName: color.name,
+  };
+}
+
+/** The full list: every species in each colour, species in the order the picker shows them. */
+export const AVATARS = Object.freeze([
+  ...COLOURS.map((c) => {
+    const skin = SKINS.find((k) => k.color === c.id);
+    return make(FLIPPER_SPECIES, c, { palette: skin.palette, unlockScore: skin.unlockScore });
+  }),
+  ...COLOURS.map((c) =>
+    make(BULBULI_SPECIES, c, {
+      kind: 'bird',
+      palette: { eye: '#ffe9b0', ...BULBULI_SPECIES.variants[c.id] },
+    }),
+  ),
+  ...MODEL_BIRDS.flatMap((m) => COLOURS.map((c) => make(m, c, { kind: 'model', palette: m.variants[c.id] }))),
+]);
+
+/** The species in picker order, each with its three colours: [{ id, name, tagline, kind, variants: [avatar x3] }]. */
+export const AVATAR_SPECIES = Object.freeze(
+  [...new Set(AVATARS.map((a) => a.species))].map((id) => {
+    const variants = AVATARS.filter((a) => a.species === id);
+    const { name, tagline, kind } = variants[0];
+    return { id, name, tagline, kind, variants };
+  }),
+);
 
 export const DEFAULT_AVATAR_ID = AVATARS[0].id;
 
+/** Choices saved before birds had colours, mapped to the nearest bird and colour that exists now. */
+const LEGACY_IDS = {
+  ember: 'flipper-fire',
+  azure: 'flipper-blue',
+  verdant: 'flipper-blue',
+  void: 'flipper-white',
+  'bulbuli-sunburst': 'bulbuli-fire',
+  'bulbuli-obsidian': 'bulbuli-fire',
+  'scarlet-macaw': 'scarlet-macaw-fire',
+  'macaw-flying': 'macaw-flying-fire',
+  'macaw-blue-yellow': 'macaw-blue-yellow-blue',
+  'toco-toucan': 'toco-toucan-fire',
+  morpho: 'morpho-fire',
+};
+
 export function getAvatar(id) {
-  return AVATARS.find((a) => a.id === id) ?? AVATARS[0];
+  const wanted = LEGACY_IDS[id] ?? id;
+  return AVATARS.find((a) => a.id === wanted) ?? AVATARS[0];
 }
 
-/** Only the original bird's colour schemes are locked (by best score); every other bird is free. */
+/** The avatar of a species in a colour (or the species' Fire one if that colour does not exist). */
+export function avatarFor(speciesId, colorId) {
+  const all = AVATARS.filter((a) => a.species === speciesId);
+  return all.find((a) => a.color === colorId) ?? all[0];
+}
+
+/** Only the original bird's colours are locked (by best score); every other bird is free. */
 export function isAvatarUnlocked(avatar, bestScore) {
   return avatar.kind !== 'firebird' || isUnlocked(avatar, bestScore);
 }

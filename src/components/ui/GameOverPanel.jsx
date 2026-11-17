@@ -75,7 +75,7 @@ export default function GameOverPanel() {
             </p>
           )}
           {result.unlockedSkins.length > 0 && (
-            <span className="badge">New bird unlocked: {result.unlockedSkins.join(', ')}</span>
+            <span className="badge">New Flipper colour unlocked: {result.unlockedSkins.join(', ')}</span>
           )}
 
           <div className="gameover__score" aria-label={`Score ${result.score}`}>

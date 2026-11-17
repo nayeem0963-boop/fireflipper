@@ -101,7 +101,9 @@ export default function HomeScreen() {
 
         <button type="button" className="ghost-btn home__bird" onClick={openAvatars}>
           <FlameIcon />
-          <span>Your bird: {skin.name}</span>
+          <span>
+            Your bird: {skin.name} ({skin.colorName})
+          </span>
         </button>
       </section>
     </main>

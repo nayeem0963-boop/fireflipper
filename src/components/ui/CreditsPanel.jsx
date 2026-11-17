@@ -50,7 +50,7 @@ export default function CreditsPanel() {
 
         <ul className="credits">
           {CREDITS.map((c) => {
-            const bird = AVATARS.find((a) => a.id === c.id);
+            const bird = AVATARS.find((a) => a.species === c.id);
             return (
               <li key={c.id} className="credits__item">
                 <p className="credits__title">

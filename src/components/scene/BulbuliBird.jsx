@@ -93,7 +93,13 @@ export default function BulbuliBird({
 
   return (
     <group {...props}>
-      <FlameAura palette={palette} tailX={-avatar.length / 2} glow={glow} lightIntensity={lightIntensity} />
+      <FlameAura
+        palette={palette}
+        neutral={avatar.color !== 'fire'}
+        tailX={-avatar.length / 2}
+        glow={glow}
+        lightIntensity={lightIntensity}
+      />
       <group ref={wrap} scale={SCALE}>
         {/* Bulbuli faces +z; turn it to face the direction of flight (+x) and centre it. */}
         <group rotation={[0, Math.PI / 2, 0]} position={[0, -0.1, 0.12]}>

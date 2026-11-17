@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending } from 'three';
-import { getGlowTexture } from '../../utils/textures.js';
+import { getGlowTexture, getNeutralGlowTexture } from '../../utils/textures.js';
 
 /** Trail of glows behind the bird: [x offset, size, opacity], brightest at the bird. */
 const FLAME_PUFFS = [
@@ -18,6 +18,7 @@ const FLAME_PUFFS = [
  * bird's local space, with the bird facing +x; `tailX` is where the tail ends (negative).
  *
  * `palette` needs `glow` (halo and light), and `low` / `mid` / `high` (the tail, brightest to dimmest).
+ * `neutral` uses a plain white glow instead of the warm one, so a blue or white flame is not turned orange.
  */
 export default function FlameAura({
   palette,
@@ -25,8 +26,9 @@ export default function FlameAura({
   glow = 0.55,
   lightIntensity = 6,
   lightPosition = [0.2, 0.6, 2.4],
+  neutral = false,
 }) {
-  const glowMap = useMemo(getGlowTexture, []);
+  const glowMap = useMemo(() => (neutral ? getNeutralGlowTexture() : getGlowTexture()), [neutral]);
   const flame = useRef();
 
   useFrame((state) => {

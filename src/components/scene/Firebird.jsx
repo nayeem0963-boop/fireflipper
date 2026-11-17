@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, DoubleSide, Shape } from 'three';
-import { getGlowTexture } from '../../utils/textures.js';
+import { getGlowTexture, getNeutralGlowTexture } from '../../utils/textures.js';
 import { secondaryMotion } from './birdMotion.js';
 import AvatarEyes from './AvatarEyes.jsx';
 
@@ -13,6 +13,7 @@ import AvatarEyes from './AvatarEyes.jsx';
  *
  * Props:
  *  - palette:     optional colour overrides (see systems/skins/skins.js)
+ *  - neutralGlow: use a plain white halo texture (for the Blue and White colours) instead of the warm one
  *  - float:       vertical bob amplitude (world units)
  *  - wingSpeed:   base wing-beat speed (radians/sec)
  *  - glow:        halo sprite opacity
@@ -67,6 +68,7 @@ function createWingShape() {
 
 export default function Firebird({
   palette,
+  neutralGlow = false,
   float = 0.12,
   wingSpeed = 7,
   glow = 0.55,
@@ -86,7 +88,7 @@ export default function Firebird({
   const lag = useRef(0.25);
 
   const wingShape = useMemo(createWingShape, []);
-  const glowMap = useMemo(getGlowTexture, []);
+  const glowMap = useMemo(() => (neutralGlow ? getNeutralGlowTexture() : getGlowTexture()), [neutralGlow]);
 
   useFrame((state, delta) => {
     const t = state.clock.elapsedTime;

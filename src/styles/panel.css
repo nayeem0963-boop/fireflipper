@@ -595,6 +595,20 @@
   text-transform: uppercase;
   color: var(--text-muted);
 }
+.avatars__colours {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.avatars__colour {
+  margin-left: 0.4em;
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
 .avatars__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
