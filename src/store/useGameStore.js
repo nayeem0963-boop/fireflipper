@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { loadValue, saveValue } from '../utils/storage.js';
+import { seedForKey, todayKey } from '../utils/daily.js';
 
 export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
 
@@ -15,6 +16,8 @@ export const STATUS = Object.freeze({
   DYING: 'dying',
   OVER: 'over',
 });
+
+export const MODE = Object.freeze({ FREE: 'free', DAILY: 'daily' });
 
 export const QUALITY = Object.freeze({ AUTO: 'auto', LOW: 'low', HIGH: 'high' });
 
@@ -33,6 +36,10 @@ export const useGameStore = create((set, get) => ({
   settingsOpen: false,
 
   // --- current run ---
+  mode: MODE.FREE,
+  /** Fixed track seed for the current run (daily challenge), or null for a random track. */
+  seed: null,
+  dailyKey: null,
   status: STATUS.IDLE,
   score: 0,
   distance: 0,
@@ -49,6 +56,8 @@ export const useGameStore = create((set, get) => ({
   /** Best score since the page was opened (not persisted). */
   sessionBest: 0,
   runsThisSession: 0,
+  /** Best score per daily challenge date, e.g. { '2026-11-17': 812 }. Only recent days are kept. */
+  dailyBests: loadValue('dailyBests', {}),
 
   // --- settings ---
   soundEnabled: loadValue('soundEnabled', true),
@@ -57,11 +66,18 @@ export const useGameStore = create((set, get) => ({
   tutorialDone: loadValue('tutorialDone', false),
 
   // --- navigation actions ---
-  startGame: () =>
-    set((s) => ({
-      screen: SCREENS.GAME,
-      ...freshRun(s),
-    })),
+  startGame: (mode = MODE.FREE) =>
+    set((s) => {
+      const daily = mode === MODE.DAILY;
+      const dailyKey = daily ? todayKey() : null;
+      return {
+        screen: SCREENS.GAME,
+        mode,
+        dailyKey,
+        seed: daily ? seedForKey(dailyKey) : null,
+        ...freshRun(s),
+      };
+    }),
   exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE }),
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
@@ -73,17 +89,32 @@ export const useGameStore = create((set, get) => ({
     const s = get();
     // Guard: a run can only end once.
     if (s.status !== STATUS.DYING && s.status !== STATUS.RUNNING) return;
-    const isNewBest = score > s.bestScore;
+    const daily = s.mode === MODE.DAILY;
+    // Daily scores are kept apart from the free-play best: the track is the same every attempt.
+    const isNewBest = !daily && score > s.bestScore;
     if (isNewBest) saveValue('bestScore', score);
+    let dailyBests = s.dailyBests;
+    let isNewDailyBest = false;
+    if (daily) {
+      const previous = dailyBests[s.dailyKey] ?? 0;
+      isNewDailyBest = score > previous;
+      if (isNewDailyBest) {
+        // Keep the last week only, so storage doesn't grow forever.
+        const kept = Object.keys(dailyBests).sort().slice(-6);
+        dailyBests = { ...Object.fromEntries(kept.map((k) => [k, dailyBests[k]])), [s.dailyKey]: score };
+        saveValue('dailyBests', dailyBests);
+      }
+    }
     set({
       status: STATUS.OVER,
       overAt: performance.now(),
       score,
       distance,
       orbs,
-      lastResult: { score, distance, orbs, nearMisses, isNewBest },
-      bestScore: Math.max(s.bestScore, score),
-      sessionBest: Math.max(s.sessionBest, score),
+      lastResult: { score, distance, orbs, nearMisses, isNewBest, isNewDailyBest, mode: s.mode },
+      dailyBests,
+      bestScore: daily ? s.bestScore : Math.max(s.bestScore, score),
+      sessionBest: daily ? s.sessionBest : Math.max(s.sessionBest, score),
       runsThisSession: s.runsThisSession + 1,
     });
   },

@@ -218,3 +218,9 @@
   background: linear-gradient(180deg, var(--fire-400), var(--fire-600));
   color: #1a0904;
 }
+
+.badge--daily {
+  background: rgba(255, 138, 31, 0.15);
+  border: 1px solid var(--line-strong);
+  color: var(--fire-200);
+}

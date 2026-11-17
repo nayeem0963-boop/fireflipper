@@ -1,4 +1,4 @@
-import { useGameStore } from '../../store/useGameStore.js';
+import { useGameStore, MODE } from '../../store/useGameStore.js';
 import { SCORING } from '../../systems/physics/constants.js';
 import { formatDistance, formatScore } from '../../systems/scoring/scoring.js';
 import { isCoarsePointer } from '../../utils/device.js';
@@ -8,6 +8,9 @@ import '../../styles/panel.css';
 export default function GameOverPanel() {
   const result = useGameStore((s) => s.lastResult);
   const bestScore = useGameStore((s) => s.bestScore);
+  const dailyBests = useGameStore((s) => s.dailyBests);
+  const dailyKey = useGameStore((s) => s.dailyKey);
+  const daily = result?.mode === MODE.DAILY;
   const sessionBest = useGameStore((s) => s.sessionBest);
   const restart = useGameStore((s) => s.restart);
   const exitToMenu = useGameStore((s) => s.exitToMenu);
@@ -25,7 +28,10 @@ export default function GameOverPanel() {
         <h2 id="gameover-title" className="panel__title panel__title--big">
           Scorched!
         </h2>
-        {result.isNewBest && <span className="badge">New best score!</span>}
+        {daily && <span className="badge badge--daily">Daily challenge</span>}
+        {(daily ? result.isNewDailyBest : result.isNewBest) && (
+          <span className="badge">{daily ? 'New daily best!' : 'New best score!'}</span>
+        )}
 
         <div className="gameover__score" aria-label={`Score ${result.score}`}>
           {formatScore(result.score)}
@@ -46,14 +52,23 @@ export default function GameOverPanel() {
             <dt>Near misses</dt>
             <dd>{result.nearMisses}</dd>
           </div>
-          <div>
-            <dt>Session best</dt>
-            <dd>{formatScore(sessionBest)}</dd>
-          </div>
-          <div>
-            <dt>Best</dt>
-            <dd>{formatScore(bestScore)}</dd>
-          </div>
+          {daily ? (
+            <div>
+              <dt>Today&apos;s best</dt>
+              <dd>{formatScore(dailyBests[dailyKey] ?? 0)}</dd>
+            </div>
+          ) : (
+            <>
+              <div>
+                <dt>Session best</dt>
+                <dd>{formatScore(sessionBest)}</dd>
+              </div>
+              <div>
+                <dt>Best</dt>
+                <dd>{formatScore(bestScore)}</dd>
+              </div>
+            </>
+          )}
         </dl>
 
         <button type="button" className="play-btn play-btn--compact" onClick={restart} autoFocus>

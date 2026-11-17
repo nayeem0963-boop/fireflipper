@@ -16,14 +16,15 @@ const HUD_INTERVAL = 0.1; // seconds; the HUD only needs ~10 updates/s
  */
 export function useGameLoop(sim) {
   const runId = useGameStore((s) => s.runId);
+  const seed = useGameStore((s) => s.seed);
   const acc = useRef(0);
   const hudTimer = useRef(0);
 
   useEffect(() => {
-    sim.reset();
+    sim.reset(seed ?? undefined);
     acc.current = 0;
     hudTimer.current = 0;
-  }, [runId, sim]);
+  }, [runId, seed, sim]);
 
   useFrame((_, rawDelta) => {
     const store = useGameStore.getState();

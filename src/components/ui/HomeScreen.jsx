@@ -1,9 +1,10 @@
 import { lazy, Suspense } from 'react';
-import { useGameStore } from '../../store/useGameStore.js';
+import { useGameStore, MODE } from '../../store/useGameStore.js';
 import IconButton from './IconButton.jsx';
 import SoundToggle from './SoundToggle.jsx';
 import { FlameIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
 import { formatScore } from '../../systems/scoring/scoring.js';
+import { todayKey } from '../../utils/daily.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
 import '../../styles/home.css';
 
@@ -12,6 +13,8 @@ const HomeStage = lazy(() => import('../scene/HomeStage.jsx'));
 export default function HomeScreen() {
   const bestScore = useGameStore((s) => s.bestScore);
   const startGame = useGameStore((s) => s.startGame);
+  const dailyBests = useGameStore((s) => s.dailyBests);
+  const todaysBest = dailyBests[todayKey()];
   const openSettings = useGameStore((s) => s.openSettings);
   const settingsOpen = useGameStore((s) => s.settingsOpen);
 
@@ -67,15 +70,24 @@ export default function HomeScreen() {
             </div>
           </article>
 
-          <article className="card card--challenge">
+          <button
+            type="button"
+            className="card card--challenge card--button"
+            onClick={() => {
+              unlockAudio();
+              startGame(MODE.DAILY);
+            }}
+          >
             <div className="card__icon">
               <FlameIcon />
             </div>
             <div>
               <h2 className="card__label">Daily Fire Challenge</h2>
-              <p className="card__value card__value--muted">Coming soon</p>
+              <p className="card__value">
+                {todaysBest ? `Today: ${formatScore(todaysBest)}` : 'Same track for everyone today'}
+              </p>
             </div>
-          </article>
+          </button>
         </div>
       </section>
     </main>

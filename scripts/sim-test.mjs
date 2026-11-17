@@ -10,6 +10,7 @@ import {
 } from '../src/systems/physics/collision.js';
 import { clearanceToObstacle } from '../src/systems/physics/collision.js';
 import { PHYSICS, WORLD, SCORING } from '../src/systems/physics/constants.js';
+import { seedForKey, todayKey } from '../src/utils/daily.js';
 import { computeScore } from '../src/systems/scoring/scoring.js';
 
 const DT = PHYSICS.fixedStep;
@@ -232,6 +233,25 @@ section('Near misses');
   crashed.flap();
   for (let i = 0; i < 600 && crashed.phase === PHASE.RUNNING; i++) crashed.step(DT);
   check('no near-miss events when nothing was passed', crashed.nearMisses === 0);
+}
+
+// ---------------------------------------------------------------- daily challenge
+section('Daily challenge');
+{
+  check('date key format', /^\d{4}-\d{2}-\d{2}$/.test(todayKey()));
+  check('key is UTC', todayKey(new Date('2026-11-17T23:59:00Z')) === '2026-11-17');
+  check('same day, same seed', seedForKey('2026-11-17') === seedForKey('2026-11-17'));
+  check('different days, different seeds', seedForKey('2026-11-17') !== seedForKey('2026-11-18'));
+
+  const layout = (seed) => {
+    const sim = createGameSim();
+    sim.reset(seed);
+    return [...sim.obstacles.active].map((o) => `${o.kind}:${o.x.toFixed(3)}:${o.y.toFixed(3)}`).join('|');
+  };
+  const a = layout(seedForKey('2026-11-17'));
+  check('track has obstacles', a.length > 0);
+  check('same seed gives an identical track', a === layout(seedForKey('2026-11-17')));
+  check('different seeds give different tracks', a !== layout(seedForKey('2026-11-18')));
 }
 
 // ---------------------------------------------------------------- restarts / pooling
