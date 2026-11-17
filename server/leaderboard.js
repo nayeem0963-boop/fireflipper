@@ -1,5 +1,6 @@
 import { seedForKey, todayKey } from '../src/utils/daily.js';
 import { replayRun, validateLog } from '../src/systems/replay/replay.js';
+import { SIM_VERSION } from '../src/systems/game/simVersion.js';
 import { validateName } from './moderation.js';
 import { LIMITS, hit, tooMany } from './rateLimit.js';
 
@@ -20,7 +21,8 @@ export const MAX_BODY_BYTES = 256 * 1024;
 const KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const ID_PATTERN = /^[A-Za-z0-9-]{16,64}$/;
 
-const boardKey = (dateKey) => `daily:${dateKey}`;
+// Boards are per date AND per rules version, so runs played under different rules never share a ranking.
+const boardKey = (dateKey) => `daily:${dateKey}:v${SIM_VERSION}`;
 const DAY_MS = 86400000;
 
 /** Dates whose boards accept scores and can be shown: today and yesterday (UTC). */
@@ -50,6 +52,14 @@ export async function submitScore(store, body, now = new Date(), { clientId } = 
   const checked = validateName(body.name);
   if (!checked.ok) return fail(400, checked.error);
   const name = checked.name;
+  if (body.simVersion !== SIM_VERSION) {
+    return {
+      ok: false,
+      status: 409,
+      code: 'outdated',
+      error: 'The game was updated. Reload the page to submit your score.',
+    };
+  }
   if (typeof body.dailyKey !== 'string' || !KEY_PATTERN.test(body.dailyKey)) return fail(400, 'Invalid date');
   if (!openDays(now).includes(body.dailyKey)) return fail(400, 'That daily challenge is closed');
   const logError = validateLog(body.inputs);
@@ -124,6 +134,7 @@ export async function getBoard(
     status: 200,
     data: {
       key: dateKey,
+      simVersion: SIM_VERSION,
       total: board.entries.length,
       entries: top.map((e, i) => ({
         rank: i + 1,

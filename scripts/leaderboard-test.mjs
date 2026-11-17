@@ -6,6 +6,7 @@ import { createGameSim, INPUT, PHASE } from '../src/systems/game/createGameSim.j
 import { MAX_TICKS, replayRun, validateLog } from '../src/systems/replay/replay.js';
 import { createGhost } from '../src/systems/replay/ghost.js';
 import { PHYSICS } from '../src/systems/physics/constants.js';
+import { SIM_VERSION } from '../src/systems/game/simVersion.js';
 import { seedForKey } from '../src/utils/daily.js';
 import { createMemoryStore, getBoard, openDays, submitScore } from '../server/leaderboard.js';
 import { validateName } from '../server/moderation.js';
@@ -189,6 +190,7 @@ section('Submissions');
     dailyKey: key,
     inputs: run.inputLog,
     claimedScore: run.results().score,
+    simVersion: SIM_VERSION,
     ...over,
   });
 
@@ -221,6 +223,29 @@ section('Submissions');
 
   const wrongDay = await submitScore(store, body({ dailyKey: '2026-11-16', playerId: id(4) }), now);
   check('a run for another day does not verify', !wrongDay.ok || wrongDay.data.score !== run.results().score);
+
+  const stale = await submitScore(store, body({ simVersion: SIM_VERSION - 1, playerId: id(8) }), now);
+  check(
+    'an out-of-date page is told to reload',
+    !stale.ok && stale.status === 409 && /reload/i.test(stale.error),
+    JSON.stringify(stale),
+  );
+  const unversioned = await submitScore(store, body({ simVersion: undefined, playerId: id(9) }), now);
+  check('a submission without a version is refused', !unversioned.ok && unversioned.status === 409);
+  const oldBoard = createMemoryStore();
+  await oldBoard.set(`daily:${key}:v${SIM_VERSION - 1}`, {
+    entries: [
+      { playerId: id(1), name: 'Old Rules', score: 99999, distance: 1, orbs: 0, at: now.toISOString() },
+    ],
+  });
+  check(
+    'boards from other rule versions are not shown',
+    (await getBoard(oldBoard, key, {}, now)).data.entries.length === 0,
+  );
+  check(
+    'the board reports its rules version',
+    (await getBoard(store, key, {}, now)).data.simVersion === SIM_VERSION,
+  );
 
   check('closed days are rejected', !(await submitScore(store, body({ dailyKey: '2026-11-10' }), now)).ok);
   check('future days are rejected', !(await submitScore(store, body({ dailyKey: '2026-11-18' }), now)).ok);
@@ -388,6 +413,7 @@ section('Rate limiting');
     dailyKey: key,
     inputs: run.inputLog,
     claimedScore: run.results().score,
+    simVersion: SIM_VERSION,
     ...over,
   });
 

@@ -169,6 +169,10 @@ netlify/functions/             GET /api/leaderboard, POST /api/scores (Netlify F
 vite.config.js                 same API in `npm run dev` / `preview`, with an in-memory store
 ```
 
+- **Rules version:** `systems/game/simVersion.js` (`SIM_VERSION`) must be bumped whenever a change could alter what a seed
+  and input log produce (physics, spawning, obstacle behaviour, power-ups, scoring). Boards are keyed by date _and_
+  version, the server refuses submissions from an out-of-date page (asking the player to reload), and saved ghosts from an
+  older version are dropped. Visual, audio and UI changes do not need a bump.
 - **Boards:** one per UTC date; only today and yesterday are open. One row per player (their best), top 100.
 - **Rate limits** (`server/rateLimit.js`): 20 submissions per hour per IP, 12 per hour per player id, and 120
   leaderboard reads per minute per IP. Checked before the (expensive) replay; rejected submissions count too.

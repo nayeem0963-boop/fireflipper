@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { loadValue, saveValue } from '../utils/storage.js';
 import { seedForKey, todayKey } from '../utils/daily.js';
+import { SIM_VERSION } from '../systems/game/simVersion.js';
 import { DEFAULT_SKIN_ID, isUnlocked, getSkin, newlyUnlocked } from '../systems/skins/skins.js';
 
 export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
@@ -125,7 +126,7 @@ export const useGameStore = create((set, get) => ({
     }
     let ghost = s.ghost;
     if (daily && isNewDailyBest && inputs && inputs.length <= MAX_GHOST_LENGTH) {
-      ghost = { key: s.dailyKey, score, inputs };
+      ghost = { key: s.dailyKey, score, inputs, simVersion: SIM_VERSION };
       saveValue('dailyGhost', ghost);
     }
     set({
@@ -207,10 +208,11 @@ export const useGameStore = create((set, get) => ({
 /** Longest input log kept for a ghost (about 5 minutes of busy tapping), so storage stays small. */
 const MAX_GHOST_LENGTH = 6000;
 
-/** Only today's ghost is useful (the track changes daily); an old or malformed one is dropped. */
+/** Only today's ghost is useful (the track changes daily), and only if it was recorded under the current rules. */
 function loadGhost() {
   const g = loadValue('dailyGhost', null);
-  return g && g.key === todayKey() && Array.isArray(g.inputs) && g.inputs.length > 0 ? g : null;
+  const usable = g && g.key === todayKey() && g.simVersion === SIM_VERSION;
+  return usable && Array.isArray(g.inputs) && g.inputs.length > 0 ? g : null;
 }
 
 function loadPlayerId() {

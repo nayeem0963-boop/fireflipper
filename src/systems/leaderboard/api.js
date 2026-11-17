@@ -3,6 +3,8 @@
  * middleware in `npm run dev`). Every call resolves to { ok, data?, error? }
  * and never throws, so the UI can degrade gracefully when offline.
  */
+import { SIM_VERSION } from '../game/simVersion.js';
+
 async function request(url, options) {
   try {
     const res = await fetch(url, options);
@@ -27,10 +29,12 @@ export function fetchBoard(dateKey, playerId) {
 
 /** Submits a finished daily run: the server replays `inputs` to verify the score. */
 export function submitRun({ playerId, name, dailyKey, inputs, claimedScore }) {
+  // simVersion tells the server which rules this run was played under; it refuses a mismatch.
+
   return request('/api/scores', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, name, dailyKey, inputs, claimedScore }),
+    body: JSON.stringify({ playerId, name, dailyKey, inputs, claimedScore, simVersion: SIM_VERSION }),
   });
 }
 
