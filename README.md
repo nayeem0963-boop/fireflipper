@@ -126,3 +126,5 @@ scripts/
 | Retry         | Space (game over)  | Retry button             |
 
 The run also pauses automatically when the tab is hidden or the window loses focus.
+
+> Pull request workflow check: this line was added to verify GitHub integration permissions.
