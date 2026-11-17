@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { MathUtils, MeshStandardMaterial } from 'three';
 import FlameAura from './FlameAura.jsx';
+import AvatarEyes from './AvatarEyes.jsx';
 import { secondaryMotion, wingLiftTarget } from './birdMotion.js';
 
 /**
@@ -61,12 +62,6 @@ export default function BulbuliBird({
       cheek: lit(palette.cheek, 3),
       accent: lit(palette.accent, 2.5),
       beak: lit(palette.beak, 1.6),
-      eye: new MeshStandardMaterial({
-        color: palette.eye,
-        emissive: palette.eye,
-        emissiveIntensity: 1.5,
-        toneMapped: false,
-      }),
     };
   }, [palette]);
   useEffect(() => () => Object.values(m).forEach((mat) => mat.dispose()), [m]);
@@ -130,15 +125,20 @@ export default function BulbuliBird({
               >
                 <coneGeometry args={[1, 1, 5]} />
               </mesh>
+              <AvatarEyes
+                at={[0.14, 0.385, 0.36]}
+                size={0.09}
+                outwardAxis="x"
+                forward={1}
+                palette={palette}
+                flight={flight}
+              />
               {[-1, 1].map((side) => (
                 <group key={side}>
                   <mesh material={m.belly} position={[side * 0.17, 0.25, 0.27]} scale={[0.07, 0.08, 0.08]}>
                     <icosahedronGeometry args={[1, 1]} />
                   </mesh>
                   <mesh material={m.cheek} position={[side * 0.2, 0.36, 0.22]} scale={0.06}>
-                    <icosahedronGeometry args={[1, 1]} />
-                  </mesh>
-                  <mesh material={m.eye} position={[side * 0.13, 0.37, 0.37]} scale={0.04}>
                     <icosahedronGeometry args={[1, 1]} />
                   </mesh>
                 </group>

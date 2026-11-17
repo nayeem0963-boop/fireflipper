@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { DoubleSide, MathUtils, MeshStandardMaterial } from 'three';
 import { TANAGER, createTanagerParts, wingSegment } from '../../systems/avatars/tanager.js';
 import FlameAura from './FlameAura.jsx';
+import AvatarEyes from './AvatarEyes.jsx';
 import { secondaryMotion, wingLiftTarget } from './birdMotion.js';
 
 /**
@@ -144,6 +145,15 @@ export default function TanagerBird({
           </group>
           <group ref={head} position={[hx, hy, hz]}>
             <mesh geometry={built.parts.head} material={built.material} />
+            {/* Big glowing eyes, on the head so they nod with it (the builder's own tiny eyes were removed). */}
+            <AvatarEyes
+              at={[0.05, 0.222 - hy, 0.14 - hz]}
+              size={0.026}
+              outwardAxis="x"
+              forward={1}
+              palette={palette}
+              flight={flight}
+            />
           </group>
           <group ref={tail} position={[tx, ty, tz]}>
             <mesh geometry={built.parts.tail} material={built.material} />

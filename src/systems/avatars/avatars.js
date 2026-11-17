@@ -33,6 +33,8 @@ export const MODEL_BIRDS = Object.freeze([
     lift: 0,
     // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
     flap: { start: 0.2, full: 0.5, hingeFrac: 0.4, strength: 0.8 },
+    // Eyes (model units from the model's centre): `at` is one eye's centre, mirrored for the other.
+    eye: { at: [0.04, 0.075, 0.23], size: 0.04 },
     palette: {
       low: '#a3120a',
       mid: '#ff5a14',
@@ -54,6 +56,8 @@ export const MODEL_BIRDS = Object.freeze([
     lift: 0,
     // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
     flap: { start: 0.2, full: 0.5, hingeFrac: 0.4, strength: 0.8 },
+    // Eyes (model units from the model's centre): `at` is one eye's centre, mirrored for the other.
+    eye: { at: [0.04, 0.2, 0.18], size: 0.036 },
     palette: {
       low: '#b01540',
       mid: '#ff7a1a',
@@ -75,6 +79,8 @@ export const MODEL_BIRDS = Object.freeze([
     lift: 0,
     // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
     flap: { start: 0.2, full: 0.5, hingeFrac: 0.4, strength: 0.8 },
+    // Eyes (model units from the model's centre): `at` is one eye's centre, mirrored for the other.
+    eye: { at: [0.058, 0.035, 0.3], size: 0.05 },
     palette: {
       low: '#0b3fb8',
       mid: '#2ea6ff',
@@ -96,6 +102,8 @@ export const MODEL_BIRDS = Object.freeze([
     lift: 0,
     // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
     flap: { start: 0.25, full: 0.6, hingeFrac: 0.4, strength: 0.8 },
+    // Eyes (model units from the model's centre): `at` is one eye's centre, mirrored for the other.
+    eye: { at: [0.055, 0.1, 0.13], size: 0.04 },
     palette: {
       low: '#5a0a06',
       mid: '#e0361a',
@@ -117,6 +125,8 @@ export const MODEL_BIRDS = Object.freeze([
     lift: 0,
     // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
     flap: { start: 0.25, full: 0.55, hingeFrac: 0.4, strength: 0.8 },
+    // Eyes (model units from the model's centre): `at` is one eye's centre, mirrored for the other.
+    eye: { at: [0.035, 0.17, 0.37], size: 0.042 },
     palette: {
       low: '#8a0a5a',
       mid: '#ff4a1a',
@@ -144,6 +154,8 @@ export const MODEL_BIRDS = Object.freeze([
     hingePoint: [0, 0.054, -0.031],
     hingeTilt: -2.46,
     roll: 0.6,
+    // Eyes (model units from the model's centre): `at` is one eye's centre, mirrored for the other.
+    eye: { at: [0.022, -0.008, -0.11], size: 0.014 },
     palette: {
       low: '#a3120a',
       mid: '#ff5a14',

@@ -396,6 +396,43 @@ section('Butterfly');
   );
 }
 
+section('Eyes');
+{
+  // Every bird gets big, glowing eyes from the shared AvatarEyes component.
+  for (const m of MODEL_BIRDS) {
+    const e = m.eye;
+    check(`${m.id}: has eye settings`, Boolean(e) && Array.isArray(e.at) && e.at.length === 3);
+    if (!e) continue;
+    check(
+      `${m.id}: eye is big enough to see, small enough for a head`,
+      e.size >= 0.01 && e.size <= 0.1,
+      `${e.size}`,
+    );
+    check(`${m.id}: eye sits at the head end`, Math.sign(e.at[2]) === Math.sign(m.facing), `${e.at[2]}`);
+    check(`${m.id}: eye is on the side of the head (x > 0)`, e.at[0] > 0 && e.at[0] < 0.2, `${e.at[0]}`);
+  }
+  const scene = (f) => fs.readFileSync(path.join(root, 'src/components/scene', f), 'utf8');
+  for (const f of ['Firebird', 'BulbuliBird', 'TanagerBird', 'ModelBird', 'ButterflyBird']) {
+    const src = scene(`${f}.jsx`);
+    check(`${f} draws AvatarEyes`, src.includes('<AvatarEyes') && src.includes("from './AvatarEyes.jsx'"));
+    check(`${f} passes the live flight state to the eyes`, /<AvatarEyes[\s\S]*?flight=\{flight\}/.test(src));
+  }
+  const eyes = scene('AvatarEyes.jsx');
+  check('eyes blink', eyes.includes('BLINK_TIME') && eyes.includes('scale.y'));
+  check('eyes close on a crash', /dead/.test(eyes) && /closed/.test(eyes));
+  check('eyes follow the climb and fall', /flight\?\.vy/.test(eyes));
+  check('eyes use unlit materials so they stay bright', eyes.includes('MeshBasicMaterial'));
+  check(
+    'the tanager builder no longer draws its own tiny eyes',
+    !/C\.eye/.test(
+      fs
+        .readFileSync(path.join(root, 'src/systems/avatars/tanager.js'), 'utf8')
+        .split('parts.head')[0]
+        .split('// head:')[1] ?? '',
+    ),
+  );
+}
+
 section('Credits (CC BY 4.0)');
 {
   check(

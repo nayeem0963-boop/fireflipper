@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, DoubleSide, Shape } from 'three';
 import { getGlowTexture } from '../../utils/textures.js';
 import { secondaryMotion } from './birdMotion.js';
+import AvatarEyes from './AvatarEyes.jsx';
 
 /**
  * Placeholder firebird built from primitive geometry. It faces +X, so a
@@ -41,7 +42,6 @@ const COLORS = {
   wingEmissive: '#ff3c00',
   wingInner: '#ffd36b',
   flame: '#ffe39a',
-  eye: '#1a0a04',
   bellyEmissive: '#ff9a2e',
   beak: '#ffcf6a',
   beakEmissive: '#ff9d2a',
@@ -217,19 +217,15 @@ export default function Firebird({
               roughness={0.3}
             />
           </mesh>
-          {/* Eyes */}
-          {[0.2, -0.2].map((z) => (
-            <group key={z} position={[0.17, 0.08, z]}>
-              <mesh>
-                <sphereGeometry args={[0.055, 12, 10]} />
-                <meshStandardMaterial color={colors.eye} roughness={0.2} />
-              </mesh>
-              <mesh position={[0.025, 0.02, z > 0 ? 0.03 : -0.03]}>
-                <sphereGeometry args={[0.016, 8, 6]} />
-                <meshBasicMaterial color="#fff4d6" toneMapped={false} />
-              </mesh>
-            </group>
-          ))}
+          {/* Eyes: big and glowing so they read against the flame-coloured head */}
+          <AvatarEyes
+            at={[0.17, 0.09, 0.2]}
+            size={0.09}
+            outwardAxis="z"
+            forward={1}
+            palette={colors}
+            flight={flight}
+          />
           {/* Flame crest */}
           <group ref={crest} position={[-0.05, 0.22, 0]}>
             {[

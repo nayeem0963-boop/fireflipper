@@ -4,6 +4,7 @@ import { useGLTF } from '@react-three/drei';
 import { Box3, Euler, MathUtils, Matrix4, Vector3 } from 'three';
 import { modelUrl } from '../../systems/avatars/avatars.js';
 import FlameAura from './FlameAura.jsx';
+import AvatarEyes from './AvatarEyes.jsx';
 import { secondaryMotion, wingLiftTarget } from './birdMotion.js';
 import { createFireMaterial, createFireUniforms } from './fireMaterial.js';
 
@@ -28,6 +29,7 @@ export default function ModelBird({
 }) {
   const { scene } = useGLTF(modelUrl(avatar));
   const wrap = useRef();
+  const eyeRig = useRef();
   const phase = useRef(Math.random() * 6);
   const kick = useRef(0);
   const lift = useRef(0.25);
@@ -73,7 +75,17 @@ export default function ModelBird({
       .applyMatrix4(turn)
       .applyMatrix4(tilt)
       .getSize(new Vector3());
-    return { root, materials, center, uniforms, scale: avatar.length / Math.max(seen.x, seen.y, 0.001) };
+    // The eyes ride the head: a rig at the shoulder hinge pitches them with the head end, as the shader does.
+    const hinge = new Vector3(...bend.hinge);
+    const eyeAbs = center.clone().add(new Vector3(...avatar.eye.at));
+    const eye = {
+      hinge,
+      at: [avatar.eye.at[0], eyeAbs.y - hinge.y, eyeAbs.z - hinge.z],
+      along: (eyeAbs.z - hinge.z) * bend.headSign,
+      start: bend.start,
+      full: bend.full,
+    };
+    return { root, materials, center, uniforms, eye, scale: avatar.length / Math.max(seen.x, seen.y, 0.001) };
   }, [scene, avatar]);
 
   useEffect(() => () => prepared.materials.forEach((m) => m.dispose()), [prepared]);
@@ -111,6 +123,11 @@ export default function ModelBird({
       const move = secondaryMotion(lift.current, lag.current, dead);
       prepared.uniforms.uHeadPitch.value = move.headPitch;
       prepared.uniforms.uTailPitch.value = move.tailPitch;
+      const e = prepared.eye;
+      if (eyeRig.current) {
+        const w = MathUtils.smoothstep(e.along, e.start, e.full);
+        eyeRig.current.rotation.x = -Math.sign(avatar.facing || 1) * move.headPitch * w;
+      }
       g.position.y += move.heave;
       g.rotation.z += move.bodyPitch;
       g.scale.set(s, s, s);
@@ -133,6 +150,18 @@ export default function ModelBird({
               scale={1}
               position={[-prepared.center.x, -prepared.center.y, -prepared.center.z]}
             />
+            <group position={[-prepared.center.x, -prepared.center.y, -prepared.center.z]}>
+              <group ref={eyeRig} position={prepared.eye.hinge}>
+                <AvatarEyes
+                  at={prepared.eye.at}
+                  size={avatar.eye.size}
+                  outwardAxis="x"
+                  forward={Math.sign(avatar.facing) || 1}
+                  palette={palette}
+                  flight={flight}
+                />
+              </group>
+            </group>
           </group>
         </group>
       </group>

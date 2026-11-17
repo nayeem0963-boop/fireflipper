@@ -87,7 +87,7 @@ export function createTanagerParts(palette, seed = 3) {
   }
   parts.legs = finish(legs);
 
-  // head: round, a short thick beak, two shining eyes; built round the neck pivot so it can turn
+  // head: round, a short thick beak (the eyes are drawn by AvatarEyes); built round the neck pivot so it can turn
   const [, ny, nz] = TANAGER.neck;
   const head = createBuilder();
   fur(head, v(0, 0.215 - ny, 0.112 - nz), 0.062, [0.9, 0.92, 1], C.headTop, C.head, { detail: 2 });
@@ -112,16 +112,6 @@ export function createTanagerParts(palette, seed = 3) {
       tip: C.beakTip,
     },
   );
-  for (const side of [-1, 1]) {
-    fur(head, v(side * 0.047, 0.222 - ny, 0.138 - nz), 0.011, [1, 1, 0.7], C.eye, C.eye, {
-      detail: 1,
-      lumpy: 0,
-    });
-    fur(head, v(side * 0.0525, 0.2255 - ny, 0.1425 - nz), 0.0035, [1, 1, 1], C.shine, C.shine, {
-      detail: 0,
-      lumpy: 0,
-    });
-  }
   parts.head = finish(head);
 
   // tail: five long feathers fanned a little; its origin is the hinge (tailRoot)

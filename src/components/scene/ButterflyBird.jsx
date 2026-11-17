@@ -5,6 +5,7 @@ import { Box3, Euler, MathUtils, Matrix4, Vector3 } from 'three';
 import { modelUrl } from '../../systems/avatars/avatars.js';
 import { createFireMaterial, createFireUniforms } from './fireMaterial.js';
 import FlameAura from './FlameAura.jsx';
+import AvatarEyes from './AvatarEyes.jsx';
 import { secondaryMotion, wingLiftTarget } from './birdMotion.js';
 import { splitWing } from '../../systems/avatars/splitWing.js';
 
@@ -30,6 +31,7 @@ export default function ButterflyBird({
   const wrap = useRef();
   const leftPivot = useRef();
   const rightPivot = useRef();
+  const eyeRig = useRef();
   const state = useRef({ phase: Math.random() * 6, lift: 0.25, lag: 0.25 });
 
   const prepared = useMemo(() => {
@@ -64,7 +66,19 @@ export default function ButterflyBird({
       .multiply(new Matrix4().makeRotationFromEuler(new Euler(avatar.roll, 0, 0)))
       .multiply(new Matrix4().makeRotationFromEuler(new Euler(0, avatar.facing, 0)));
     const seen = box.clone().translate(center.clone().negate()).applyMatrix4(turn).getSize(new Vector3());
-    return { wings, body, center, bodyUniforms, scale: avatar.length / Math.max(seen.x, seen.y, 0.001) };
+    // The eyes ride the head: a rig at the body's hinge pitches them with the head end, as the shader does.
+    const hinge = new Vector3(...avatar.hingePoint);
+    const eyeAbs = center.clone().add(new Vector3(...avatar.eye.at));
+    const headSign = Math.sign(avatar.facing) || 1;
+    const eye = {
+      hinge,
+      at: [avatar.eye.at[0], eyeAbs.y - hinge.y, eyeAbs.z - hinge.z],
+      along: (eyeAbs.z - hinge.z) * headSign,
+      start: 0.3 * halfLength,
+      full: 0.8 * halfLength,
+      headSign,
+    };
+    return { wings, body, center, bodyUniforms, eye, scale: avatar.length / Math.max(seen.x, seen.y, 0.001) };
   }, [scene, avatar]);
 
   useEffect(
@@ -91,6 +105,11 @@ export default function ButterflyBird({
     const move = secondaryMotion(s.lift, s.lag, flight?.dead);
     prepared.bodyUniforms.uHeadPitch.value = move.headPitch;
     prepared.bodyUniforms.uTailPitch.value = move.tailPitch;
+    if (eyeRig.current) {
+      const e = prepared.eye;
+      eyeRig.current.rotation.x =
+        -e.headSign * move.headPitch * MathUtils.smoothstep(e.along, e.start, e.full);
+    }
     g.position.y = Math.sin(frame.clock.elapsedTime * 1.8 + 1) * float + move.heave;
     g.rotation.x = flight?.dead ? 1.1 : 0;
     g.rotation.z = move.bodyPitch;
@@ -121,6 +140,16 @@ export default function ButterflyBird({
                 {prepared.body && (
                   <mesh geometry={prepared.body.geometry} material={prepared.body.material} />
                 )}
+                <group ref={eyeRig} position={prepared.eye.hinge}>
+                  <AvatarEyes
+                    at={prepared.eye.at}
+                    size={avatar.eye.size}
+                    outwardAxis="x"
+                    forward={prepared.eye.headSign}
+                    palette={avatar.palette}
+                    flight={flight}
+                  />
+                </group>
                 {[
                   [leftPivot, 'left'],
                   [rightPivot, 'right'],
