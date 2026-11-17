@@ -145,7 +145,7 @@ export const MODEL_BIRDS = Object.freeze([
     // The model's head is at its -z end and its body is tilted about 39 degrees nose-up in the resting pose.
     facing: -Math.PI / 2,
     pitch: -0.67,
-    length: 2.9,
+    length: 4.0,
     lift: 0,
     // Butterfly wings beat for real: how far the stroke swings them, and the height of the hinge along the body.
     beat: 0.9,
