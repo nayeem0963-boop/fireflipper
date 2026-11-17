@@ -1,5 +1,7 @@
 import { seedForKey, todayKey } from '../src/utils/daily.js';
 import { replayRun, validateLog } from '../src/systems/replay/replay.js';
+import { validateName } from './moderation.js';
+import { LIMITS, hit, tooMany } from './rateLimit.js';
 
 /**
  * Leaderboard core: validation, replay verification and ranking. Pure
@@ -15,7 +17,6 @@ import { replayRun, validateLog } from '../src/systems/replay/replay.js';
 export const BOARD_SIZE = 100;
 export const DEFAULT_LIMIT = 25;
 export const MAX_BODY_BYTES = 256 * 1024;
-const NAME_PATTERN = /^[\p{L}\p{N} _-]{3,16}$/u;
 const KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const ID_PATTERN = /^[A-Za-z0-9-]{16,64}$/;
 
@@ -27,24 +28,28 @@ export function openDays(now = new Date()) {
   return [todayKey(now), todayKey(new Date(now.getTime() - DAY_MS))];
 }
 
-export function cleanName(raw) {
-  if (typeof raw !== 'string') return null;
-  const name = raw.trim().replace(/\s+/g, ' ');
-  return NAME_PATTERN.test(name) ? name : null;
-}
-
 const fail = (status, error) => ({ ok: false, status, error });
 
 /**
  * Verifies and records a score. The score comes from replaying the
  * submitted inputs, never from the client's claim.
+ *
+ * `clientId` identifies the caller (the functions pass the request IP). Rate limits are checked
+ * before the expensive replay: first per client, then per player id.
  */
-export async function submitScore(store, body, now = new Date()) {
+export async function submitScore(store, body, now = new Date(), { clientId } = {}) {
+  if (clientId) {
+    const ip = await hit(store, 'submit-ip', clientId, LIMITS.submitPerIp, now);
+    if (!ip.ok) return tooMany(ip.retryAfter);
+  }
   if (!body || typeof body !== 'object') return fail(400, 'Invalid request');
-  const name = cleanName(body.name);
-  if (!name) return fail(400, 'Name must be 3-16 letters, numbers, spaces, _ or -');
   if (typeof body.playerId !== 'string' || !ID_PATTERN.test(body.playerId))
     return fail(400, 'Invalid player id');
+  const player = await hit(store, 'submit-player', body.playerId, LIMITS.submitPerPlayer, now);
+  if (!player.ok) return tooMany(player.retryAfter);
+  const checked = validateName(body.name);
+  if (!checked.ok) return fail(400, checked.error);
+  const name = checked.name;
   if (typeof body.dailyKey !== 'string' || !KEY_PATTERN.test(body.dailyKey)) return fail(400, 'Invalid date');
   if (!openDays(now).includes(body.dailyKey)) return fail(400, 'That daily challenge is closed');
   const logError = validateLog(body.inputs);
@@ -100,7 +105,16 @@ export async function submitScore(store, body, now = new Date()) {
 }
 
 /** Public view of a board. Player ids are never returned; `you` marks the requester's own row. */
-export async function getBoard(store, dateKey, { playerId, limit = DEFAULT_LIMIT } = {}, now = new Date()) {
+export async function getBoard(
+  store,
+  dateKey,
+  { playerId, limit = DEFAULT_LIMIT, clientId } = {},
+  now = new Date(),
+) {
+  if (clientId) {
+    const read = await hit(store, 'read-ip', clientId, LIMITS.readPerIp, now);
+    if (!read.ok) return tooMany(read.retryAfter);
+  }
   if (typeof dateKey !== 'string' || !openDays(now).includes(dateKey)) return fail(400, 'Unknown board');
   const board = (await store.get(boardKey(dateKey))) ?? { entries: [] };
   const top = board.entries.slice(0, Math.max(1, Math.min(limit, BOARD_SIZE)));

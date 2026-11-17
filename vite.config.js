@@ -8,8 +8,9 @@ import { createMemoryStore, getBoard, openDays, submitScore, MAX_BODY_BYTES } fr
  */
 function devLeaderboardApi() {
   const store = createMemoryStore();
-  const send = (res, status, body) => {
+  const send = (res, status, body, retryAfter) => {
     res.statusCode = status;
+    if (retryAfter) res.setHeader('Retry-After', String(retryAfter));
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-store');
     res.end(JSON.stringify(body));
@@ -19,8 +20,9 @@ function devLeaderboardApi() {
     if (url.pathname === '/api/leaderboard' && req.method === 'GET') {
       const result = await getBoard(store, url.searchParams.get('key') ?? openDays()[0], {
         playerId: url.searchParams.get('playerId') ?? undefined,
+        clientId: req.socket.remoteAddress,
       });
-      return send(res, result.status, result.ok ? result.data : { error: result.error });
+      return send(res, result.status, result.ok ? result.data : { error: result.error }, result.retryAfter);
     }
     if (url.pathname === '/api/scores' && req.method === 'POST') {
       let text = '';
@@ -34,8 +36,8 @@ function devLeaderboardApi() {
       } catch {
         return send(res, 400, { error: 'Invalid JSON' });
       }
-      const result = await submitScore(store, body);
-      return send(res, result.status, result.ok ? result.data : { error: result.error });
+      const result = await submitScore(store, body, new Date(), { clientId: req.socket.remoteAddress });
+      return send(res, result.status, result.ok ? result.data : { error: result.error }, result.retryAfter);
     }
     next();
   };

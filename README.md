@@ -152,6 +152,13 @@ vite.config.js                 same API in `npm run dev` / `preview`, with an in
 ```
 
 - **Boards:** one per UTC date; only today and yesterday are open. One row per player (their best), top 100.
+- **Rate limits** (`server/rateLimit.js`): 20 submissions per hour per IP, 12 per hour per player id, and 120
+  leaderboard reads per minute per IP. Checked before the (expensive) replay; rejected submissions count too.
+  Over the limit returns `429` with `Retry-After`. IPs and ids are hashed before they are used as storage keys.
+- **Name filter** (`server/moderation.js`): 3-16 letters/numbers/spaces/`_`/`-` (NFKC-normalised), reserved
+  staff-like names blocked (admin, moderator, fireflipper, ...), and profanity/slurs caught with the
+  [`obscenity`](https://www.npmjs.com/package/obscenity) English dataset, also against the name with separators
+  removed (`f_u_c_k`). The error message is generic so it does not reveal what matched.
 - **Identity:** no accounts yet. The browser keeps a random player id and a display name (3-16 letters or
   numbers); the id is never sent back to other players.
 - **Why only the daily challenge:** its seed is fixed per date, so nobody can grind seeds offline to find an
@@ -159,7 +166,9 @@ vite.config.js                 same API in `npm run dev` / `preview`, with an in
 - **Dev:** `npm run dev` stores scores in memory and resets on restart. Production uses Netlify Blobs, which needs
   the site to be deployed on Netlify (the deploy previews run the functions too).
 - **Known limits:** a bot that plays a perfect replay still gets through (replay checks stop edited scores, not
-  superhuman play); there is no rate limiting or name moderation yet; boards use read-modify-write, so two
+  superhuman play); the name filter misses some things and flags a few innocent names (for example "Dick Tracy"),
+  and there is no tool yet to remove a row by hand; rate limits are per IP, so shared networks share a quota, and
+  they are not atomic, so a burst of simultaneous requests can slip a few extra through; boards use read-modify-write, so two
   submissions at the same instant can drop one; and rare float differences between browser engines could
   reject a legitimate run.
 

@@ -6,7 +6,9 @@ import { createGameSim, INPUT, PHASE } from '../src/systems/game/createGameSim.j
 import { MAX_TICKS, replayRun, validateLog } from '../src/systems/replay/replay.js';
 import { PHYSICS } from '../src/systems/physics/constants.js';
 import { seedForKey } from '../src/utils/daily.js';
-import { createMemoryStore, getBoard, openDays, submitScore, cleanName } from '../server/leaderboard.js';
+import { createMemoryStore, getBoard, openDays, submitScore } from '../server/leaderboard.js';
+import { validateName } from '../server/moderation.js';
+import { LIMITS, hit } from '../server/rateLimit.js';
 
 let failures = 0;
 let passes = 0;
@@ -132,12 +134,6 @@ section('Submissions');
   });
 
   check('open days are today and yesterday', openDays(now).join() === '2026-11-17,2026-11-16');
-  check(
-    'names are trimmed and checked',
-    cleanName('  Ada  Lovelace ') === 'Ada Lovelace' &&
-      cleanName('ab') === null &&
-      cleanName('<script>') === null,
-  );
 
   const store = createMemoryStore();
   const first = await submitScore(store, body(), now);
@@ -230,6 +226,173 @@ section('Submissions');
 
   check('unknown boards are rejected', !(await getBoard(store, '2020-01-01', {}, now)).ok);
   check('limit is respected', (await getBoard(store, key, { limit: 1 }, now)).data.entries.length === 1);
+}
+
+// ---------------------------------------------------------------- name filtering
+section('Name filtering');
+{
+  const ok = (raw) => {
+    const r = validateName(raw);
+    return r.ok ? r.name : null;
+  };
+  check('plain names pass', ok('Ember Pilot') === 'Ember Pilot' && ok('Ada Lovelace') === 'Ada Lovelace');
+  check('names are trimmed and spaces collapsed', ok('  Ada   Lovelace ') === 'Ada Lovelace');
+  check('non-English letters pass', ok('Ünal Çelik') === 'Ünal Çelik' && ok('田中太郎') === '田中太郎');
+  check('full-width letters are normalised', ok('ＡＢＣ１２３') === 'ABC123');
+  for (const innocent of ['Scunthorpe', 'Cassandra', 'Assassin', 'Class Act', 'Analytics', 'Hello World']) {
+    check(`no false positive: ${innocent}`, ok(innocent) !== null);
+  }
+
+  for (const [label, raw] of [
+    ['too short', 'ab'],
+    ['empty', ''],
+    ['too long', 'x'.repeat(17)],
+    ['markup', '<script>'],
+    ['link-like', 'a.b.com'],
+    ['symbols only', '___'],
+    ['emoji', 'fire🔥fire'],
+    ['not a string', 42],
+    ['null', null],
+  ]) {
+    check(`rejects ${label}`, !validateName(raw).ok);
+  }
+
+  for (const raw of ['Admin', 'a d m i n', 'F-I-R-E-F-L-I-P-P-E-R', 'MODERATOR', 'Official']) {
+    check(`rejects reserved name: ${raw}`, !validateName(raw).ok);
+  }
+
+  for (const raw of ['shit', 'SHIT', 'sh1t', 'f_u_c_k', 'f u c k', 'fvck', 'bi7ch']) {
+    const r = validateName(raw);
+    check(`rejects profanity: ${raw}`, !r.ok);
+  }
+  const blocked = validateName('sh1t');
+  check(
+    'the error does not echo or hint at the matched word',
+    !/sh1t|shit|profan|swear|curse/i.test(blocked.error),
+    blocked.error,
+  );
+}
+
+// ---------------------------------------------------------------- rate limiting
+section('Rate limiting');
+{
+  const rule = { limit: 3, windowMs: 60_000 };
+  const t0 = new Date('2026-11-17T12:00:00Z');
+  const at = (ms) => new Date(t0.getTime() + ms);
+
+  const store = createMemoryStore();
+  const results = [];
+  for (let i = 0; i < 5; i++) results.push(await hit(store, 'test', 'client-a', rule, at(i * 1000)));
+  check(
+    'allows up to the limit',
+    results.slice(0, 3).every((r) => r.ok),
+  );
+  check('blocks past the limit', !results[3].ok && !results[4].ok);
+  check(
+    'reports when to retry',
+    results[3].retryAfter >= 1 && results[3].retryAfter <= 60,
+    String(results[3].retryAfter),
+  );
+  check('retry time shrinks as the window runs out', results[4].retryAfter < results[3].retryAfter);
+
+  check('a different client is unaffected', (await hit(store, 'test', 'client-b', rule, at(4000))).ok);
+  check('a different scope is unaffected', (await hit(store, 'other', 'client-a', rule, at(4000))).ok);
+  check('allowed again after the window', (await hit(store, 'test', 'client-a', rule, at(60_001))).ok);
+  check(
+    'blocked requests do not extend the window',
+    (await hit(store, 'test', 'client-a', rule, at(60_001 + 59_000))).ok,
+  );
+
+  const back = createMemoryStore();
+  for (let i = 0; i < 3; i++) await hit(back, 'test', 'x', rule, at(100_000));
+  check(
+    'a clock that moves backwards resets instead of locking out',
+    (await hit(back, 'test', 'x', rule, at(0))).ok,
+  );
+
+  // Raw identifiers must never be used as storage keys.
+  const keys = [];
+  const spy = {
+    get: async () => null,
+    set: async (k) => void keys.push(k),
+  };
+  await hit(spy, 'submit-ip', '203.0.113.7', rule, t0);
+  check('IPs are hashed before storage', keys.length === 1 && !keys[0].includes('203.0.113.7'), keys[0]);
+
+  // Integration with the leaderboard.
+  const now = new Date('2026-11-17T12:00:00Z');
+  const key = '2026-11-17';
+  const run = playRun(seedForKey(key));
+  const goodBody = (over = {}) => ({
+    name: 'Rate Tester',
+    playerId: 'rate-player-0000001',
+    dailyKey: key,
+    inputs: run.inputLog,
+    claimedScore: run.results().score,
+    ...over,
+  });
+
+  const s1 = createMemoryStore();
+  let last;
+  for (let i = 0; i < LIMITS.submitPerIp.limit; i++) {
+    last = await submitScore(
+      s1,
+      goodBody({ playerId: `ip-limit-player-${String(i).padStart(4, '0')}` }),
+      now,
+      { clientId: '198.51.100.1' },
+    );
+  }
+  check('submissions up to the per-IP limit work', last.ok, last.error);
+  const blockedIp = await submitScore(s1, goodBody({ playerId: 'ip-limit-player-9999' }), now, {
+    clientId: '198.51.100.1',
+  });
+  check(
+    'the next one from that IP is refused with 429',
+    !blockedIp.ok && blockedIp.status === 429 && blockedIp.retryAfter > 0,
+  );
+  check('the message says to wait', /try again/i.test(blockedIp.error), blockedIp.error);
+  check(
+    '...and was not recorded',
+    (await getBoard(s1, key, { limit: 100 }, now)).data.entries.length === LIMITS.submitPerIp.limit,
+  );
+  const otherIp = await submitScore(s1, goodBody({ playerId: 'ip-limit-player-8888' }), now, {
+    clientId: '198.51.100.2',
+  });
+  check('another IP is unaffected', otherIp.ok, otherIp.error);
+
+  const s2 = createMemoryStore();
+  let attempt;
+  for (let i = 0; i < LIMITS.submitPerPlayer.limit; i++) attempt = await submitScore(s2, goodBody(), now);
+  check('submissions up to the per-player limit work', attempt.ok, attempt.error);
+  const blockedPlayer = await submitScore(s2, goodBody(), now);
+  check(
+    'the next one from that player is refused with 429',
+    !blockedPlayer.ok && blockedPlayer.status === 429,
+  );
+  check(
+    'a different player is unaffected',
+    (await submitScore(s2, goodBody({ playerId: 'another-player-0001' }), now)).ok,
+  );
+
+  // Rejected submissions still count, so junk cannot be retried for free.
+  const s3 = createMemoryStore();
+  for (let i = 0; i < LIMITS.submitPerPlayer.limit; i++) await submitScore(s3, goodBody({ name: 'x' }), now);
+  check(
+    'rejected names also count toward the limit',
+    (await submitScore(s3, goodBody(), now)).status === 429,
+  );
+
+  const s4 = createMemoryStore();
+  const flagged = await submitScore(s4, goodBody({ name: 'sh1t' }), now);
+  check('a blocked name is rejected', !flagged.ok && flagged.status === 400);
+  check('...and nothing was recorded', (await getBoard(s4, key, {}, now)).data.entries.length === 0);
+
+  const s5 = createMemoryStore();
+  let read;
+  for (let i = 0; i < LIMITS.readPerIp.limit; i++)
+    read = await getBoard(s5, key, { clientId: '198.51.100.9' }, now);
+  check('reads up to the limit work', read.ok);
+  check('further reads get 429', (await getBoard(s5, key, { clientId: '198.51.100.9' }, now)).status === 429);
 }
 
 console.log(`\n${passes} passed, ${failures} failed`);
