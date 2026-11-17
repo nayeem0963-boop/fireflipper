@@ -21,7 +21,12 @@ import { createFireMaterial, createFireUniforms } from '../src/components/scene/
 import { splitWing } from '../src/systems/avatars/splitWing.js';
 import { BufferGeometry, Float32BufferAttribute, Vector3 } from 'three';
 import { TANAGER, createTanagerParts, wingSegment } from '../src/systems/avatars/tanager.js';
-import { STROKE_TIME, flapStroke, wingLiftTarget } from '../src/components/scene/birdMotion.js';
+import {
+  STROKE_TIME,
+  flapStroke,
+  secondaryMotion,
+  wingLiftTarget,
+} from '../src/components/scene/birdMotion.js';
 
 let failures = 0;
 let passes = 0;
@@ -279,7 +284,7 @@ section('Wing beats on every bird');
   material.onBeforeCompile(shader);
   check(
     'the vertex shader rotates positions and normals',
-    shader.vertexShader.includes('transformed = uHinge + flapRotate') &&
+    shader.vertexShader.includes('flapRotate(transformed - uHinge') &&
       shader.vertexShader.includes('objectNormal = flapRotate'),
   );
   check(
@@ -287,6 +292,73 @@ section('Wing beats on every bird');
     shader.uniforms.uFlap === flapped.uFlap && shader.uniforms.uWing === flapped.uWing,
   );
   check('the fire colour is still applied', shader.fragmentShader.includes('fireGradient'));
+}
+
+section('Body moves with the wings');
+{
+  const rest = secondaryMotion(0.25, 0.25);
+  check(
+    'at rest between strokes there is no pitch',
+    (rest.bodyPitch === 0 && rest.headPitch === 0 && rest.tailPitch === 0) ||
+      Math.abs(rest.bodyPitch) < 1e-12,
+  );
+  const down = secondaryMotion(0.0, 0.6); // wings coming down: the slow follower is still higher
+  const up = secondaryMotion(0.6, 0.0);
+  check('on the downstroke the nose lifts', down.bodyPitch > 0);
+  check('on the upstroke the nose drops', up.bodyPitch < 0);
+  check('the head turns against the body pitch', down.headPitch < 0 && up.headPitch > 0);
+  check('the tail flexes against the body pitch', down.tailPitch < 0 && up.tailPitch > 0);
+  check(
+    'the body rises as the wings go down',
+    secondaryMotion(-0.8, -0.8).heave > secondaryMotion(1.0, 1.0).heave,
+  );
+  const extremes = [-0.8, 0.25, 1.05].flatMap((a) => [-0.8, 0.25, 1.05].map((b) => secondaryMotion(a, b)));
+  check(
+    'the motion is small enough to stay on the body',
+    extremes.every(
+      (m) =>
+        Math.abs(m.bodyPitch) < 0.35 &&
+        Math.abs(m.headPitch) < 0.3 &&
+        Math.abs(m.tailPitch) < 0.6 &&
+        Math.abs(m.heave) < 0.15,
+    ),
+  );
+  const dead = secondaryMotion(-0.35, -0.35, true);
+  check('after a crash the head droops and the tail hangs', dead.headPitch < 0 && dead.tailPitch > 0);
+
+  // The shader side: head and tail pitch uniforms, and which end is the head.
+  const bent = createFireUniforms(MODEL_BIRDS[0].palette, 0, 1, null, {
+    start: 0.1,
+    full: 0.4,
+    headSign: -1,
+    hinge: [0, 0.2, 0.3],
+  });
+  check(
+    'bend settings reach the uniforms',
+    bent.uBend.value.x === 0.1 &&
+      bent.uBend.value.y === 0.4 &&
+      bent.uHeadSign.value === -1 &&
+      bent.uHinge.value.z === 0.3,
+  );
+  check('head and tail pitches start at zero', bent.uHeadPitch.value === 0 && bent.uTailPitch.value === 0);
+  const flat = createFireUniforms(MODEL_BIRDS[0].palette, 0, 1);
+  check('without bend settings nothing can bend', flat.uBend.value.x > 1e8);
+  const shader = {
+    uniforms: {},
+    vertexShader: '#include <common>\n#include <beginnormal_vertex>\n#include <begin_vertex>',
+    fragmentShader: '#include <common>\n#include <map_fragment>\n#include <emissivemap_fragment>',
+  };
+  createFireMaterial({ map: null, side: 0 }, bent, 'bend-test').onBeforeCompile(shader);
+  check(
+    'the shader pitches the head and tail ends',
+    shader.vertexShader.includes('bendRotate') &&
+      shader.vertexShader.includes('uHeadPitch') &&
+      shader.vertexShader.includes('uTailPitch'),
+  );
+  check(
+    'the wings are left out of the bend',
+    shader.vertexShader.includes('1.0 - smoothstep(uWing.x, uWing.y'),
+  );
 }
 
 section('Butterfly');

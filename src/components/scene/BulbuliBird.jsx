@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { MathUtils, MeshStandardMaterial } from 'three';
 import FlameAura from './FlameAura.jsx';
-import { wingLiftTarget } from './birdMotion.js';
+import { secondaryMotion, wingLiftTarget } from './birdMotion.js';
 
 /**
  * Bulbuli, the red-whiskered bulbul mascot, as a fire bird: a low-poly figure built from primitives (a dark body,
@@ -30,6 +30,7 @@ export default function BulbuliBird({
   const handL = useRef();
   const handR = useRef();
   const tailRef = useRef();
+  const headRef = useRef();
   const state = useRef({ phase: Math.random() * 6, lift: 0.25, lag: 0.25 });
 
   const m = useMemo(() => {
@@ -79,15 +80,20 @@ export default function BulbuliBird({
     const beat = Math.sin(s.phase);
     s.lift = MathUtils.damp(s.lift, wingLiftTarget(flight, beat), 22, dt);
     s.lag = MathUtils.damp(s.lag, s.lift, 12, dt);
-    g.position.y = Math.sin(frame.clock.elapsedTime * 1.8 + 1) * float;
+    // The rest of the body moves with the wings: it heaves and pitches, and the head and tail counter the pitch.
+    const move = secondaryMotion(s.lift, s.lag, flight?.dead);
+    g.position.y = Math.sin(frame.clock.elapsedTime * 1.8 + 1) * float + move.heave;
     g.rotation.x = flight?.dead ? 1.1 : 0;
+    g.rotation.z = move.bodyPitch;
     // The wings hang from the shoulders along +-x; raising the tip is a turn about z (opposite for each side).
     if (wingR.current) wingR.current.rotation.z = s.lift;
     if (wingL.current) wingL.current.rotation.z = -s.lift;
     const hand = (s.lag - s.lift) * 0.9 + s.lift * 0.35;
     if (handR.current) handR.current.rotation.z = hand;
     if (handL.current) handL.current.rotation.z = -hand;
-    if (tailRef.current) tailRef.current.rotation.x = -0.2 + s.lift * 0.12;
+    // For this bird a positive turn about x raises the tail and lowers the head, so the pitches enter negated.
+    if (tailRef.current) tailRef.current.rotation.x = -0.2 + s.lift * 0.12 - move.tailPitch;
+    if (headRef.current) headRef.current.rotation.x = -move.headPitch;
   });
 
   return (
@@ -102,39 +108,43 @@ export default function BulbuliBird({
           <mesh material={m.belly} position={[0, -0.12, 0.2]} scale={[0.28, 0.22, 0.3]}>
             <icosahedronGeometry args={[1, 1]} />
           </mesh>
-          {/* head, pointed crest and beak */}
-          <mesh material={m.body} position={[0, 0.34, 0.2]} scale={0.24}>
-            <icosahedronGeometry args={[1, 1]} />
-          </mesh>
-          <mesh
-            material={m.crest}
-            position={[0, 0.59, 0.18]}
-            rotation={[-0.35, 0, 0]}
-            scale={[0.1, 0.32, 0.1]}
-          >
-            <coneGeometry args={[1, 1, 5]} />
-          </mesh>
-          <mesh
-            material={m.beak}
-            position={[0, 0.32, 0.49]}
-            rotation={[Math.PI / 2, 0, 0]}
-            scale={[0.07, 0.17, 0.07]}
-          >
-            <coneGeometry args={[1, 1, 5]} />
-          </mesh>
-          {[-1, 1].map((side) => (
-            <group key={side}>
-              <mesh material={m.belly} position={[side * 0.17, 0.25, 0.27]} scale={[0.07, 0.08, 0.08]}>
+          {/* head (turns on the neck), pointed crest and beak */}
+          <group ref={headRef} position={[0, 0.3, 0.15]}>
+            <group position={[0, -0.3, -0.15]}>
+              <mesh material={m.body} position={[0, 0.34, 0.2]} scale={0.24}>
                 <icosahedronGeometry args={[1, 1]} />
               </mesh>
-              <mesh material={m.cheek} position={[side * 0.2, 0.36, 0.22]} scale={0.06}>
-                <icosahedronGeometry args={[1, 1]} />
+              <mesh
+                material={m.crest}
+                position={[0, 0.59, 0.18]}
+                rotation={[-0.35, 0, 0]}
+                scale={[0.1, 0.32, 0.1]}
+              >
+                <coneGeometry args={[1, 1, 5]} />
               </mesh>
-              <mesh material={m.eye} position={[side * 0.13, 0.37, 0.37]} scale={0.04}>
-                <icosahedronGeometry args={[1, 1]} />
+              <mesh
+                material={m.beak}
+                position={[0, 0.32, 0.49]}
+                rotation={[Math.PI / 2, 0, 0]}
+                scale={[0.07, 0.17, 0.07]}
+              >
+                <coneGeometry args={[1, 1, 5]} />
               </mesh>
+              {[-1, 1].map((side) => (
+                <group key={side}>
+                  <mesh material={m.belly} position={[side * 0.17, 0.25, 0.27]} scale={[0.07, 0.08, 0.08]}>
+                    <icosahedronGeometry args={[1, 1]} />
+                  </mesh>
+                  <mesh material={m.cheek} position={[side * 0.2, 0.36, 0.22]} scale={0.06}>
+                    <icosahedronGeometry args={[1, 1]} />
+                  </mesh>
+                  <mesh material={m.eye} position={[side * 0.13, 0.37, 0.37]} scale={0.04}>
+                    <icosahedronGeometry args={[1, 1]} />
+                  </mesh>
+                </group>
+              ))}
             </group>
-          ))}
+          </group>
           {/* wings: shoulder pivots, an arm and a hand that lags it */}
           {[-1, 1].map((side) => (
             <group key={`w${side}`} ref={side < 0 ? wingL : wingR} position={[side * 0.28, 0.1, 0]}>

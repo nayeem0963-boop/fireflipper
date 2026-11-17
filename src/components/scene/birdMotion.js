@@ -27,3 +27,27 @@ export function wingLiftTarget(flight, beat) {
   const tuck = clamp01((-flight.vy - 5) / 7);
   return 0.25 - tuck * 0.2 + beat * 0.5 * (1 - tuck * 0.85);
 }
+
+/**
+ * How the rest of the body moves with the wings, so a bird looks like one animal and not wings on a statue. `lift` is
+ * the wings' current angle and `lag` the same angle followed more slowly, so (lag - lift) is positive while the wings
+ * come down and negative while they go up. All angles are radians, positive = nose up.
+ *
+ *  heave:      the whole body rises as the wings push down and sinks as they come up
+ *  bodyPitch:  the nose lifts on the downstroke and drops on the upstroke
+ *  headPitch:  the head turns against the body's pitch, keeping its gaze steady
+ *  tailPitch:  the tail flexes against the body's pitch (positive = tail down relative to the body)
+ *
+ * After a crash the head droops and the tail hangs.
+ */
+export function secondaryMotion(lift, lag, dead = false) {
+  // The follower can trail a long way behind a snapped flap; cap it so a violent stroke never twists the body.
+  const trail = Math.max(-0.8, Math.min(0.8, lag - lift));
+  const bodyPitch = trail * 0.25;
+  return {
+    heave: -(lift - 0.25) * 0.08,
+    bodyPitch,
+    headPitch: dead ? -0.5 : -bodyPitch * 0.8,
+    tailPitch: dead ? 0.3 : -bodyPitch * 1.5,
+  };
+}

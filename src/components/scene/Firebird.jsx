@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, DoubleSide, Shape } from 'three';
 import { getGlowTexture } from '../../utils/textures.js';
+import { secondaryMotion } from './birdMotion.js';
 
 /**
  * Placeholder firebird built from primitive geometry. It faces +X, so a
@@ -82,6 +83,7 @@ export default function Firebird({
   const colors = useMemo(() => ({ ...COLORS, ...palette }), [palette]);
   const phase = useRef(0);
   const lift = useRef(0.25);
+  const lag = useRef(0.25);
 
   const wingShape = useMemo(createWingShape, []);
   const glowMap = useMemo(getGlowTexture, []);
@@ -119,6 +121,9 @@ export default function Firebird({
 
     // Smooth toward the target so stroke/idle transitions never pop.
     lift.current += (targetLift - lift.current) * (1 - Math.exp(-30 * dt));
+    lag.current += (lift.current - lag.current) * (1 - Math.exp(-12 * dt));
+    // The rest of the body moves with the wings: it heaves and pitches, and the tail flexes against the pitch.
+    const move = secondaryMotion(lift.current, lag.current, flight?.dead);
     if (rightWing.current) {
       rightWing.current.rotation.x = Math.PI / 2 - lift.current;
       rightWing.current.rotation.z = sweep;
@@ -129,12 +134,12 @@ export default function Firebird({
     }
 
     if (root.current) {
-      root.current.position.y = Math.sin(t * 1.6) * float - beat * 0.03;
-      root.current.rotation.z = Math.sin(t * 1.1) * 0.06;
+      root.current.position.y = Math.sin(t * 1.6) * float + move.heave;
+      root.current.rotation.z = Math.sin(t * 1.1) * 0.06 + move.bodyPitch;
       root.current.rotation.x = Math.sin(t * 0.8) * 0.04;
     }
     if (tail.current) {
-      tail.current.rotation.z = Math.sin(t * 2.4) * 0.12;
+      tail.current.rotation.z = Math.sin(t * 2.4) * 0.12 + move.tailPitch;
       tail.current.rotation.y = Math.sin(t * 1.7) * 0.1;
     }
     if (crest.current) {

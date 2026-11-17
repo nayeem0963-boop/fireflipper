@@ -5,7 +5,7 @@ import { Box3, Euler, MathUtils, Matrix4, Vector3 } from 'three';
 import { modelUrl } from '../../systems/avatars/avatars.js';
 import { createFireMaterial, createFireUniforms } from './fireMaterial.js';
 import FlameAura from './FlameAura.jsx';
-import { wingLiftTarget } from './birdMotion.js';
+import { secondaryMotion, wingLiftTarget } from './birdMotion.js';
 import { splitWing } from '../../systems/avatars/splitWing.js';
 
 /**
@@ -30,18 +30,28 @@ export default function ButterflyBird({
   const wrap = useRef();
   const leftPivot = useRef();
   const rightPivot = useRef();
-  const state = useRef({ phase: Math.random() * 6, lift: 0.25 });
+  const state = useRef({ phase: Math.random() * 6, lift: 0.25, lag: 0.25 });
 
   const prepared = useMemo(() => {
     const box = new Box3().setFromObject(scene);
     const center = box.getCenter(new Vector3());
-    const uniforms = createFireUniforms(avatar.palette, box.min.y, box.max.y);
+    // The wings keep their shape; only the body mesh bends (head and abdomen) with the wing stroke. The head is at the
+    // model's -z end for this butterfly, which `facing` encodes.
+    const wingUniforms = createFireUniforms(avatar.palette, box.min.y, box.max.y);
+    const halfLength = (box.max.z - box.min.z) / 2;
+    const bodyUniforms = createFireUniforms(avatar.palette, box.min.y, box.max.y, null, {
+      start: 0.3 * halfLength,
+      full: 0.8 * halfLength,
+      headSign: Math.sign(avatar.facing) || 1,
+      hinge: avatar.hingePoint,
+    });
     const wings = [];
     let body = null;
     scene.traverse((o) => {
       if (!o.isMesh) return;
-      const material = createFireMaterial(o.material, uniforms, 'butterfly');
-      if (/wing/i.test(o.name)) {
+      const isWing = /wing/i.test(o.name);
+      const material = createFireMaterial(o.material, isWing ? wingUniforms : bodyUniforms, 'butterfly');
+      if (isWing) {
         const { left, right } = splitWing(o.geometry);
         wings.push({ left, right, material });
       } else {
@@ -54,7 +64,7 @@ export default function ButterflyBird({
       .multiply(new Matrix4().makeRotationFromEuler(new Euler(avatar.roll, 0, 0)))
       .multiply(new Matrix4().makeRotationFromEuler(new Euler(0, avatar.facing, 0)));
     const seen = box.clone().translate(center.clone().negate()).applyMatrix4(turn).getSize(new Vector3());
-    return { wings, body, center, scale: avatar.length / Math.max(seen.x, seen.y, 0.001) };
+    return { wings, body, center, bodyUniforms, scale: avatar.length / Math.max(seen.x, seen.y, 0.001) };
   }, [scene, avatar]);
 
   useEffect(
@@ -76,8 +86,14 @@ export default function ButterflyBird({
     const s = state.current;
     s.phase += dt * wingSpeed;
     s.lift = MathUtils.damp(s.lift, wingLiftTarget(flight, Math.sin(s.phase)), 22, dt);
-    g.position.y = Math.sin(frame.clock.elapsedTime * 1.8 + 1) * float;
+    s.lag = MathUtils.damp(s.lag, s.lift, 12, dt);
+    // The body moves with the wings: it heaves and pitches, the head and abdomen counter the pitch.
+    const move = secondaryMotion(s.lift, s.lag, flight?.dead);
+    prepared.bodyUniforms.uHeadPitch.value = move.headPitch;
+    prepared.bodyUniforms.uTailPitch.value = move.tailPitch;
+    g.position.y = Math.sin(frame.clock.elapsedTime * 1.8 + 1) * float + move.heave;
     g.rotation.x = flight?.dead ? 1.1 : 0;
+    g.rotation.z = move.bodyPitch;
     // The wings rest raised in a V; the stroke swings them about the body axis, higher on the upstroke and down
     // past level on the downstroke.
     const swing = (s.lift - 0.35) * avatar.beat;

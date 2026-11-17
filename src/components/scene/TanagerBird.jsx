@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { DoubleSide, MathUtils, MeshStandardMaterial } from 'three';
 import { TANAGER, createTanagerParts, wingSegment } from '../../systems/avatars/tanager.js';
 import FlameAura from './FlameAura.jsx';
-import { wingLiftTarget } from './birdMotion.js';
+import { secondaryMotion, wingLiftTarget } from './birdMotion.js';
 
 /**
  * The code-built tanager as a fire bird. Unlike the static models, its wings are real: an arm and a hand segment
@@ -90,8 +90,11 @@ export default function TanagerBird({
     s.lag = MathUtils.damp(s.lag, s.lift, 12, dt); // the hand follows the arm
     const dead = flight?.dead;
 
-    g.position.y = Math.sin(frame.clock.elapsedTime * 1.8 + 1) * float;
+    // The rest of the body moves with the wings: it heaves and pitches, and the head and tail counter the pitch.
+    const move = secondaryMotion(s.lift, s.lag, dead);
+    g.position.y = Math.sin(frame.clock.elapsedTime * 1.8 + 1) * float + move.heave;
     g.rotation.x = dead ? 1.1 : 0;
+    g.rotation.z = move.bodyPitch;
 
     for (const [shoulder, elbow, side] of [
       [shoulderR.current, elbowR.current, 1],
@@ -104,12 +107,25 @@ export default function TanagerBird({
     // In flight: legs tucked up, tail fanned down a little and trailing, head level with a slight nod.
     if (legs.current) {
       legs.current.scale.y = 0.5;
-      legs.current.rotation.x = 0.7;
+      legs.current.rotation.x = 0.7 + move.bodyPitch * 0.5; // they trail a little as the body pitches
     }
-    if (tail.current)
-      tail.current.rotation.x = MathUtils.damp(tail.current.rotation.x, 0.25 + s.lift * 0.1, 9, dt);
-    if (head.current)
-      head.current.rotation.x = MathUtils.damp(head.current.rotation.x, -0.1 + beat * 0.03, 12, dt);
+    // For this bird a positive turn about x raises the tail and lowers the head, so the pitches enter negated.
+    if (tail.current) {
+      tail.current.rotation.x = MathUtils.damp(
+        tail.current.rotation.x,
+        0.25 + s.lift * 0.1 - move.tailPitch,
+        14,
+        dt,
+      );
+    }
+    if (head.current) {
+      head.current.rotation.x = MathUtils.damp(
+        head.current.rotation.x,
+        -0.1 + beat * 0.03 - move.headPitch,
+        14,
+        dt,
+      );
+    }
   });
 
   const [hx, hy, hz] = TANAGER.neck;

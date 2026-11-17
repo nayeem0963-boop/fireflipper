@@ -4,7 +4,7 @@ import { useGLTF } from '@react-three/drei';
 import { Box3, Euler, MathUtils, Matrix4, Vector3 } from 'three';
 import { modelUrl } from '../../systems/avatars/avatars.js';
 import FlameAura from './FlameAura.jsx';
-import { wingLiftTarget } from './birdMotion.js';
+import { secondaryMotion, wingLiftTarget } from './birdMotion.js';
 import { createFireMaterial, createFireUniforms } from './fireMaterial.js';
 
 /**
@@ -31,6 +31,7 @@ export default function ModelBird({
   const phase = useRef(Math.random() * 6);
   const kick = useRef(0);
   const lift = useRef(0.25);
+  const lag = useRef(0.25);
 
   // A private copy of the model with fire materials, centred and scaled to the avatar's length.
   const prepared = useMemo(() => {
@@ -46,7 +47,16 @@ export default function ModelBird({
       hinge: [center.x, box.min.y + (box.max.y - box.min.y) * f.hingeFrac, center.z],
       axis: f.axis,
     };
-    const uniforms = createFireUniforms(avatar.palette, box.min.y, box.max.y, flap);
+    // Head and tail follow the wings (see birdMotion.js): the ends of the body pitch about the shoulder, the head end
+    // being +z when the model faces +x after turning by +90 degrees, and -z otherwise.
+    const halfLength = (box.max.z - box.min.z) / 2;
+    const bend = {
+      start: (avatar.bend?.start ?? 0.3) * halfLength,
+      full: (avatar.bend?.full ?? 0.8) * halfLength,
+      headSign: Math.sign(avatar.facing) || 1,
+      hinge: flap?.hinge ?? [center.x, center.y, center.z],
+    };
+    const uniforms = createFireUniforms(avatar.palette, box.min.y, box.max.y, flap, bend);
     const root = scene.clone(true);
     const materials = [];
     root.traverse((o) => {
@@ -95,7 +105,14 @@ export default function ModelBird({
     if (avatar.flap) {
       // Real wing beats: the same stroke as the other birds, bending the wings about the shoulders in the shader.
       lift.current = MathUtils.damp(lift.current, wingLiftTarget(flight, beat), 22, dt);
+      lag.current = MathUtils.damp(lag.current, lift.current, 12, dt);
       prepared.uniforms.uFlap.value = (lift.current - 0.25) * avatar.flap.strength;
+      // The rest of the body moves with the wings: the body heaves and pitches, the head and tail counter it.
+      const move = secondaryMotion(lift.current, lag.current, dead);
+      prepared.uniforms.uHeadPitch.value = move.headPitch;
+      prepared.uniforms.uTailPitch.value = move.tailPitch;
+      g.position.y += move.heave;
+      g.rotation.z += move.bodyPitch;
       g.scale.set(s, s, s);
     } else {
       // No wing data for this model: suggest the beat with a body pulse.

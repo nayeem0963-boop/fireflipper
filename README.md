@@ -201,7 +201,14 @@ supplies the detail, but a shader patch replaces its colour with a flame gradien
 low, orange in the middle, bright gold or white along the top) and adds an emissive glow; a soft flame tail, a halo and
 a warm light are added. The models are static (no skeleton), so their wings are bent about the shoulders by the same shader patch: every
 vertex beyond a set distance from the body's centre line turns about an axis through the shoulder, ramping up smoothly
-so there is no seam, and the two sides mirror. The stroke is the same as the other birds', driven by the flight state. Each bird's turn, tilt, size and flame colours are data in
+so there is no seam, and the two sides mirror. The stroke is the same as the other birds', driven by the flight state.
+
+**The body moves with the wings** (`components/scene/birdMotion.js`, `secondaryMotion`), for every bird: the body rises
+as the wings push down and sinks as they come up, the nose lifts a little on the downstroke, the head turns against that
+pitch to keep its gaze steady, and the tail flexes against it; after a crash the head droops and the tail hangs. On the
+jointed birds (the original bird, the Bulbuli birds and the tanagers) this moves the head and tail joints; on the
+static models the same shader patch pitches the head end and the tail end of the mesh about the shoulder (the wings are
+left out of that bend), and the butterfly bends its head and abdomen. Each bird's turn, tilt, size and flame colours are data in
 `systems/avatars/avatars.js`. Model files (about 2.5 MB for all six) load on demand, only when a bird is chosen, and if
 one fails to load the original bird stands in.
 
