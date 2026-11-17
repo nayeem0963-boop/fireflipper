@@ -16,6 +16,11 @@ import { createRng, randomSeed } from '../../utils/random.js';
  * Coordinates: x is distance along the track. The bird's x always equals
  * `distance`; obstacles have fixed track x. Renderers draw at x - distance.
  */
+/** Input codes stored in the replay log (see sim.inputLog). */
+export const INPUT = Object.freeze({ FLAP: 0, HOLD_ON: 1, HOLD_OFF: 2, DIVE_ON: 3, DIVE_OFF: 4 });
+/** The log stops growing past this many entries (a run that long is not submittable). */
+export const MAX_LOG_LENGTH = 40000;
+
 export const PHASE = Object.freeze({ READY: 'ready', RUNNING: 'running', DYING: 'dying', OVER: 'over' });
 
 const ORB_RADIUS = 0.35;
@@ -140,6 +145,11 @@ export function createGameSim() {
     phase: PHASE.READY,
     seed: 1,
     time: 0,
+    /** Fixed steps taken since reset. Inputs are logged against it for replays. */
+    tick: 0,
+    /** Flat replay log [tick, inputCode, tick, inputCode, ...] of player inputs this run. */
+    inputLog: [],
+    logOverflow: false,
     distance: 0,
     prevDistance: 0,
     /** Distance at the moment of the crash; scoring freezes there. */
@@ -198,6 +208,9 @@ export function createGameSim() {
       pw.magnet = pw.slow = pw.invuln = 0;
       sim.phase = PHASE.READY;
       sim.time = 0;
+      sim.tick = 0;
+      sim.inputLog.length = 0;
+      sim.logOverflow = false;
       sim.distance = sim.prevDistance = sim.scoredDistance = 0;
       sim.speed = WORLD.baseSpeed;
       sim.orbsCollected = 0;
@@ -219,6 +232,7 @@ export function createGameSim() {
 
     /** Flap input. The first flap starts the run. */
     flap() {
+      record(INPUT.FLAP);
       if (sim.phase === PHASE.READY) {
         sim.phase = PHASE.RUNNING;
         sim.events.push(START_EVENT);
@@ -226,13 +240,16 @@ export function createGameSim() {
       if (sim.phase === PHASE.RUNNING) sim.input.flapQueued = true;
     },
     setHolding(v) {
+      if (v !== sim.input.holding) record(v ? INPUT.HOLD_ON : INPUT.HOLD_OFF);
       sim.input.holding = v;
     },
     setDive(v) {
+      if (v !== sim.input.dive) record(v ? INPUT.DIVE_ON : INPUT.DIVE_OFF);
       sim.input.dive = v;
     },
 
     step(dt) {
+      sim.tick += 1;
       const b = sim.bird;
       b.prevY = b.y;
       sim.prevDistance = sim.distance;
@@ -261,6 +278,16 @@ export function createGameSim() {
       return sim.bird.prevY + (sim.bird.y - sim.bird.prevY) * sim.alpha;
     },
   };
+
+  /** Logs a player input (only while the run is live) so the server can replay and verify it. */
+  function record(code) {
+    if (sim.phase !== PHASE.READY && sim.phase !== PHASE.RUNNING) return;
+    if (sim.inputLog.length >= MAX_LOG_LENGTH) {
+      sim.logOverflow = true;
+      return;
+    }
+    sim.inputLog.push(sim.tick, code);
+  }
 
   function stepRunning(dt) {
     const b = sim.bird;

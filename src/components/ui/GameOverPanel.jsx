@@ -3,6 +3,7 @@ import { SCORING } from '../../systems/physics/constants.js';
 import { formatDistance, formatScore } from '../../systems/scoring/scoring.js';
 import { isCoarsePointer } from '../../utils/device.js';
 import { RestartIcon } from './Icons.jsx';
+import SubmitScore from './SubmitScore.jsx';
 import '../../styles/panel.css';
 
 export default function GameOverPanel() {
@@ -75,7 +76,9 @@ export default function GameOverPanel() {
           )}
         </dl>
 
-        <button type="button" className="play-btn play-btn--compact" onClick={restart} autoFocus>
+        {daily && <SubmitScore result={result} />}
+
+        <button type="button" className="play-btn play-btn--compact" onClick={restart} autoFocus={!daily}>
           <RestartIcon />
           <span>Retry</span>
         </button>

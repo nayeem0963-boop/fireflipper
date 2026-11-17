@@ -35,6 +35,7 @@ export const useGameStore = create((set, get) => ({
   // --- navigation ---
   screen: SCREENS.HOME,
   settingsOpen: false,
+  leaderboardOpen: false,
 
   // --- current run ---
   mode: MODE.FREE,
@@ -65,6 +66,9 @@ export const useGameStore = create((set, get) => ({
   // --- settings ---
   soundEnabled: loadValue('soundEnabled', true),
   quality: loadValue('quality', QUALITY.AUTO),
+  /** Anonymous id for the leaderboard (no accounts yet) and the display name the player picked. */
+  playerId: loadPlayerId(),
+  playerName: loadValue('playerName', ''),
   /** Selected bird skin id; falls back to the default while it is still locked. */
   skinId: loadValue('skinId', DEFAULT_SKIN_ID),
   /** First-run coaching hints are shown until the player has flown a short distance. */
@@ -84,6 +88,12 @@ export const useGameStore = create((set, get) => ({
       };
     }),
   exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE }),
+  openLeaderboard: () => set({ leaderboardOpen: true }),
+  closeLeaderboard: () => set({ leaderboardOpen: false }),
+  setPlayerName: (name) => {
+    saveValue('playerName', name);
+    set({ playerName: name });
+  },
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
 
@@ -179,6 +189,17 @@ export const useGameStore = create((set, get) => ({
     set({ quality });
   },
 }));
+
+function loadPlayerId() {
+  let id = loadValue('playerId', null);
+  if (typeof id !== 'string' || id.length < 16) {
+    id =
+      globalThis.crypto?.randomUUID?.() ??
+      `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+    saveValue('playerId', id);
+  }
+  return id;
+}
 
 function freshRun(s) {
   return {

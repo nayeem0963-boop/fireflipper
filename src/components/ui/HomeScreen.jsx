@@ -17,6 +17,8 @@ export default function HomeScreen() {
   const todaysBest = dailyBests[todayKey()];
   const openSettings = useGameStore((s) => s.openSettings);
   const settingsOpen = useGameStore((s) => s.settingsOpen);
+  const leaderboardOpen = useGameStore((s) => s.leaderboardOpen);
+  const openLeaderboard = useGameStore((s) => s.openLeaderboard);
 
   return (
     <main className="home">
@@ -24,6 +26,9 @@ export default function HomeScreen() {
         <span className="home__domain">fireflipper.com</span>
         <div className="home__topbar-actions">
           <SoundToggle />
+          <IconButton label="Leaderboard" onClick={openLeaderboard}>
+            <TrophyIcon />
+          </IconButton>
           <IconButton label="Settings" onClick={openSettings}>
             <SettingsIcon />
           </IconButton>
@@ -33,7 +38,7 @@ export default function HomeScreen() {
       <section className="home__stage" aria-label="Firebird preview">
         {/* Stop rendering the preview while the settings modal covers it */}
         <Suspense fallback={null}>
-          <HomeStage paused={settingsOpen} />
+          <HomeStage paused={settingsOpen || leaderboardOpen} />
         </Suspense>
       </section>
 

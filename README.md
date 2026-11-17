@@ -27,6 +27,7 @@ npm run build     # production build to dist/
 npm run preview   # serve the production build
 npm run lint      # ESLint
 npm run format    # Prettier (format:check in CI)
+npm run test:leaderboard  # replay verification and leaderboard logic
 npm run test:sim  # headless gameplay tests (physics, collisions, scoring, track fairness)
 ```
 
@@ -136,6 +137,31 @@ scripts/
 
 New players see short hints during their first ~70 m (`RunCallouts`); after that the
 `tutorialDone` flag is stored locally and they never return.
+
+## Leaderboard (daily challenge)
+
+Scores for the Daily Fire Challenge are verified by the server instead of trusted. The simulation is
+deterministic (seeded RNG, fixed timesteps), so the client records its inputs (`sim.inputLog`, a flat
+`[tick, code, ...]` list) and the server re-runs them from the date's seed
+(`systems/replay/replay.js`) to compute the real score. A claimed score that does not match is rejected.
+
+```
+server/leaderboard.js          validation, replay check, ranking (pure; storage is injected)
+netlify/functions/             GET /api/leaderboard, POST /api/scores (Netlify Functions + Blobs)
+vite.config.js                 same API in `npm run dev` / `preview`, with an in-memory store
+```
+
+- **Boards:** one per UTC date; only today and yesterday are open. One row per player (their best), top 100.
+- **Identity:** no accounts yet. The browser keeps a random player id and a display name (3-16 letters or
+  numbers); the id is never sent back to other players.
+- **Why only the daily challenge:** its seed is fixed per date, so nobody can grind seeds offline to find an
+  easy track. Free-play would need server-issued seeds first.
+- **Dev:** `npm run dev` stores scores in memory and resets on restart. Production uses Netlify Blobs, which needs
+  the site to be deployed on Netlify (the deploy previews run the functions too).
+- **Known limits:** a bot that plays a perfect replay still gets through (replay checks stop edited scores, not
+  superhuman play); there is no rate limiting or name moderation yet; boards use read-modify-write, so two
+  submissions at the same instant can drop one; and rare float differences between browser engines could
+  reject a legitimate run.
 
 ## Controls
 

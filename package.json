@@ -11,9 +11,11 @@
     "test:sim": "node scripts/sim-test.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:leaderboard": "node scripts/leaderboard-test.mjs"
   },
   "dependencies": {
+    "@netlify/blobs": "^11.1.9",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
     "react": "~19.3.1",

@@ -34,5 +34,14 @@ export default [
     files: ['scripts/**/*.mjs', '*.config.js'],
     languageOptions: { ecmaVersion: 2022, sourceType: 'module', globals: globals.node },
   },
+  {
+    // Netlify functions and the shared server code run on Node with Web-standard Request/Response.
+    files: ['netlify/**/*.mjs', 'server/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: { ...globals.node, Response: 'readonly', URL: 'readonly' },
+    },
+  },
   prettier,
 ];
