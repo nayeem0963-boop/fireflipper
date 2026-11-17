@@ -84,7 +84,7 @@ export default function HomeScreen() {
             <div>
               <h2 className="card__label">Daily Fire Challenge</h2>
               <p className="card__value">
-                {todaysBest ? `Today: ${formatScore(todaysBest)}` : 'Same track for everyone today'}
+                {todaysBest ? `Today: ${formatScore(todaysBest)}` : 'New track every day'}
               </p>
             </div>
           </button>

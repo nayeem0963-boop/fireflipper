@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { loadValue, saveValue } from '../utils/storage.js';
 import { seedForKey, todayKey } from '../utils/daily.js';
+import { DEFAULT_SKIN_ID, isUnlocked, getSkin, newlyUnlocked } from '../systems/skins/skins.js';
 
 export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
 
@@ -64,6 +65,8 @@ export const useGameStore = create((set, get) => ({
   // --- settings ---
   soundEnabled: loadValue('soundEnabled', true),
   quality: loadValue('quality', QUALITY.AUTO),
+  /** Selected bird skin id; falls back to the default while it is still locked. */
+  skinId: loadValue('skinId', DEFAULT_SKIN_ID),
   /** First-run coaching hints are shown until the player has flown a short distance. */
   tutorialDone: loadValue('tutorialDone', false),
 
@@ -113,7 +116,16 @@ export const useGameStore = create((set, get) => ({
       score,
       distance,
       orbs,
-      lastResult: { score, distance, orbs, nearMisses, isNewBest, isNewDailyBest, mode: s.mode },
+      lastResult: {
+        score,
+        distance,
+        orbs,
+        nearMisses,
+        isNewBest,
+        isNewDailyBest,
+        mode: s.mode,
+        unlockedSkins: daily ? [] : newlyUnlocked(s.bestScore, score).map((k) => k.name),
+      },
       dailyBests,
       bestScore: daily ? s.bestScore : Math.max(s.bestScore, score),
       sessionBest: daily ? s.sessionBest : Math.max(s.sessionBest, score),
@@ -156,6 +168,12 @@ export const useGameStore = create((set, get) => ({
       saveValue('soundEnabled', !s.soundEnabled);
       return { soundEnabled: !s.soundEnabled };
     }),
+  selectSkin: (id) => {
+    const s = get();
+    if (!isUnlocked(getSkin(id), s.bestScore)) return;
+    saveValue('skinId', id);
+    set({ skinId: id });
+  },
   setQuality: (quality) => {
     saveValue('quality', quality);
     set({ quality });

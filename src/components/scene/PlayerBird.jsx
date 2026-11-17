@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending } from 'three';
 import Firebird from './Firebird.jsx';
+import { useSkin } from '../../hooks/useSkin.js';
 import { POWERUP_INFO } from '../../systems/powerups/appearance.js';
 
 /**
@@ -11,6 +12,7 @@ import { POWERUP_INFO } from '../../systems/powerups/appearance.js';
  */
 export default function PlayerBird({ sim }) {
   const group = useRef();
+  const skin = useSkin();
   const bubble = useRef();
 
   useFrame(() => {
@@ -35,6 +37,7 @@ export default function PlayerBird({ sim }) {
       <Firebird
         scale={0.6}
         rotation={[0, -0.12, 0]}
+        palette={skin.palette}
         flight={sim.bird}
         float={0.03}
         wingSpeed={9}

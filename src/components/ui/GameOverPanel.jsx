@@ -33,6 +33,10 @@ export default function GameOverPanel() {
           <span className="badge">{daily ? 'New daily best!' : 'New best score!'}</span>
         )}
 
+        {result.unlockedSkins.length > 0 && (
+          <span className="badge">New bird unlocked: {result.unlockedSkins.join(', ')}</span>
+        )}
+
         <div className="gameover__score" aria-label={`Score ${result.score}`}>
           {formatScore(result.score)}
         </div>

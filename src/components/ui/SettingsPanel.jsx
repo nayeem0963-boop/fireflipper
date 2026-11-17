@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useGameStore, QUALITY } from '../../store/useGameStore.js';
+import { SKINS, isUnlocked } from '../../systems/skins/skins.js';
+import { useSkin } from '../../hooks/useSkin.js';
 import IconButton from './IconButton.jsx';
 import { CloseIcon } from './Icons.jsx';
 import '../../styles/panel.css';
@@ -17,6 +19,9 @@ export default function SettingsPanel() {
   const toggleSound = useGameStore((s) => s.toggleSound);
   const quality = useGameStore((s) => s.quality);
   const setQuality = useGameStore((s) => s.setQuality);
+  const bestScore = useGameStore((s) => s.bestScore);
+  const selectSkin = useGameStore((s) => s.selectSkin);
+  const skin = useSkin();
   const dialogRef = useRef(null);
 
   useEffect(() => {
@@ -75,6 +80,35 @@ export default function SettingsPanel() {
                 {o.label}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="setting setting--stack">
+          <span className="setting__label" id="skin-label">
+            Bird
+          </span>
+          <div className="skins" role="radiogroup" aria-labelledby="skin-label">
+            {SKINS.map((s) => {
+              const unlocked = isUnlocked(s, bestScore);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={skin.id === s.id}
+                  disabled={!unlocked}
+                  className={`skin ${skin.id === s.id ? 'is-active' : ''}`}
+                  style={{ '--skin': s.palette.wing ?? '#ff6a1a', '--skin-2': s.palette.belly ?? '#ffb347' }}
+                  onClick={() => selectSkin(s.id)}
+                >
+                  <span className="skin__swatch" aria-hidden="true" />
+                  <span className="skin__name">{s.name}</span>
+                  {!unlocked && (
+                    <span className="skin__lock">Best score {s.unlockScore.toLocaleString()}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 

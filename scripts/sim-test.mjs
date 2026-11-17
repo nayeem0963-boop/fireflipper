@@ -11,6 +11,7 @@ import {
 import { clearanceToObstacle } from '../src/systems/physics/collision.js';
 import { PHYSICS, WORLD, SCORING, POWERUPS } from '../src/systems/physics/constants.js';
 import { seedForKey, todayKey } from '../src/utils/daily.js';
+import { SKINS, getSkin, isUnlocked, resolveSkin, newlyUnlocked } from '../src/systems/skins/skins.js';
 import { computeScore } from '../src/systems/scoring/scoring.js';
 
 const DT = PHYSICS.fixedStep;
@@ -336,6 +337,33 @@ section('Power-ups');
   }
   check('power-ups spawn on generated tracks', spawned > 0);
   check('power-ups respect min distance and stay in the flight band', early === 0, `${early} violations`);
+}
+
+// ---------------------------------------------------------------- skins
+section('Skins');
+{
+  check('default skin is always unlocked', isUnlocked(SKINS[0], 0));
+  check('skin ids are unique', new Set(SKINS.map((k) => k.id)).size === SKINS.length);
+  check(
+    'thresholds ascend',
+    SKINS.every((k, i) => i === 0 || k.unlockScore > SKINS[i - 1].unlockScore),
+  );
+  const second = SKINS[1];
+  check('locked below threshold', !isUnlocked(second, second.unlockScore - 1));
+  check('unlocked at threshold', isUnlocked(second, second.unlockScore));
+  check('unknown id falls back to default', getSkin('nope') === SKINS[0]);
+  check('locked selection resolves to default', resolveSkin(second.id, 0) === SKINS[0]);
+  check('unlocked selection resolves to itself', resolveSkin(second.id, second.unlockScore) === second);
+  check(
+    'nothing unlocked without crossing a threshold',
+    newlyUnlocked(0, second.unlockScore - 1).length === 0,
+  );
+  check('crossing a threshold unlocks that skin', newlyUnlocked(0, second.unlockScore)[0] === second);
+  check(
+    'already-held skins are not re-announced',
+    newlyUnlocked(second.unlockScore, second.unlockScore + 1).length === 0,
+  );
+  check('a big jump unlocks several', newlyUnlocked(0, 1e9).length === SKINS.length - 1);
 }
 
 // ---------------------------------------------------------------- daily challenge

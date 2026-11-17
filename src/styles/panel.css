@@ -224,3 +224,53 @@
   border: 1px solid var(--line-strong);
   color: var(--fire-200);
 }
+
+/* Bird skin picker */
+.setting--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.skins {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.skin {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(11, 9, 7, 0.5);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.skin.is-active {
+  border-color: var(--fire-300);
+  box-shadow: 0 0 0 1px var(--fire-300) inset;
+}
+.skin:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.skin__swatch {
+  grid-row: span 2;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--skin-2), var(--skin));
+  box-shadow: 0 0 10px var(--skin);
+}
+.skin__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.skin__lock {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
