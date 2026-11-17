@@ -1,9 +1,15 @@
-import { useThree } from '@react-three/fiber';
+import { useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { biomeBlendAt } from '../../systems/biomes/biomes.js';
+import { getBiome } from './biomeColors.js';
 import EmberParticles from '../../components/scene/EmberParticles.jsx';
 import EdgeWarning from '../../components/scene/EdgeWarning.jsx';
 import PlayerBird from '../../components/scene/PlayerBird.jsx';
+import GhostBird from '../../components/scene/GhostBird.jsx';
 import ObstacleField from '../../components/scene/ObstacleField.jsx';
 import OrbField from '../../components/scene/OrbField.jsx';
+import PowerUpField from '../../components/scene/PowerUpField.jsx';
+import WindField from '../../components/scene/WindField.jsx';
 import BurstParticles from '../../components/scene/BurstParticles.jsx';
 import { useRenderSettings } from '../../hooks/useRenderSettings.js';
 import { useGameLoop } from '../../systems/game/useGameLoop.js';
@@ -23,18 +29,34 @@ export default function EmberValleyScene() {
   const portrait = useThree((s) => s.size.width < s.size.height);
   useGameLoop(game);
 
+  const fog = useRef();
+  const ambient = useRef();
+  const hemi = useRef();
+  const key = useRef();
+  useFrame(() => {
+    const biome = getBiome(biomeBlendAt(game.renderDistance()));
+    fog.current?.color.copy(biome.fog);
+    ambient.current?.color.copy(biome.ambient);
+    hemi.current?.color.copy(biome.hemiSky);
+    hemi.current?.groundColor.copy(biome.hemiGround);
+    key.current?.color.copy(biome.key);
+  });
+
   return (
     <>
-      <fog attach="fog" args={['#120806', 22, 75]} />
-      <ambientLight intensity={0.3} color="#ffb27a" />
-      <hemisphereLight args={['#ff9a4a', '#0a0503', 0.7]} />
+      <fog ref={fog} attach="fog" args={['#120806', 22, 75]} />
+      <ambientLight ref={ambient} intensity={0.3} color="#ffb27a" />
+      <hemisphereLight ref={hemi} args={['#ff9a4a', '#0a0503', 0.7]} />
       {/* Key light from the front so obstacle faces read clearly */}
-      <directionalLight position={[-3, 6, 10]} intensity={1.6} color="#ffd8b0" />
+      <directionalLight ref={key} position={[-3, 6, 10]} intensity={1.6} color="#ffd8b0" />
 
       <CameraRig sim={game} />
       <Backdrop sim={game} />
       <ObstacleField sim={game} />
+      <WindField sim={game} />
       <OrbField sim={game} />
+      <PowerUpField sim={game} />
+      <GhostBird sim={game} />
       <PlayerBird sim={game} />
       <BurstParticles sim={game} />
       {/* Narrow screens see less track ahead, so warn about obstacles just off-screen */}

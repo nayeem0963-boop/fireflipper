@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import { loadValue, saveValue } from '../utils/storage.js';
+import { seedForKey, todayKey } from '../utils/daily.js';
+import { SIM_VERSION } from '../systems/game/simVersion.js';
+import { newlyUnlocked } from '../systems/skins/skins.js';
+import { DEFAULT_AVATAR_ID, getAvatar, isAvatarUnlocked } from '../systems/avatars/avatars.js';
 
 export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
 
@@ -16,6 +20,8 @@ export const STATUS = Object.freeze({
   OVER: 'over',
 });
 
+export const MODE = Object.freeze({ FREE: 'free', DAILY: 'daily' });
+
 export const QUALITY = Object.freeze({ AUTO: 'auto', LOW: 'low', HIGH: 'high' });
 
 /**
@@ -31,15 +37,26 @@ export const useGameStore = create((set, get) => ({
   // --- navigation ---
   screen: SCREENS.HOME,
   settingsOpen: false,
+  leaderboardOpen: false,
+  avatarsOpen: false,
+  creditsOpen: false,
 
   // --- current run ---
+  mode: MODE.FREE,
+  /** Fixed track seed for the current run (daily challenge), or null for a random track. */
+  seed: null,
+  dailyKey: null,
   status: STATUS.IDLE,
   score: 0,
   distance: 0,
   orbs: 0,
+  /** Latest near-miss callout { id, streak, points } for the HUD; null between runs. */
+  callout: null,
+  /** Active power-ups for the HUD: shield flag, magnet/slow seconds remaining (rounded up). */
+  power: { shield: false, magnet: 0, slow: 0 },
   runId: 0, // bumped on every (re)start; the game loop resets the sim on change
   overAt: 0,
-  /** { score, distance, orbs, isNewBest } of the last finished run. */
+  /** { score, distance, orbs, nearMisses, isNewBest, isNewDailyBest, previousBest, mode, unlockedSkins } of the last finished run. */
   lastResult: null,
 
   // --- scores ---
@@ -47,39 +64,101 @@ export const useGameStore = create((set, get) => ({
   /** Best score since the page was opened (not persisted). */
   sessionBest: 0,
   runsThisSession: 0,
+  /** Best score per daily challenge date, e.g. { '2026-11-17': 812 }. Only recent days are kept. */
+  dailyBests: loadValue('dailyBests', {}),
+  /** Inputs of today's best daily attempt, replayed as a ghost: { key, score, inputs } or null. */
+  ghost: loadGhost(),
 
   // --- settings ---
   soundEnabled: loadValue('soundEnabled', true),
+  hapticsEnabled: loadValue('hapticsEnabled', true),
   quality: loadValue('quality', QUALITY.AUTO),
+  /** Anonymous id for the leaderboard (no accounts yet) and the display name the player picked. */
+  playerId: loadPlayerId(),
+  playerName: loadValue('playerName', ''),
+  /** Selected avatar id (a colour scheme of the original bird, or a model bird); falls back to the default while locked. */
+  skinId: loadValue('skinId', DEFAULT_AVATAR_ID),
+  /** First-run coaching hints are shown until the player has flown a short distance. */
+  tutorialDone: loadValue('tutorialDone', false),
 
   // --- navigation actions ---
-  startGame: () =>
-    set((s) => ({
-      screen: SCREENS.GAME,
-      ...freshRun(s),
-    })),
+  startGame: (mode = MODE.FREE) =>
+    set((s) => {
+      const daily = mode === MODE.DAILY;
+      const dailyKey = daily ? todayKey() : null;
+      return {
+        screen: SCREENS.GAME,
+        mode,
+        dailyKey,
+        seed: daily ? seedForKey(dailyKey) : null,
+        ...freshRun(s),
+      };
+    }),
   exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE }),
+  openAvatars: () => set({ avatarsOpen: true }),
+  closeAvatars: () => set({ avatarsOpen: false }),
+  openCredits: () => set({ creditsOpen: true }),
+  closeCredits: () => set({ creditsOpen: false }),
+  openLeaderboard: () => set({ leaderboardOpen: true }),
+  closeLeaderboard: () => set({ leaderboardOpen: false }),
+  setPlayerName: (name) => {
+    saveValue('playerName', name);
+    set({ playerName: name });
+  },
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
 
   // --- run lifecycle (driven by simulation events + UI) ---
   beginRun: () => set((s) => (s.status === STATUS.READY ? { status: STATUS.RUNNING } : s)),
   crash: () => set((s) => (s.status === STATUS.RUNNING ? { status: STATUS.DYING } : s)),
-  endRun: ({ score, distance, orbs }) => {
+  endRun: ({ score, distance, orbs, nearMisses = 0 }, inputs) => {
     const s = get();
     // Guard: a run can only end once.
     if (s.status !== STATUS.DYING && s.status !== STATUS.RUNNING) return;
-    const isNewBest = score > s.bestScore;
+    const daily = s.mode === MODE.DAILY;
+    // Daily scores are kept apart from the free-play best: the track is the same every attempt.
+    const isNewBest = !daily && score > s.bestScore;
     if (isNewBest) saveValue('bestScore', score);
+    let dailyBests = s.dailyBests;
+    let isNewDailyBest = false;
+    // The best this run was measured against (shown by the game-over screen as the margin of a new best).
+    const previousBest = daily ? (dailyBests[s.dailyKey] ?? 0) : s.bestScore;
+    if (daily) {
+      const previous = dailyBests[s.dailyKey] ?? 0;
+      isNewDailyBest = score > previous;
+      if (isNewDailyBest) {
+        // Keep the last week only, so storage doesn't grow forever.
+        const kept = Object.keys(dailyBests).sort().slice(-6);
+        dailyBests = { ...Object.fromEntries(kept.map((k) => [k, dailyBests[k]])), [s.dailyKey]: score };
+        saveValue('dailyBests', dailyBests);
+      }
+    }
+    let ghost = s.ghost;
+    if (daily && isNewDailyBest && inputs && inputs.length <= MAX_GHOST_LENGTH) {
+      ghost = { key: s.dailyKey, score, inputs, simVersion: SIM_VERSION };
+      saveValue('dailyGhost', ghost);
+    }
     set({
+      ghost,
       status: STATUS.OVER,
       overAt: performance.now(),
       score,
       distance,
       orbs,
-      lastResult: { score, distance, orbs, isNewBest },
-      bestScore: Math.max(s.bestScore, score),
-      sessionBest: Math.max(s.sessionBest, score),
+      lastResult: {
+        score,
+        distance,
+        orbs,
+        nearMisses,
+        isNewBest,
+        isNewDailyBest,
+        previousBest,
+        mode: s.mode,
+        unlockedSkins: daily ? [] : newlyUnlocked(s.bestScore, score).map((k) => k.name),
+      },
+      dailyBests,
+      bestScore: daily ? s.bestScore : Math.max(s.bestScore, score),
+      sessionBest: daily ? s.sessionBest : Math.max(s.sessionBest, score),
       runsThisSession: s.runsThisSession + 1,
     });
   },
@@ -91,6 +170,20 @@ export const useGameStore = create((set, get) => ({
     const { status, pause, resume } = get();
     if (status === STATUS.RUNNING) pause();
     else if (status === STATUS.PAUSED) resume();
+  },
+
+  nearMiss: (streak, points) =>
+    set((s) =>
+      s.status === STATUS.RUNNING ? { callout: { id: (s.callout?.id ?? 0) + 1, streak, points } } : s,
+    ),
+  setPower: (shield, magnet, slow) => {
+    const p = get().power;
+    if (p.shield !== shield || p.magnet !== magnet || p.slow !== slow)
+      set({ power: { shield, magnet, slow } });
+  },
+  completeTutorial: () => {
+    saveValue('tutorialDone', true);
+    set({ tutorialDone: true });
   },
 
   /** Throttled HUD snapshot from the game loop. Skips no-op updates. */
@@ -105,12 +198,53 @@ export const useGameStore = create((set, get) => ({
       saveValue('soundEnabled', !s.soundEnabled);
       return { soundEnabled: !s.soundEnabled };
     }),
+  selectSkin: (id) => {
+    const s = get();
+    if (!isAvatarUnlocked(getAvatar(id), s.bestScore)) return;
+    saveValue('skinId', id);
+    set({ skinId: id });
+  },
+  toggleHaptics: () =>
+    set((s) => {
+      saveValue('hapticsEnabled', !s.hapticsEnabled);
+      return { hapticsEnabled: !s.hapticsEnabled };
+    }),
   setQuality: (quality) => {
     saveValue('quality', quality);
     set({ quality });
   },
 }));
 
+/** Longest input log kept for a ghost (about 5 minutes of busy tapping), so storage stays small. */
+const MAX_GHOST_LENGTH = 6000;
+
+/** Only today's ghost is useful (the track changes daily), and only if it was recorded under the current rules. */
+function loadGhost() {
+  const g = loadValue('dailyGhost', null);
+  const usable = g && g.key === todayKey() && g.simVersion === SIM_VERSION;
+  return usable && Array.isArray(g.inputs) && g.inputs.length > 0 ? g : null;
+}
+
+function loadPlayerId() {
+  let id = loadValue('playerId', null);
+  if (typeof id !== 'string' || id.length < 16) {
+    id =
+      globalThis.crypto?.randomUUID?.() ??
+      `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+    saveValue('playerId', id);
+  }
+  return id;
+}
+
 function freshRun(s) {
-  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, lastResult: null, runId: s.runId + 1 };
+  return {
+    status: STATUS.READY,
+    score: 0,
+    distance: 0,
+    orbs: 0,
+    callout: null,
+    power: { shield: false, magnet: 0, slow: 0 },
+    lastResult: null,
+    runId: s.runId + 1,
+  };
 }

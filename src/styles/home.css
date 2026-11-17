@@ -15,12 +15,11 @@
     'stage'
     'actions';
   gap: clamp(8px, 2vh, 20px);
-  padding: calc(var(--safe-top) + 12px) calc(var(--safe-right) + var(--gutter)) calc(var(--safe-bottom) + 20px)
-    calc(var(--safe-left) + var(--gutter));
+  padding: calc(var(--safe-top) + 12px) calc(var(--safe-right) + var(--gutter))
+    calc(var(--safe-bottom) + 20px) calc(var(--safe-left) + var(--gutter));
   background:
     radial-gradient(ellipse 80% 55% at 50% 58%, rgba(255, 90, 20, 0.14), transparent 70%),
-    radial-gradient(ellipse 120% 60% at 50% 110%, rgba(143, 31, 6, 0.35), transparent 70%),
-    var(--bg);
+    radial-gradient(ellipse 120% 60% at 50% 110%, rgba(143, 31, 6, 0.35), transparent 70%), var(--bg);
   overflow-x: hidden;
 }
 
@@ -73,7 +72,13 @@
 }
 .logo__fire {
   font-size: clamp(2.8rem, 12vw, 6.4rem);
-  background: linear-gradient(180deg, var(--fire-100) 0%, var(--fire-200) 30%, var(--fire-400) 65%, var(--fire-600) 100%);
+  background: linear-gradient(
+    180deg,
+    var(--fire-100) 0%,
+    var(--fire-200) 30%,
+    var(--fire-400) 65%,
+    var(--fire-600) 100%
+  );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -205,4 +210,35 @@
   .home__cards {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+/* Daily challenge card is a button */
+.card--button {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease;
+}
+.card--button:hover,
+.card--button:focus-visible {
+  border-color: var(--fire-400, var(--fire-300));
+  transform: translateY(-1px);
+}
+.card--button .card__value {
+  font-size: 0.95rem;
+}
+
+/* "Your bird" button under the menu cards */
+.home__bird {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.home__bird svg {
+  width: 1.1em;
+  height: 1.1em;
 }

@@ -69,7 +69,12 @@ export default function GameHUD() {
         <IconButton label="Restart" onClick={restart} className="hud__restart">
           <RestartIcon />
         </IconButton>
-        <IconButton label={paused ? 'Resume' : 'Pause'} onClick={togglePause} className="icon-btn--accent" disabled={!canPause}>
+        <IconButton
+          label={paused ? 'Resume' : 'Pause'}
+          onClick={togglePause}
+          className="icon-btn--accent"
+          disabled={!canPause}
+        >
           {paused ? <PlayIcon /> : <PauseIcon />}
         </IconButton>
       </div>

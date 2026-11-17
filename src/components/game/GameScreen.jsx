@@ -3,12 +3,14 @@ import { useGameStore, STATUS } from '../../store/useGameStore.js';
 import SceneCanvas from '../scene/SceneCanvas.jsx';
 import EmberValleyScene from '../../scenes/EmberValley/EmberValleyScene.jsx';
 import GameHUD from '../ui/GameHUD.jsx';
+import RunCallouts from '../ui/RunCallouts.jsx';
 import PauseMenu from '../ui/PauseMenu.jsx';
 import StartPrompt from '../ui/StartPrompt.jsx';
 import GameOverPanel from '../ui/GameOverPanel.jsx';
 import { useGameInput } from '../../hooks/useGameInput.js';
 import { usePauseWhenHidden } from '../../hooks/usePauseWhenHidden.js';
 import { useGameAudio } from '../../hooks/useGameAudio.js';
+import { useGameHaptics } from '../../hooks/useGameHaptics.js';
 import { ACTIONS, onAction } from '../../systems/input/inputBus.js';
 import { game } from '../../systems/game/gameInstance.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
@@ -29,6 +31,7 @@ export default function GameScreen() {
   useGameInput(playSurface);
   usePauseWhenHidden();
   useGameAudio();
+  useGameHaptics();
 
   useEffect(() => {
     const store = useGameStore.getState;
@@ -58,12 +61,16 @@ export default function GameScreen() {
   return (
     <main className="game">
       <div className="game__surface" ref={playSurface}>
-        <SceneCanvas camera={{ position: [0, 0.5, 10], fov: BASE_FOV }} frameloop={paused ? 'demand' : 'always'}>
+        <SceneCanvas
+          camera={{ position: [0, 0.5, 10], fov: BASE_FOV }}
+          frameloop={paused ? 'demand' : 'always'}
+        >
           <EmberValleyScene />
         </SceneCanvas>
       </div>
 
       <GameHUD />
+      <RunCallouts />
 
       {status === STATUS.READY && <StartPrompt />}
       {status === STATUS.DYING && <div className="game__flash" aria-hidden="true" />}

@@ -66,17 +66,57 @@ function tone({ type = 'sine', from, to, duration, peak, delay = 0 }) {
   osc.stop(t + duration + 0.05);
 }
 
+/** Shared audio graph for other audio modules (music). Null until the first user gesture. */
+export function getAudio() {
+  return ctx && master ? { ctx, master } : null;
+}
+
 const ready = () => ctx && ctx.state === 'running';
 
 export const sfx = {
   flap() {
     if (!ready()) return;
-    noiseBurst({ duration: 0.12, filter: 'bandpass', from: 1300, to: 450, q: 0.9, peak: 0.22 });
+    // Small random pitch and level changes so rapid flapping doesn't sound mechanical.
+    const pitch = 0.85 + Math.random() * 0.3;
+    noiseBurst({
+      duration: 0.1 + Math.random() * 0.04,
+      filter: 'bandpass',
+      from: 1300 * pitch,
+      to: 450 * pitch,
+      q: 0.9,
+      peak: 0.18 + Math.random() * 0.06,
+    });
   },
   orb() {
     if (!ready()) return;
     tone({ type: 'triangle', from: 880, to: 1760, duration: 0.16, peak: 0.16 });
     tone({ type: 'sine', from: 1320, to: 2640, duration: 0.2, peak: 0.08, delay: 0.05 });
+  },
+  nearMiss(streak = 1) {
+    if (!ready()) return;
+    // A rising whoosh plus a bright ping that climbs with the streak.
+    noiseBurst({ duration: 0.22, filter: 'bandpass', from: 600, to: 2600, q: 1.4, peak: 0.2 });
+    const base = 660 * Math.pow(1.122, Math.min(streak, 6) - 1);
+    tone({ type: 'sine', from: base, to: base * 1.5, duration: 0.22, peak: 0.14, delay: 0.04 });
+  },
+  powerup() {
+    if (!ready()) return;
+    tone({ type: 'triangle', from: 520, to: 1040, duration: 0.18, peak: 0.16 });
+    tone({ type: 'triangle', from: 780, to: 1560, duration: 0.22, peak: 0.12, delay: 0.09 });
+  },
+  shieldBreak() {
+    if (!ready()) return;
+    noiseBurst({ duration: 0.3, filter: 'highpass', from: 1500, to: 5000, q: 0.8, peak: 0.3 });
+    tone({ type: 'sine', from: 900, to: 220, duration: 0.3, peak: 0.2 });
+  },
+  rockImpact() {
+    if (!ready()) return;
+    noiseBurst({ duration: 0.35, filter: 'lowpass', from: 900, to: 90, q: 0.8, peak: 0.3 });
+    tone({ from: 110, to: 45, duration: 0.3, peak: 0.28 });
+  },
+  start() {
+    if (!ready()) return;
+    tone({ type: 'triangle', from: 330, to: 660, duration: 0.3, peak: 0.12 });
   },
   crash() {
     if (!ready()) return;

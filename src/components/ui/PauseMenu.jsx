@@ -10,14 +10,20 @@ export default function PauseMenu() {
   return (
     <div className="overlay overlay--soft">
       <div className="panel panel--center" role="dialog" aria-modal="true" aria-labelledby="pause-title">
-        <h2 id="pause-title" className="panel__title panel__title--big">Paused</h2>
+        <h2 id="pause-title" className="panel__title panel__title--big">
+          Paused
+        </h2>
         <button type="button" className="play-btn play-btn--compact" onClick={resume} autoFocus>
           <PlayIcon />
           <span>Resume</span>
         </button>
         <div className="panel__row">
-          <button type="button" className="ghost-btn" onClick={restart}>Restart</button>
-          <button type="button" className="ghost-btn" onClick={exitToMenu}>Main menu</button>
+          <button type="button" className="ghost-btn" onClick={restart}>
+            Restart
+          </button>
+          <button type="button" className="ghost-btn" onClick={exitToMenu}>
+            Main menu
+          </button>
         </div>
       </div>
     </div>

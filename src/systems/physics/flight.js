@@ -1,4 +1,4 @@
-import { PHYSICS, WORLD } from './constants.js';
+import { PHYSICS, WIND, WORLD } from './constants.js';
 
 /**
  * Flight model for the firebird. Pure functions over a plain `bird` object
@@ -13,12 +13,16 @@ export function applyFlap(bird) {
   bird.sinceFlap = 0;
 }
 
-export function stepFlight(bird, input, dt) {
+/** `wind` is a vertical acceleration from an air current the bird is flying through (0 outside one). */
+export function stepFlight(bird, input, dt, wind = 0) {
   let g = PHYSICS.gravity;
   if (input.dive) g *= PHYSICS.diveGravityScale;
   else if (input.holding && bird.vy > 0) g *= PHYSICS.holdGravityScale;
 
-  bird.vy += g * dt;
+  const before = bird.vy;
+  bird.vy += (g + wind) * dt;
+  // An updraft lifts the bird, but not past its lift cap (a flap's own speed is never cut).
+  if (wind > 0) bird.vy = Math.min(bird.vy, Math.max(WIND.liftCap, before));
 
   if (input.dive) {
     if (bird.vy < PHYSICS.maxDiveSpeed) bird.vy = PHYSICS.maxDiveSpeed;
@@ -26,6 +30,9 @@ export function stepFlight(bird, input, dt) {
     // Ease out of a dive instead of snapping to terminal velocity.
     bird.vy = Math.min(PHYSICS.maxFallSpeed, bird.vy + PHYSICS.diveRecovery * dt);
   }
+
+  // Without this a strong enough downdraft would beat the terminal-speed easing and the fall would never level off.
+  if (wind < 0 && !input.dive && bird.vy < WIND.fallCap) bird.vy = WIND.fallCap;
 
   bird.y += bird.vy * dt;
   if (bird.y > WORLD.ceilingY) {

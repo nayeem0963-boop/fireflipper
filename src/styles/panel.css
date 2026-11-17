@@ -31,7 +31,9 @@
   border: 1px solid var(--line-strong);
   border-radius: calc(var(--radius) + 4px);
   background: linear-gradient(180deg, var(--bg-elevated), var(--bg-raised));
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 90, 20, 0.12);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.6),
+    0 0 40px rgba(255, 90, 20, 0.12);
 }
 .panel:focus {
   outline: none;
@@ -72,20 +74,80 @@
   color: var(--text-dim);
 }
 
-/* Game over */
+/* Game over
+   Layout: a scrolling body above a fixed footer, so Retry is always on screen however short the window is
+   (125% display scaling on a laptop leaves only ~600px). Everything in the body can scroll; the actions cannot. */
 .overlay--gameover {
   animation: overlay-in 0.3s ease-out;
 }
 .gameover {
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px);
   animation: panel-rise 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
-.gameover__kicker {
-  font-size: 0.72rem;
+.gameover--record {
+  border-color: rgba(255, 211, 107, 0.55);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.6),
+    0 0 46px rgba(255, 150, 40, 0.28);
+}
+.gameover__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 22px 8px;
+  overflow-y: auto;
+  text-align: center;
+  overscroll-behavior: contain;
+}
+.gameover__head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.gameover__tag {
+  font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: 0.3em;
+  letter-spacing: 0.26em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--fire-300);
+}
+.gameover__record {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  line-height: 1.2;
+}
+.gameover__record-label {
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--fire-200), var(--fire-400));
+  color: #1a0904;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: var(--glow-sm);
+  animation: record-pulse 1.8s ease-in-out infinite;
+}
+.gameover__record-label::before {
+  content: '\2605\00a0';
+}
+.gameover__record-sub {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--fire-200);
+  font-variant-numeric: tabular-nums;
 }
 .gameover__score {
   font-family: var(--font-display);
@@ -99,35 +161,103 @@
   color: transparent;
   filter: drop-shadow(0 0 16px rgba(255, 110, 30, 0.5));
 }
-.gameover__stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  width: 100%;
-  margin: 4px 0 8px;
+.gameover--record .gameover__score {
+  animation: record-glow 1.8s ease-in-out infinite;
 }
-.gameover__stats div {
-  padding: 8px 10px;
+.gameover__breakdown {
+  width: 100%;
+  margin: 0;
+  padding: 4px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: rgba(11, 9, 7, 0.5);
 }
-.gameover__stats dt {
-  font-size: 0.66rem;
+.gameover__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  column-gap: 12px;
+  padding: 7px 0;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+.gameover__row + .gameover__row {
+  border-top: 1px solid var(--line);
+}
+.gameover__row dt {
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
-.gameover__stats dd {
+.gameover__row dd {
   margin: 0;
+}
+.gameover__detail {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.gameover__points {
+  min-width: 3.4rem;
+  text-align: right;
   font-weight: 700;
+  color: var(--fire-200);
+}
+.gameover__best {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
-.gameover__sub {
-  font-weight: 500;
-  font-size: 0.8em;
-  color: var(--fire-300);
+.gameover__best strong {
+  margin-left: 6px;
+  font-size: 1rem;
+  color: var(--text);
+}
+.gameover__session strong {
+  font-size: 0.9rem;
+}
+.gameover__actions {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px 16px;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(21, 16, 12, 0.6), var(--bg-raised));
+}
+.gameover__retry {
+  width: 100%;
+  min-width: 0;
+  min-height: 56px;
+  font-size: 1.15rem;
+}
+.gameover__key {
+  margin-left: 0.4em;
+  padding: 0.1em 0.5em;
+  border-color: rgba(26, 9, 4, 0.45);
+  background: rgba(26, 9, 4, 0.18);
+  color: #1a0904;
+  font-family: var(--font-ui);
+  font-size: 0.6em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+.gameover__menu {
+  min-height: 40px;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+.gameover__menu:hover {
+  color: var(--fire-200);
 }
 .badge {
   padding: 4px 12px;
@@ -139,6 +269,63 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   box-shadow: var(--glow-sm);
+}
+@keyframes record-pulse {
+  50% {
+    box-shadow: 0 0 22px rgba(255, 170, 60, 0.85);
+  }
+}
+@keyframes record-glow {
+  50% {
+    filter: drop-shadow(0 0 26px rgba(255, 170, 60, 0.85));
+  }
+}
+
+/* Short windows (a laptop at 125-150% scaling, a phone held sideways): tighten the spacing. */
+@media (max-height: 640px) {
+  .gameover__body {
+    gap: 8px;
+    padding-top: 14px;
+  }
+  .gameover .panel__title--big {
+    font-size: 1.65rem;
+  }
+  .gameover__score {
+    font-size: clamp(2.2rem, 9vw, 3rem);
+  }
+  .gameover__row {
+    padding: 5px 0;
+  }
+  .gameover__actions {
+    padding-top: 10px;
+    padding-bottom: 12px;
+  }
+  .gameover__retry {
+    min-height: 50px;
+  }
+  .gameover__menu {
+    min-height: 36px;
+  }
+}
+/* Wide and very short (phone landscape): the summary on the left, the actions on the right. */
+@media (max-height: 520px) and (min-width: 560px) {
+  .gameover {
+    width: min(640px, 100%);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 240px;
+  }
+  .gameover__actions {
+    justify-content: center;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    padding: 16px;
+  }
+  .gameover__retry {
+    padding: 0 0.7em;
+    font-size: 1.02rem;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
 }
 @keyframes panel-rise {
   from {
@@ -178,7 +365,9 @@
   height: 22px;
   border-radius: 50%;
   background: var(--text-dim);
-  transition: transform 0.15s, background 0.15s;
+  transition:
+    transform 0.15s,
+    background 0.15s;
 }
 .switch.is-on {
   background: rgba(255, 110, 30, 0.25);
@@ -210,4 +399,249 @@
 .segmented button.is-active {
   background: linear-gradient(180deg, var(--fire-400), var(--fire-600));
   color: #1a0904;
+}
+
+.badge--daily {
+  background: rgba(255, 138, 31, 0.15);
+  border: 1px solid var(--line-strong);
+  color: var(--fire-200);
+}
+
+/* Bird skin picker */
+.setting--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.skins {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.skin {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(11, 9, 7, 0.5);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.skin.is-active {
+  border-color: var(--fire-300);
+  box-shadow: 0 0 0 1px var(--fire-300) inset;
+}
+.skin:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.skin__swatch {
+  grid-row: span 2;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--skin-2), var(--skin));
+  box-shadow: 0 0 10px var(--skin);
+}
+.skin__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.skin__lock {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+/* Leaderboard */
+.panel__note--error {
+  color: #ff9a8a;
+}
+.board {
+  list-style: none;
+  margin: 12px 0 4px;
+  padding: 0;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+}
+.board__row {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.board__row.is-you {
+  background: rgba(255, 138, 31, 0.12);
+  border-radius: var(--radius-sm);
+}
+.board__rank {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.board__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.board__dist {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.board__score {
+  min-width: 3.5rem;
+  text-align: right;
+  font-weight: 700;
+  color: var(--fire-200);
+}
+
+/* Score submission (game over) */
+.submit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.submit__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.submit__row {
+  display: flex;
+  gap: 8px;
+}
+.submit__input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: rgba(11, 9, 7, 0.6);
+  color: inherit;
+  font: inherit;
+}
+.submit__input:focus-visible {
+  outline: 2px solid var(--fire-300);
+  outline-offset: 1px;
+}
+.submit__done {
+  margin: 0;
+  color: var(--fire-200);
+  font-weight: 600;
+}
+
+/* Avatar picker and credits */
+.panel--wide {
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
+.avatars__preview {
+  position: relative;
+  height: 210px;
+  margin: 4px 0 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 60%, rgba(255, 110, 30, 0.12), rgba(11, 9, 7, 0.9) 70%);
+}
+.avatars__name {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.15rem;
+  letter-spacing: 0.06em;
+  color: var(--fire-200);
+}
+.avatars__tagline {
+  margin: 0 0 6px;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+.avatars__credit {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.avatars__credit a,
+.credits a {
+  color: var(--fire-300);
+}
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fire-300);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.avatars__heading {
+  margin: 12px 0 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.avatars__colours {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.avatars__colour {
+  margin-left: 0.4em;
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.avatars__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.credits {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.credits__item {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(11, 9, 7, 0.5);
+}
+.credits__title {
+  margin: 0;
+  font-weight: 700;
+}
+.credits__sub {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+.credits__line,
+.credits__changes {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+.panel__note a {
+  color: var(--fire-300);
 }
