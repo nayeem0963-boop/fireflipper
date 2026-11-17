@@ -23,7 +23,27 @@ const FLAP_EVENT = Object.freeze({ type: GAME_EVENTS.FLAP });
 const START_EVENT = Object.freeze({ type: GAME_EVENTS.START });
 
 function createObstacle() {
-  return { kind: 'column', shape: 'box', x: 0, y: 0, z: 0, w: 1, h: 1, d: 1, hw: 0, hh: 0, cr: 0, r: 0, sx: 1, sy: 1, sz: 1, rot: 0, spin: 0, cap: 0, extent: 0 };
+  return {
+    kind: 'column',
+    shape: 'box',
+    x: 0,
+    y: 0,
+    z: 0,
+    w: 1,
+    h: 1,
+    d: 1,
+    hw: 0,
+    hh: 0,
+    cr: 0,
+    r: 0,
+    sx: 1,
+    sy: 1,
+    sz: 1,
+    rot: 0,
+    spin: 0,
+    cap: 0,
+    extent: 0,
+  };
 }
 function createOrb() {
   return { x: 0, y: 0, phase: 0 };
@@ -109,7 +129,15 @@ export function createGameSim() {
     deathTime: 0,
     /** Interpolation factor between the last two fixed steps (set by the loop). */
     alpha: 1,
-    bird: { y: WORLD.birdStartY, prevY: WORLD.birdStartY, vy: 0, pitch: 0, spin: 0, sinceFlap: 99, dead: false },
+    bird: {
+      y: WORLD.birdStartY,
+      prevY: WORLD.birdStartY,
+      vy: 0,
+      pitch: 0,
+      spin: 0,
+      sinceFlap: 99,
+      dead: false,
+    },
     input: { holding: false, dive: false, flapQueued: false },
     /** Camera/feedback impulses, decayed every step. */
     fx: { fovKick: 0, shake: 0, lift: 0 },
@@ -120,7 +148,9 @@ export function createGameSim() {
     events: [],
 
     get metres() {
-      return toMetres(sim.phase === PHASE.RUNNING || sim.phase === PHASE.READY ? sim.distance : sim.scoredDistance);
+      return toMetres(
+        sim.phase === PHASE.RUNNING || sim.phase === PHASE.READY ? sim.distance : sim.scoredDistance,
+      );
     },
     get score() {
       return computeScore(sim.metres, sim.orbsCollected);

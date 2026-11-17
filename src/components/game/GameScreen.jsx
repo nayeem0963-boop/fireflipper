@@ -58,7 +58,10 @@ export default function GameScreen() {
   return (
     <main className="game">
       <div className="game__surface" ref={playSurface}>
-        <SceneCanvas camera={{ position: [0, 0.5, 10], fov: BASE_FOV }} frameloop={paused ? 'demand' : 'always'}>
+        <SceneCanvas
+          camera={{ position: [0, 0.5, 10], fov: BASE_FOV }}
+          frameloop={paused ? 'demand' : 'always'}
+        >
           <EmberValleyScene />
         </SceneCanvas>
       </div>

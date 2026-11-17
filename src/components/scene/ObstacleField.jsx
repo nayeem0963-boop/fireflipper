@@ -77,7 +77,13 @@ export default function ObstacleField({ sim }) {
     <group>
       <instancedMesh ref={columns} args={[undefined, undefined, MAX.column]} frustumCulled={false}>
         <cylinderGeometry args={[0.5, 0.5, 1, 6]} />
-        <meshStandardMaterial color="#6b4433" emissive="#3a1004" emissiveIntensity={0.6} roughness={0.85} flatShading />
+        <meshStandardMaterial
+          color="#6b4433"
+          emissive="#3a1004"
+          emissiveIntensity={0.6}
+          roughness={0.85}
+          flatShading
+        />
       </instancedMesh>
       <instancedMesh ref={columnCaps} args={[undefined, undefined, MAX.column]} frustumCulled={false}>
         <cylinderGeometry args={[0.5, 0.5, 1, 6]} />
@@ -86,7 +92,13 @@ export default function ObstacleField({ sim }) {
 
       <instancedMesh ref={blocks} args={[undefined, undefined, MAX.block]} frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#5e3b2c" emissive="#3a1004" emissiveIntensity={0.55} roughness={0.9} flatShading />
+        <meshStandardMaterial
+          color="#5e3b2c"
+          emissive="#3a1004"
+          emissiveIntensity={0.55}
+          roughness={0.9}
+          flatShading
+        />
       </instancedMesh>
       <instancedMesh ref={blockCaps} args={[undefined, undefined, MAX.block]} frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
@@ -95,7 +107,13 @@ export default function ObstacleField({ sim }) {
 
       <instancedMesh ref={rocks} args={[undefined, undefined, MAX.rock]} frustumCulled={false}>
         <icosahedronGeometry args={[1, 1]} />
-        <meshStandardMaterial color="#7a4b36" emissive="#4a1405" emissiveIntensity={0.55} roughness={0.8} flatShading />
+        <meshStandardMaterial
+          color="#7a4b36"
+          emissive="#4a1405"
+          emissiveIntensity={0.55}
+          roughness={0.8}
+          flatShading
+        />
       </instancedMesh>
     </group>
   );

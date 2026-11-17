@@ -3,7 +3,11 @@
  * Exercises the pure simulation (no browser, no WebGL).
  */
 import { createGameSim, PHASE } from '../src/systems/game/createGameSim.js';
-import { circleIntersectsBox, circleIntersectsCircle, circleHitsObstacle } from '../src/systems/physics/collision.js';
+import {
+  circleIntersectsBox,
+  circleIntersectsCircle,
+  circleHitsObstacle,
+} from '../src/systems/physics/collision.js';
 import { PHYSICS, WORLD, SCORING } from '../src/systems/physics/constants.js';
 import { computeScore } from '../src/systems/scoring/scoring.js';
 
@@ -122,7 +126,10 @@ section('Crash & game over');
     crashed = sim.phase === PHASE.DYING;
   }
   check('hits obstacle in path', crashed);
-  check('crashed at the obstacle face', sim.distance > 3 - 0.5 - PHYSICS.birdRadius - 0.2 && sim.distance < 3);
+  check(
+    'crashed at the obstacle face',
+    sim.distance > 3 - 0.5 - PHYSICS.birdRadius - 0.2 && sim.distance < 3,
+  );
 }
 
 // ---------------------------------------------------------------- orbs
@@ -163,7 +170,10 @@ section('Repeated restarts & pooling');
   check('obstacle pool bounded', maxObstacles < 120, `size ${maxObstacles}`);
   check('orb pool bounded', maxOrbs < 80, `size ${maxOrbs}`);
   sim.reset(1);
-  check('reset clears state', sim.phase === PHASE.READY && sim.distance === 0 && sim.orbsCollected === 0 && sim.events.length === 0);
+  check(
+    'reset clears state',
+    sim.phase === PHASE.READY && sim.distance === 0 && sim.orbsCollected === 0 && sim.events.length === 0,
+  );
   console.log(`  peak pool sizes: obstacles ${maxObstacles}, orbs ${maxOrbs}`);
 }
 
@@ -200,10 +210,14 @@ section('Fairness: autopilot over generated tracks');
     if (sim.distance >= TARGET) survived++;
     else {
       const c = sim.track.corridors.find((k) => k.x1 > sim.scoredDistance - 0.3);
-      crashes.push(`seed ${seed} @ ${sim.metres}m (${c?.type}, y=${sim.bird.y.toFixed(2)}, corridor ${c?.lo.toFixed(2)}..${c?.hi.toFixed(2)})`);
+      crashes.push(
+        `seed ${seed} @ ${sim.metres}m (${c?.type}, y=${sim.bird.y.toFixed(2)}, corridor ${c?.lo.toFixed(2)}..${c?.hi.toFixed(2)})`,
+      );
     }
   }
-  console.log(`  autopilot survived ${survived}/${SEEDS} runs to ${TARGET} m (avg ${(totalOrbs / SEEDS).toFixed(0)} orbs)`);
+  console.log(
+    `  autopilot survived ${survived}/${SEEDS} runs to ${TARGET} m (avg ${(totalOrbs / SEEDS).toFixed(0)} orbs)`,
+  );
   crashes.forEach((c) => console.log(`    crash: ${c}`));
   check('every generated track navigable', survived === SEEDS);
 }

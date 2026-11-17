@@ -11,7 +11,13 @@ import WebGLErrorBoundary from './WebGLErrorBoundary.jsx';
  *
  * `frameloop="demand"` can be passed to stop rendering (e.g. when paused).
  */
-export default function SceneCanvas({ children, camera, frameloop = 'always', className, background = '#0b0907' }) {
+export default function SceneCanvas({
+  children,
+  camera,
+  frameloop = 'always',
+  className,
+  background = '#0b0907',
+}) {
   const { maxDpr, antialias } = useRenderSettings();
   const deviceDpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
   const [dpr, setDpr] = useState(() => Math.min(deviceDpr, maxDpr));

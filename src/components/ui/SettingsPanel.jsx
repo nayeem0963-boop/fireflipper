@@ -28,9 +28,18 @@ export default function SettingsPanel() {
 
   return (
     <div className="overlay" onPointerDown={(e) => e.target === e.currentTarget && close()}>
-      <div className="panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabIndex={-1} ref={dialogRef}>
+      <div
+        className="panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+        tabIndex={-1}
+        ref={dialogRef}
+      >
         <div className="panel__header">
-          <h2 id="settings-title" className="panel__title">Settings</h2>
+          <h2 id="settings-title" className="panel__title">
+            Settings
+          </h2>
           <IconButton label="Close settings" onClick={close}>
             <CloseIcon />
           </IconButton>
@@ -38,13 +47,21 @@ export default function SettingsPanel() {
 
         <div className="setting">
           <span className="setting__label">Sound</span>
-          <button type="button" className={`switch ${soundEnabled ? 'is-on' : ''}`} role="switch" aria-checked={soundEnabled} onClick={toggleSound}>
+          <button
+            type="button"
+            className={`switch ${soundEnabled ? 'is-on' : ''}`}
+            role="switch"
+            aria-checked={soundEnabled}
+            onClick={toggleSound}
+          >
             <span className="switch__thumb" />
           </button>
         </div>
 
         <div className="setting">
-          <span className="setting__label" id="quality-label">Graphics</span>
+          <span className="setting__label" id="quality-label">
+            Graphics
+          </span>
           <div className="segmented" role="radiogroup" aria-labelledby="quality-label">
             {QUALITY_OPTIONS.map((o) => (
               <button
@@ -61,7 +78,9 @@ export default function SettingsPanel() {
           </div>
         </div>
 
-        <p className="panel__note">More options (controls, accessibility, account) arrive in later updates.</p>
+        <p className="panel__note">
+          More options (controls, accessibility, account) arrive in later updates.
+        </p>
       </div>
     </div>
   );

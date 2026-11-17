@@ -86,7 +86,14 @@ export default function EdgeWarning({ sim, enabled }) {
   return (
     <instancedMesh ref={bars} args={[undefined, undefined, MAX_BARS]} frustumCulled={false} renderOrder={5}>
       <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial map={gradient} transparent depthWrite={false} depthTest={false} blending={AdditiveBlending} toneMapped={false} />
+      <meshBasicMaterial
+        map={gradient}
+        transparent
+        depthWrite={false}
+        depthTest={false}
+        blending={AdditiveBlending}
+        toneMapped={false}
+      />
     </instancedMesh>
   );
 }

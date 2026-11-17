@@ -15,7 +15,12 @@ export default function GameOverPanel() {
 
   return (
     <div className="overlay overlay--soft overlay--gameover">
-      <div className="panel panel--center gameover" role="dialog" aria-modal="true" aria-labelledby="gameover-title">
+      <div
+        className="panel panel--center gameover"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="gameover-title"
+      >
         <p className="gameover__kicker">Run over</p>
         <h2 id="gameover-title" className="panel__title panel__title--big">
           Scorched!

@@ -18,9 +18,37 @@ export default function Backdrop({ sim }) {
   return (
     <>
       <Sky />
-      <PeakLayer sim={sim} depth={-34} scale={8} count={14} span={160} speedFactor={0.1} color="#1d0c07" seed={1} />
-      <PeakLayer sim={sim} depth={-20} scale={5} count={14} span={120} speedFactor={0.28} color="#2a1009" seed={7} />
-      <PeakLayer sim={sim} depth={-9} scale={2.6} count={12} span={80} speedFactor={0.6} color="#3a160b" seed={13} spire />
+      <PeakLayer
+        sim={sim}
+        depth={-34}
+        scale={8}
+        count={14}
+        span={160}
+        speedFactor={0.1}
+        color="#1d0c07"
+        seed={1}
+      />
+      <PeakLayer
+        sim={sim}
+        depth={-20}
+        scale={5}
+        count={14}
+        span={120}
+        speedFactor={0.28}
+        color="#2a1009"
+        seed={7}
+      />
+      <PeakLayer
+        sim={sim}
+        depth={-9}
+        scale={2.6}
+        count={12}
+        span={80}
+        speedFactor={0.6}
+        color="#3a160b"
+        seed={13}
+        spire
+      />
       <Ground sim={sim} />
     </>
   );
@@ -56,7 +84,13 @@ function Ground({ sim }) {
   return (
     <mesh ref={mesh} rotation={[-Math.PI / 2, 0, 0]} position={[0, WORLD.groundY, -30]}>
       <planeGeometry args={[GROUND_WIDTH, 100]} />
-      <meshStandardMaterial map={tex} emissiveMap={tex} emissive="#ff6a1a" emissiveIntensity={0.45} roughness={0.9} />
+      <meshStandardMaterial
+        map={tex}
+        emissiveMap={tex}
+        emissive="#ff6a1a"
+        emissiveIntensity={0.45}
+        roughness={0.9}
+      />
     </mesh>
   );
 }
@@ -98,7 +132,13 @@ function PeakLayer({ sim, depth, scale, count, span, speedFactor, color, seed, s
       {peaks.map((p, i) => (
         <mesh key={i} position={[p.x, p.h / 2, 0]}>
           <coneGeometry args={[p.r, p.h, spire ? 6 : 5]} />
-          <meshStandardMaterial color={color} emissive="#3a1206" emissiveIntensity={0.4} roughness={1} flatShading />
+          <meshStandardMaterial
+            color={color}
+            emissive="#3a1206"
+            emissiveIntensity={0.4}
+            roughness={1}
+            flatShading
+          />
         </mesh>
       ))}
     </group>

@@ -15,12 +15,11 @@
     'stage'
     'actions';
   gap: clamp(8px, 2vh, 20px);
-  padding: calc(var(--safe-top) + 12px) calc(var(--safe-right) + var(--gutter)) calc(var(--safe-bottom) + 20px)
-    calc(var(--safe-left) + var(--gutter));
+  padding: calc(var(--safe-top) + 12px) calc(var(--safe-right) + var(--gutter))
+    calc(var(--safe-bottom) + 20px) calc(var(--safe-left) + var(--gutter));
   background:
     radial-gradient(ellipse 80% 55% at 50% 58%, rgba(255, 90, 20, 0.14), transparent 70%),
-    radial-gradient(ellipse 120% 60% at 50% 110%, rgba(143, 31, 6, 0.35), transparent 70%),
-    var(--bg);
+    radial-gradient(ellipse 120% 60% at 50% 110%, rgba(143, 31, 6, 0.35), transparent 70%), var(--bg);
   overflow-x: hidden;
 }
 
@@ -73,7 +72,13 @@
 }
 .logo__fire {
   font-size: clamp(2.8rem, 12vw, 6.4rem);
-  background: linear-gradient(180deg, var(--fire-100) 0%, var(--fire-200) 30%, var(--fire-400) 65%, var(--fire-600) 100%);
+  background: linear-gradient(
+    180deg,
+    var(--fire-100) 0%,
+    var(--fire-200) 30%,
+    var(--fire-400) 65%,
+    var(--fire-600) 100%
+  );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

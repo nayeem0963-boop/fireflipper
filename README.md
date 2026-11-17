@@ -8,13 +8,13 @@
 
 ## Tech stack
 
-| Purpose         | Package                       |
-| --------------- | ----------------------------- |
-| UI              | React 19, plain CSS           |
-| Build / dev     | Vite 8 (`@vitejs/plugin-react`) |
-| 3D rendering    | three.js, React Three Fiber 9 |
-| 3D helpers      | @react-three/drei             |
-| Game state      | Zustand 5                     |
+| Purpose      | Package                         |
+| ------------ | ------------------------------- |
+| UI           | React 19, plain CSS             |
+| Build / dev  | Vite 8 (`@vitejs/plugin-react`) |
+| 3D rendering | three.js, React Three Fiber 9   |
+| 3D helpers   | @react-three/drei               |
+| Game state   | Zustand 5                       |
 
 JavaScript (ES modules) only, no TypeScript. Requires Node.js 22.12+.
 
@@ -25,6 +25,8 @@ npm install
 npm run dev       # http://localhost:5173
 npm run build     # production build to dist/
 npm run preview   # serve the production build
+npm run lint      # ESLint
+npm run format    # Prettier (format:check in CI)
 npm run test:sim  # headless gameplay tests (physics, collisions, scoring, track fairness)
 ```
 
@@ -105,6 +107,8 @@ scripts/
 
 ### Performance notes
 
+- The game screen and the menu's 3D preview are lazy-loaded, and three.js has its own chunk, so the
+  menu UI paints before the 3D code arrives (entry bundle ~74 kB gzip, down from ~328 kB).
 - One opaque WebGL context per screen, device-pixel-ratio capped (2 on desktop, 1.25 on low-power),
   and lowered automatically by drei's `PerformanceMonitor` when FPS drops.
 - Rendering stops (`frameloop="demand"`) while paused or while a modal covers the menu scene.
@@ -117,12 +121,12 @@ scripts/
 
 ## Controls
 
-| Action        | Keyboard           | Touch / mouse            |
-| ------------- | ------------------ | ------------------------ |
-| Flap / start  | Space, Up arrow, W | Tap or click the scene   |
-| Climb higher  | Hold the flap key  | Keep your finger down    |
-| Dive          | Down arrow, S      | (release and fall)       |
-| Pause         | Esc, P             | Pause button             |
-| Retry         | Space (game over)  | Retry button             |
+| Action       | Keyboard           | Touch / mouse          |
+| ------------ | ------------------ | ---------------------- |
+| Flap / start | Space, Up arrow, W | Tap or click the scene |
+| Climb higher | Hold the flap key  | Keep your finger down  |
+| Dive         | Down arrow, S      | (release and fall)     |
+| Pause        | Esc, P             | Pause button           |
+| Retry        | Space (game over)  | Retry button           |
 
 The run also pauses automatically when the tab is hidden or the window loses focus.

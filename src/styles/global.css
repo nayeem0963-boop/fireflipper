@@ -108,7 +108,11 @@ kbd {
   cursor: pointer;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  transition: border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.1s;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    box-shadow 0.15s,
+    transform 0.1s;
 }
 .icon-btn:hover {
   border-color: var(--line-strong);
@@ -147,8 +151,13 @@ kbd {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: var(--glow-md), inset 0 1px 0 rgba(255, 255, 255, 0.45);
-  transition: transform 0.12s, box-shadow 0.2s, filter 0.2s;
+  box-shadow:
+    var(--glow-md),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition:
+    transform 0.12s,
+    box-shadow 0.2s,
+    filter 0.2s;
   animation: play-pulse 2.6s ease-in-out infinite;
 }
 .play-btn:hover {
@@ -168,10 +177,15 @@ kbd {
 @keyframes play-pulse {
   0%,
   100% {
-    box-shadow: var(--glow-md), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    box-shadow:
+      var(--glow-md),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45);
   }
   50% {
-    box-shadow: 0 0 34px rgba(255, 120, 30, 0.65), 0 0 90px rgba(255, 80, 10, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    box-shadow:
+      0 0 34px rgba(255, 120, 30, 0.65),
+      0 0 90px rgba(255, 80, 10, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45);
   }
 }
 
@@ -184,7 +198,9 @@ kbd {
   color: var(--text);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 .ghost-btn:hover {
   background: rgba(255, 138, 31, 0.1);

@@ -1,12 +1,13 @@
+import { lazy, Suspense } from 'react';
 import { useGameStore } from '../../store/useGameStore.js';
-import SceneCanvas from '../scene/SceneCanvas.jsx';
-import ShowcaseScene from '../../scenes/Showcase/ShowcaseScene.jsx';
 import IconButton from './IconButton.jsx';
 import SoundToggle from './SoundToggle.jsx';
 import { FlameIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
 import { formatScore } from '../../systems/scoring/scoring.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
 import '../../styles/home.css';
+
+const HomeStage = lazy(() => import('../scene/HomeStage.jsx'));
 
 export default function HomeScreen() {
   const bestScore = useGameStore((s) => s.bestScore);
@@ -28,9 +29,9 @@ export default function HomeScreen() {
 
       <section className="home__stage" aria-label="Firebird preview">
         {/* Stop rendering the preview while the settings modal covers it */}
-        <SceneCanvas camera={{ position: [0, 0.25, 6], fov: 45 }} frameloop={settingsOpen ? 'demand' : 'always'}>
-          <ShowcaseScene />
-        </SceneCanvas>
+        <Suspense fallback={null}>
+          <HomeStage paused={settingsOpen} />
+        </Suspense>
       </section>
 
       <section className="home__brand">

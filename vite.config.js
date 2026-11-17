@@ -11,8 +11,16 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
-    // three.js + R3F make up most of the bundle (~1.1 MB min / ~320 kB gzip).
-    // Revisit vendor chunk splitting once gameplay code grows.
-    chunkSizeWarningLimit: 1300,
+    rollupOptions: {
+      output: {
+        // three.js is the bulk of the bundle; keep it in its own long-cacheable chunk
+        // so game-code changes don't invalidate it.
+        manualChunks(id) {
+          if (id.includes('node_modules/three/')) return 'three';
+        },
+      },
+    },
+    // three.js alone is ~700 kB minified; it loads lazily, after the menu paints.
+    chunkSizeWarningLimit: 800,
   },
 });

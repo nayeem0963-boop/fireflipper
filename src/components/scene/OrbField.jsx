@@ -45,9 +45,21 @@ export default function OrbField({ sim }) {
         <icosahedronGeometry args={[0.2, 2]} />
         <meshBasicMaterial color="#fff0b8" toneMapped={false} />
       </instancedMesh>
-      <instancedMesh ref={halos} args={[undefined, undefined, MAX_ORBS]} frustumCulled={false} renderOrder={2}>
+      <instancedMesh
+        ref={halos}
+        args={[undefined, undefined, MAX_ORBS]}
+        frustumCulled={false}
+        renderOrder={2}
+      >
         <icosahedronGeometry args={[0.46, 2]} />
-        <meshBasicMaterial color="#ff8a24" transparent opacity={0.35} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+        <meshBasicMaterial
+          color="#ff8a24"
+          transparent
+          opacity={0.35}
+          depthWrite={false}
+          blending={AdditiveBlending}
+          toneMapped={false}
+        />
       </instancedMesh>
     </group>
   );
