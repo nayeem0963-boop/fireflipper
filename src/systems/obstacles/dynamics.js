@@ -5,7 +5,7 @@ import { PHYSICS, WORLD } from '../physics/constants.js';
  * rocks, of the bird's distance. Keeping the motion a function of time or position, not of accumulated state,
  * makes it identical in every replay and ghost.
  */
-export const DYN = Object.freeze({ NONE: 0, SWING: 1, GEYSER: 2, ROCKFALL: 3 });
+export const DYN = Object.freeze({ NONE: 0, SWING: 1, GEYSER: 2, ROCKFALL: 3, SPINNER: 4, SCAN: 5 });
 
 /** Geyser cycle (seconds): telegraph, eruption, retract, then rest for whatever is left of the period. */
 export const GEYSER = Object.freeze({ telegraph: 0.8, erupt: 1.1, retract: 0.3, rise: 0.18 });
@@ -78,8 +78,26 @@ export function rockfallState(o, distance) {
   return { y: floorY, live: false, landed: true, fade: Math.max(0, 1 - since) };
 }
 
+/** Spinning blade angle (radians) at run time `rt`; `freq` is angular speed, `offset` the starting angle. */
+export function spinnerAngle(o, rt) {
+  return o.offset + o.freq * rt;
+}
+
+/** Height of a sweeping beam's centre at run time `rt`. */
+export function scanY(o, rt) {
+  return o.edge0 + o.amp * Math.sin(TWO_PI * o.freq * rt + o.offset);
+}
+
 /** Moves a dynamic obstacle record to its position at run time `rt` (and bird distance `distance`). */
 export function animate(o, rt, distance = 0) {
+  if (o.dyn === DYN.SPINNER) {
+    o.angle = spinnerAngle(o, rt);
+    return;
+  }
+  if (o.dyn === DYN.SCAN) {
+    o.y = scanY(o, rt);
+    return;
+  }
   if (o.dyn === DYN.ROCKFALL) {
     const st = rockfallState(o, distance);
     o.y = st.y;

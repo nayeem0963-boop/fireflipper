@@ -4,6 +4,7 @@
  */
 import { createGameSim, PHASE } from '../src/systems/game/createGameSim.js';
 import {
+  distanceToSegment,
   circleIntersectsBox,
   circleIntersectsCircle,
   circleHitsObstacle,
@@ -14,7 +15,7 @@ import { seedForKey, todayKey } from '../src/utils/daily.js';
 import { SKINS, getSkin, isUnlocked, resolveSkin, newlyUnlocked } from '../src/systems/skins/skins.js';
 import { BIOME_SHIFT, biomeBlendAt, biomeIdAt } from '../src/systems/biomes/biomes.js';
 import { DYN, GEYSER, geyserState, rockfallState, swingEdge } from '../src/systems/obstacles/dynamics.js';
-import { PATTERNS } from '../src/systems/obstacles/patterns.js';
+import { PATTERNS, pickPattern } from '../src/systems/obstacles/patterns.js';
 import { createRng } from '../src/utils/random.js';
 import { applyFlap, stepFlight } from '../src/systems/physics/flight.js';
 import { escalationAt, speedAt } from '../src/systems/obstacles/spawner.js';
@@ -810,7 +811,11 @@ section('Air currents');
       if (i % 30 === 0) {
         for (const k of s2.track.corridors)
           if (k.type === 'breather' && !seen.has(k)) (seen.add(k), breathers.push(k));
-        for (const w of s2.winds.active) if (!seen.has(w)) (seen.add(w), zones.push({ ...w, seed }));
+        // Wind records are pooled and reused, so identify a zone by where it is, not by object.
+        for (const w of s2.winds.active) {
+          const key = `wind:${w.x0}`;
+          if (!seen.has(key)) (seen.add(key), zones.push({ ...w, seed }));
+        }
       }
     }
   }
@@ -824,9 +829,264 @@ section('Air currents');
     zones.every((w) => breathers.some((k) => w.x0 >= k.x0 && w.x1 <= k.x1)),
     `${zones.filter((w) => !breathers.some((k) => w.x0 >= k.x0 && w.x1 <= k.x1)).length} outside`,
   );
+  const rate = (lo, hi) => {
+    const inRange = (x) => x >= lo && x < hi;
+    const n = breathers.filter((k) => inRange(k.x0)).length;
+    const w = zones.filter((z) => inRange(z.x0)).length;
+    return { n, w, rate: n ? w / n : 0 };
+  };
+  const calmRate = rate(200, 520);
+  const stormRate = rate(680, 1500);
+  check(
+    'Obsidian Reach is stormier than Ember Valley',
+    stormRate.rate > calmRate.rate,
+    `${stormRate.rate} vs ${calmRate.rate} (${stormRate.n} and ${calmRate.n} breathers)`,
+  );
+  const downShare = (lo, hi) => {
+    const z = zones.filter((w) => w.x0 >= lo && w.x0 < hi);
+    return z.length ? z.filter((w) => w.accel < 0).length / z.length : 0;
+  };
+  check(
+    '...with more downdrafts',
+    downShare(680, 1500) > downShare(200, 520),
+    `${downShare(680, 1500)} vs ${downShare(200, 520)}`,
+  );
   check(
     'none before the minimum distance',
     zones.every((w) => w.x0 > 180),
+  );
+}
+
+// ---------------------------------------------------------------- biome hazards
+section('Biome hazards');
+{
+  // Capsule collider for a spinning bar.
+  check('distance to a segment: beside it', Math.abs(distanceToSegment(1, 1, 0, 0, 2, 0) - 1) < 1e-9);
+  check('distance to a segment: past its end', Math.abs(distanceToSegment(3, 0, 0, 0, 2, 0) - 1) < 1e-9);
+  check('distance to a segment: on it', distanceToSegment(1, 0, 0, 0, 2, 0) === 0);
+  const bar = (angle) => ({ shape: 'bar', x: 0, y: 0, hl: 2, hw: 0.2, angle });
+  const R = PHYSICS.birdRadius;
+  check('a horizontal bar hits a bird on it', circleHitsObstacle(1.5, 0.5, R, bar(0)));
+  check('...and misses a bird just clear of it', !circleHitsObstacle(1.5, 0.6, R, bar(0)));
+  check('a vertical bar hits beside it', circleHitsObstacle(0.5, 1.5, R, bar(Math.PI / 2)));
+  check(
+    'the bar has round ends',
+    !circleHitsObstacle(2.7, 0, R, bar(0)) && circleHitsObstacle(2.4, 0, R, bar(0)),
+  );
+  check('clearance to a bar is positive when clear', clearanceToObstacle(1.5, 1.5, R, bar(0)) > 0);
+  check('clearance to a bar is negative when hit', clearanceToObstacle(1.5, 0.1, R, bar(0)) < 0);
+
+  // Run the real patterns against recording builders and check the lane is never touched.
+  const build = (name, center, gap, seed) => {
+    const calls = { spinner: null, scanner: null, column: 0 };
+    const builder = {
+      spinner: (...a) => (calls.spinner = a),
+      scanner: (...a) => (calls.scanner = a),
+      column: () => calls.column++,
+      orb: () => {},
+    };
+    const section = PATTERNS[name](builder, 100, center, gap, createRng(seed));
+    return { calls, section };
+  };
+  let spinners = 0;
+  let scanners = 0;
+  let fallbacks = 0;
+  let spinnerHits = 0;
+  let scannerHits = 0;
+  let laneMismatch = 0;
+  for (let c = -1.6; c <= 3.6; c += 0.25) {
+    for (let gap = 2.5; gap <= 4.6; gap += 0.3) {
+      for (let seed = 1; seed <= 2; seed++) {
+        const sp = build('spinner', c, gap, seed);
+        if (sp.calls.spinner) {
+          spinners++;
+          const [cx, cy, hl, hw] = sp.calls.spinner;
+          for (let h = sp.section.lo; h <= sp.section.hi + 1e-9; h += 0.15) {
+            for (let a = 0; a < Math.PI; a += 0.03) {
+              for (let x = cx - hl - hw - 1; x <= cx + hl + hw + 1; x += 0.2) {
+                if (circleHitsObstacle(x, h, R, { shape: 'bar', x: cx, y: cy, hl, hw, angle: a }))
+                  spinnerHits++;
+              }
+            }
+          }
+          if (sp.section.hi < sp.section.lo) laneMismatch++;
+        } else fallbacks++;
+
+        const sc = build('scanner', c, gap, seed);
+        if (sc.calls.scanner) {
+          scanners++;
+          const [x0, x1, cy, amp] = sc.calls.scanner;
+          for (let h = sc.section.lo; h <= sc.section.hi + 1e-9; h += 0.15) {
+            for (let yb = cy - amp; yb <= cy + amp + 1e-9; yb += 0.05) {
+              for (let x = x0 - 1; x <= x1 + 1; x += 0.5) {
+                const beam = { shape: 'box', x: (x0 + x1) / 2, y: yb, hw: (x1 - x0) / 2 - 0.1, hh: 0.11 };
+                if (circleHitsObstacle(x, h, R, beam)) scannerHits++;
+              }
+            }
+          }
+        } else fallbacks++;
+      }
+    }
+  }
+  check('spinner patterns were generated across the range', spinners > 60, `${spinners}`);
+  check('scanner patterns were generated across the range', scanners > 60, `${scanners}`);
+  check('the lane beside a spinning blade is never hit', spinnerHits === 0, `${spinnerHits} hits`);
+  check('the lane beside a sweeping beam is never hit', scannerHits === 0, `${scannerHits} hits`);
+  check('the lanes are well-formed', laneMismatch === 0);
+  check('corridors with no room fall back to a column', fallbacks > 0);
+
+  // In the simulation: a pinned bird dies in the blade's disc and passes in the lane.
+  const flyThrough = (name, height) => {
+    const { calls, section } = build(name, 0, 3.4, 5);
+    const sim = createGameSim();
+    sim.reset(71);
+    sim.obstacles.releaseAll();
+    sim.orbs.releaseAll();
+    sim.powerups.releaseAll();
+    sim.winds.releaseAll();
+    sim.track.nextX = 1e9;
+    sim.flap();
+    sim.step(DT);
+    const o = sim.obstacles.acquire();
+    if (name === 'spinner') {
+      const [cx, cy, hl, hw, omega, phase] = calls.spinner;
+      Object.assign(o, {
+        kind: 'spinner',
+        shape: 'bar',
+        x: 30,
+        y: cy,
+        hl,
+        hw,
+        w: 2 * (hl + hw),
+        h: 2 * (hl + hw),
+        d: 0.6,
+        extent: hl + hw,
+        dyn: DYN.SPINNER,
+        freq: omega,
+        offset: phase,
+        live: true,
+        gap: Infinity,
+        passed: false,
+        landed: false,
+        announced: false,
+        fade: 1,
+        angle: phase,
+      });
+      void cx;
+    } else {
+      const [x0, x1, cy] = calls.scanner;
+      Object.assign(o, {
+        kind: 'beam',
+        shape: 'box',
+        x: 30,
+        y: cy,
+        w: x1 - x0,
+        h: 0.22,
+        d: 0.6,
+        hw: (x1 - x0) / 2 - 0.1,
+        hh: 0.11,
+        extent: (x1 - x0) / 2,
+        dyn: DYN.SCAN,
+        edge0: cy,
+        amp: 0,
+        freq: 0.3,
+        offset: 0,
+        live: true,
+        gap: Infinity,
+        passed: false,
+        landed: false,
+        announced: false,
+        fade: 1,
+      });
+    }
+    const target = height === 'hit' ? o.y : section.hi - 0.3;
+    for (let i = 0; i < 120 * 30 && sim.phase === PHASE.RUNNING && sim.distance < 55; i++) {
+      sim.bird.y = sim.bird.prevY = target;
+      sim.bird.vy = 0;
+      sim.step(DT);
+    }
+    return sim;
+  };
+  for (const name of ['spinner', 'scanner']) {
+    const hit = flyThrough(name, 'hit');
+    check(
+      `flying into a ${name} is fatal`,
+      hit.phase !== PHASE.RUNNING && hit.death?.kind === (name === 'spinner' ? 'spinner' : 'beam'),
+      `${hit.phase} ${hit.death?.kind}`,
+    );
+    const lane = flyThrough(name, 'lane');
+    check(
+      `flying the lane past a ${name} is safe`,
+      lane.phase === PHASE.RUNNING && lane.distance >= 54,
+      `${lane.phase} ${lane.distance}`,
+    );
+  }
+
+  // Each biome has its own hazards.
+  const mix = (distance) => {
+    const counts = {};
+    const rng = createRng(99);
+    for (let i = 0; i < 3000; i++) {
+      const type = pickPattern(distance, 0.5, rng, null);
+      counts[type] = (counts[type] ?? 0) + 1;
+    }
+    return counts;
+  };
+  const ember = mix(400);
+  const obsidian = mix(900);
+  check(
+    'Ember Valley has geysers and no Obsidian hazards',
+    ember.geyser > 0 && !ember.spinner && !ember.scanner,
+  );
+  check(
+    'Obsidian Reach has blades and beams and no geysers',
+    obsidian.spinner > 0 && obsidian.scanner > 0 && !obsidian.geyser,
+  );
+  check(
+    'shared hazards appear in both biomes',
+    ember.rockfall > 0 && obsidian.rockfall > 0 && ember.swingGate > 0 && obsidian.swingGate > 0,
+  );
+  check('nothing biome-specific before its distance', !mix(100).geyser && !mix(100).spinner);
+
+  // On generated tracks, hazards follow the biome of where they sit.
+  const seen = [];
+  for (let seed = 1; seed <= 14; seed++) {
+    const sim = createGameSim();
+    sim.reset(seed);
+    sim.flap();
+    const keys = new Set();
+    for (let i = 0; i < 120 * 400 && sim.phase === PHASE.RUNNING && sim.distance < 1600; i++) {
+      const c = sim.track.corridors.find((k) => k.x1 > sim.distance - 0.3);
+      const target = c ? Math.max(c.lo + 0.8, c.center - 0.6) : 0;
+      if (sim.bird.vy < 0 && (sim.bird.y < target || (c && sim.bird.y < c.lo + 0.5))) sim.flap();
+      sim.step(DT);
+      if (i % 20 === 0) {
+        for (const o of sim.obstacles.active) {
+          if (o.kind !== 'geyser' && o.kind !== 'spinner' && o.kind !== 'beam') continue;
+          const key = `${seed}:${o.kind}:${Math.round(o.x)}`;
+          if (!keys.has(key)) (keys.add(key), seen.push({ kind: o.kind, x: o.x }));
+        }
+      }
+    }
+  }
+  const geysers = seen.filter((h) => h.kind === 'geyser');
+  const blades = seen.filter((h) => h.kind === 'spinner');
+  const beams = seen.filter((h) => h.kind === 'beam');
+  check('geysers appear on generated Ember Valley tracks', geysers.length > 5, `${geysers.length}`);
+  check(
+    'blades and beams appear on generated Obsidian Reach tracks',
+    blades.length > 3 && beams.length > 3,
+    `${blades.length} blades, ${beams.length} beams`,
+  );
+  check(
+    'geysers never appear deep in Obsidian Reach',
+    geysers.every((h) => biomeIdAt(h.x - 25) === 'ember'),
+    `max ${Math.max(...geysers.map((h) => h.x))}`,
+  );
+  check(
+    'blades and beams never appear in Ember Valley',
+    [...blades, ...beams].every((h) => biomeIdAt(h.x + 25) === 'obsidian'),
+    `min ${Math.min(...[...blades, ...beams].map((h) => h.x))}`,
   );
 }
 

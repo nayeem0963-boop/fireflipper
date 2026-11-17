@@ -1,5 +1,6 @@
 import { POWERUPS, WIND, WORLD } from '../physics/constants.js';
 import { PATTERNS, gapFor, pickPattern, swingExtent } from './patterns.js';
+import { biomeIdAt } from '../biomes/biomes.js';
 
 /**
  * Procedural track generation.
@@ -26,6 +27,7 @@ const BREATHER_MIN_DISTANCE = 60;
 /** Air currents appear in some breathers once past this distance. */
 const WIND_MIN_DISTANCE = 180;
 const WIND_CHANCE = 0.5;
+const WIND_CHANCE_STORM = 0.75;
 const BAND_LOW = WORLD.groundY + 0.4;
 const BAND_HIGH = WORLD.ceilingY;
 
@@ -83,8 +85,12 @@ function buildBreather(track, builder, rng, t) {
   const toOpen = rng.range(BAND_LOW + 1.2, BAND_HIGH - 0.9);
   // Open stretches are where air currents live: no hazards to collide with while the wind pushes.
   // An updraft carries the bird up toward its orbs; a downdraft makes it work to keep them.
-  const windKind =
-    x0 > WIND_MIN_DISTANCE && rng.chance(WIND_CHANCE) ? (rng.chance(0.6) ? 'up' : 'down') : null;
+  // Obsidian Reach is stormier: more air currents, and more of them downdrafts.
+  const storm = biomeIdAt(x0) === 'obsidian';
+  let windKind = null;
+  if (x0 > WIND_MIN_DISTANCE && rng.chance(storm ? WIND_CHANCE_STORM : WIND_CHANCE)) {
+    windKind = rng.chance(storm ? 0.45 : 0.6) ? 'up' : 'down';
+  }
   const to = windKind === 'up' ? BAND_HIGH - 0.9 : windKind === 'down' ? rng.range(0.4, 1.6) : toOpen;
   const wave = rng.range(0.6, 1.3) * (rng.chance(0.5) ? 1 : -1) * (windKind ? 0.4 : 1);
   if (windKind) builder.wind(x0 + 3, x0 + length - 3, windKind === 'up' ? WIND.updraft : WIND.downdraft);

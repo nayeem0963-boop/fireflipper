@@ -71,6 +71,9 @@ function createObstacle() {
     y0: 0,
     drop: 0,
     trigger: 0,
+    /** Spinning blade: direction (radians) and half length. */
+    angle: 0,
+    hl: 0,
     /** Falling rock has hit the ground (shattering), whether that was announced, and render scale 1 -> 0. */
     landed: false,
     announced: false,
@@ -218,6 +221,56 @@ export function createGameSim() {
       o.drop = drop;
       o.trigger = trigger;
       o.y = y0;
+      animate(o, 0, sim.distance);
+    },
+    /**
+     * A spinning blade pivoting at (cx, cy): a capsule of half length `hl` and half thickness `hw`
+     * turning at `omega` rad/s from angle `phase`.
+     */
+    spinner(cx, cy, hl, hw, omega, phase) {
+      const o = obstacles.acquire();
+      reset(o);
+      o.kind = 'spinner';
+      o.shape = 'bar';
+      o.x = cx;
+      o.y = cy;
+      o.z = 0;
+      o.hl = hl;
+      o.hw = hw;
+      o.w = o.h = 2 * (hl + hw); // the disc it sweeps (used for the portrait edge warning)
+      o.d = 0.6;
+      o.rot = 0;
+      o.spin = 0;
+      o.cap = 0;
+      o.extent = hl + hw;
+      o.dyn = DYN.SPINNER;
+      o.freq = omega;
+      o.offset = phase;
+      animate(o, 0, sim.distance);
+    },
+    /** A thin beam spanning x0..x1 whose height sweeps up and down around `y` by +-`amp`. */
+    scanner(x0, x1, y, amp, freq, phase) {
+      const o = obstacles.acquire();
+      reset(o);
+      o.kind = 'beam';
+      o.shape = 'box';
+      o.x = (x0 + x1) / 2;
+      o.y = y;
+      o.z = 0;
+      o.w = x1 - x0;
+      o.h = 0.22;
+      o.d = 0.6;
+      o.hw = o.w / 2 - 0.1;
+      o.hh = 0.11;
+      o.rot = 0;
+      o.spin = 0;
+      o.cap = 0;
+      o.extent = o.w / 2;
+      o.dyn = DYN.SCAN;
+      o.edge0 = y;
+      o.amp = amp;
+      o.freq = freq;
+      o.offset = phase;
       animate(o, 0, sim.distance);
     },
     /** An air current: while the bird is between x0 and x1 it gets a vertical push (see WIND). */

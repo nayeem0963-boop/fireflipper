@@ -15,6 +15,16 @@ const SETS = {
     peaks: ['#1d0c07', '#2a1009', '#3a160b'],
     peakEmissive: '#3a1206',
     groundGlow: '#ff6a1a',
+    // Obstacle materials: warm basalt with glowing orange edges.
+    obstacles: {
+      column: '#6b4433',
+      block: '#5e3b2c',
+      rock: '#7a4b36',
+      glow: '#3a1004',
+      rockGlow: '#4a1405',
+      cap: '#ff8a2a',
+      blockCap: '#ff7a1f',
+    },
   },
   obsidian: {
     fog: '#070a18',
@@ -25,6 +35,16 @@ const SETS = {
     peaks: ['#0a1020', '#111a35', '#1a2750'],
     peakEmissive: '#0a1c4a',
     groundGlow: '#3a6cff',
+    // Cold obsidian with icy cyan edges.
+    obstacles: {
+      column: '#2c3d66',
+      block: '#26365c',
+      rock: '#33466f',
+      glow: '#0a1f5a',
+      rockGlow: '#0c2a70',
+      cap: '#6ac8ff',
+      blockCap: '#5ab4ff',
+    },
   },
 };
 
@@ -37,6 +57,7 @@ const toColors = (set) => ({
   peaks: set.peaks.map((c) => new Color(c)),
   peakEmissive: new Color(set.peakEmissive),
   groundGlow: new Color(set.groundGlow),
+  obstacles: Object.fromEntries(Object.entries(set.obstacles).map(([k, c]) => [k, new Color(c)])),
 });
 
 const A = toColors(SETS.ember);
@@ -51,6 +72,8 @@ export function getBiome(k) {
     out[name].copy(A[name]).lerp(B[name], k);
   }
   out.peaks.forEach((c, i) => c.copy(A.peaks[i]).lerp(B.peaks[i], k));
+  for (const name of Object.keys(out.obstacles))
+    out.obstacles[name].copy(A.obstacles[name]).lerp(B.obstacles[name], k);
   return out;
 }
 

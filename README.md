@@ -93,7 +93,7 @@ scripts/
 - **Flight:** a flap sets upward speed. Holding softens gravity while rising (a higher climb), and
   releasing lets gravity take over. Down/S dives faster, with a smooth recovery afterwards. The ground
   is lava, and the ceiling is a soft limit.
-- **Sections:** gates, single columns, floating rocks, rock formations and narrow passages, plus three moving
+- **Sections:** gates, single columns, floating rocks, rock formations and narrow passages, plus moving
   hazards: **swinging gates** (from 150 m; the opening slides up and down) and **lava geysers** (from 260 m;
   a telegraphed glow, then an eruption, on a cycle, with low orbs as bait). Gaps shrink, spacing tightens,
   speed rises (6.5 → 10.5 u/s) and new section types unlock with distance.
@@ -104,6 +104,14 @@ scripts/
 - **Air currents** (from 180 m, only in breathers): zones with streaks rising (an **updraft**: lifts you up to
   4.5 u/s, carries you toward an orb arc) or falling (a **downdraft**: pulls harder than gravity, up to -13.5 u/s,
   so holding on to the orbs takes work). They sit in hazard-free stretches, so a wind-blown bird has nothing to hit.
+- **Biome hazards:** each biome has its own set (the scenery blends over 500-700 m, the hazards switch at 600 m).
+  - **Ember Valley:** gates, columns, rocks, formations and passages, plus swinging gates, lava **geysers** and
+    falling rocks, in warm basalt with glowing orange edges.
+  - **Obsidian Reach:** the shared hazards (swinging gates, falling rocks) in icy obsidian with cyan edges, plus two
+    of its own: a **crystal blade** that spins around a pivot, and a **sweeping beam** that moves up and down across a
+    stretch of track. Both always leave a lane beside their sweep (no timing needed to stay safe), with orbs on their
+    path as bait. No geysers here. Obsidian Reach is also **stormier**: air currents appear in about 75% of
+    breathers, not 50%, and more of them are downdrafts.
 - **Rhythm:** after every 4-6 hazard sections the track opens into a **breather**: an orb arc and no hazards
   (the last two sections before one come slightly faster, so tension builds and releases).
 - **Late game:** past the main ramp (about 1,640 m) the track keeps escalating over the next 2,400 m: gaps

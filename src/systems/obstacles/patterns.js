@@ -1,5 +1,6 @@
 import { PHYSICS, WORLD } from '../physics/constants.js';
 import { GEYSER_MIN_PERIOD } from './dynamics.js';
+import { biomeIdAt } from '../biomes/biomes.js';
 
 /**
  * Obstacle patterns. Each pattern builds one "section" at track position
@@ -19,6 +20,8 @@ import { GEYSER_MIN_PERIOD } from './dynamics.js';
  *   b.swingGate(xCenter, width, center, gap, amp, freq, phase)  moving opening
  *   b.geyser(xCenter, width, maxHeight, period, phaseSeconds)    periodic eruption from the ground
  *   b.rockfall(xCenter, radius, y0, drop, triggerDistance)       rock that falls as the bird approaches
+ *   b.spinner(xCenter, yCenter, halfLength, halfThickness, omega, phase)  rotating blade (Obsidian Reach)
+ *   b.scanner(x0, x1, y, amp, freq, phase)                       sweeping beam (Obsidian Reach)
  *   b.orb(x, y)
  */
 const BELOW = WORLD.groundY - 1.5; // bases sink below the ground plane
@@ -198,7 +201,77 @@ function rockfall(b, x, center, gap, rng) {
   };
 }
 
-export const PATTERNS = { gate, column, floatingRocks, formation, passage, swingGate, geyser, rockfall };
+const MID = (WORLD.groundY + WORLD.ceilingY) / 2;
+
+/**
+ * Where to put a hazard that sweeps a region of height `reach` (its half-height, including the bird's radius and
+ * a margin) so the corridor lane stays clear: above the lane when the lane is in the lower half, below it
+ * otherwise. Returns null when it would not fit in the playable band.
+ */
+function placeBeside(center, gap, reach) {
+  const laneTop = center + gap / 2;
+  const laneBottom = center - gap / 2;
+  const above = center < MID;
+  const cy = above ? laneTop + reach : laneBottom - reach;
+  // Sweeping past the ceiling or into the lava is fine (the bird can't go there); beyond that it can't be seen.
+  if ((above && cy > WORLD.ceilingY + 1.0) || (!above && cy < WORLD.groundY - 0.4)) return null;
+  return {
+    cy,
+    lane: above ? { lo: WORLD.groundY + 0.4, hi: laneTop } : { lo: laneBottom, hi: WORLD.ceilingY },
+  };
+}
+
+/**
+ * Obsidian Reach: a crystal blade spinning around a pivot. The disc it sweeps never reaches the lane, so
+ * no timing is needed to stay safe; orbs on the blade's path tempt a timed grab.
+ */
+function spinner(b, x, center, gap, rng) {
+  const hl = rng.range(1.5, 1.9);
+  const hw = 0.16;
+  const spot = placeBeside(center, gap, hl + hw + PHYSICS.birdRadius + 0.15);
+  if (!spot) return column(b, x, center, gap, rng);
+  const cx = x + hl + hw;
+  const omega = rng.range(0.9, 1.5) * (rng.chance(0.5) ? 1 : -1);
+  b.spinner(cx, spot.cy, hl, hw, omega, rng.range(0, Math.PI * 2));
+  if (rng.chance(0.7)) {
+    b.orb(cx - hl * 0.6, spot.cy);
+    b.orb(cx + hl * 0.6, spot.cy);
+  }
+  return {
+    length: 2 * (hl + hw),
+    lo: spot.lane.lo,
+    hi: spot.lane.hi,
+    free: [WORLD.groundY + 0.4, WORLD.ceilingY],
+  };
+}
+
+/**
+ * Obsidian Reach: a beam that sweeps up and down across a stretch of the track. It never comes into the lane
+ * (which sits beside its sweep), but the orbs along it reward flying in its path at the right moment.
+ */
+function scanner(b, x, center, gap, rng) {
+  const length = rng.range(8, 10);
+  const amp = rng.range(0.7, 1.2);
+  const spot = placeBeside(center, gap, amp + 0.11 + PHYSICS.birdRadius + 0.15);
+  if (!spot) return column(b, x, center, gap, rng);
+  b.scanner(x, x + length, spot.cy, amp, rng.range(0.28, 0.4), rng.range(0, Math.PI * 2));
+  b.orb(x + length * 0.35, spot.cy);
+  b.orb(x + length * 0.65, spot.cy);
+  return { length, lo: spot.lane.lo, hi: spot.lane.hi, free: [WORLD.groundY + 0.4, WORLD.ceilingY] };
+}
+
+export const PATTERNS = {
+  gate,
+  column,
+  floatingRocks,
+  formation,
+  passage,
+  swingGate,
+  geyser,
+  rockfall,
+  spinner,
+  scanner,
+};
 
 /** Corridor height per pattern, shrinking with difficulty t ∈ [0, 1]. */
 export function gapFor(type, t, rng) {
@@ -218,12 +291,17 @@ export function gapFor(type, t, rng) {
 
 /** Weighted pattern choice; new pattern types unlock with distance. */
 export function pickPattern(distance, t, rng, previous) {
+  // Each biome has its own hazards: lava geysers belong to Ember Valley, crystal blades and sweeping beams to
+  // Obsidian Reach. (The scenery blends over 500-700 m; the hazards switch at the midpoint.)
+  const obsidian = biomeIdAt(distance) === 'obsidian';
   const weights = [
     ['gate', 3],
     ['column', 2],
     ['swingGate', distance > 150 ? 1.2 + t : 0],
     ['floatingRocks', distance > 80 ? 1.6 : 0],
-    ['geyser', distance > 260 ? 1.0 + t : 0],
+    ['geyser', !obsidian && distance > 260 ? 1.0 + t : 0],
+    ['spinner', obsidian ? 1.3 + t : 0],
+    ['scanner', obsidian ? 1.1 + t : 0],
     ['rockfall', distance > 200 ? 1.0 + t : 0],
     ['formation', distance > 180 ? 1.2 + t : 0],
     ['passage', distance > 320 && previous !== 'passage' ? 0.7 + t : 0],
