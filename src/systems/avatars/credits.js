@@ -56,16 +56,6 @@ export const CREDITS = Object.freeze([
     ],
   },
   {
-    id: 'hoatzin',
-    title: 'hoatzin',
-    author: 'graduisc',
-    authorUrl: 'https://sketchfab.com/graduisc',
-    sourceUrl: 'https://sketchfab.com/3d-models/hoatzin-607caf85a0f24586bb8b70a124d168a1',
-    changes: [
-      'A 519,000-triangle sculpt simplified to about 26,700 triangles, scaled to life size, textures reduced, re-centred; baked into static geometry.',
-    ],
-  },
-  {
     id: 'morpho',
     title: 'morpho',
     author: 'Qween',

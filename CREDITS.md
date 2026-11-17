@@ -2,7 +2,7 @@
 
 ## Fire-lit wildlife bird models
 
-The six "fire-lit wildlife" birds and butterfly you can fly as in Fire Flipper are 3D models made by other artists and shared on
+The five "fire-lit wildlife" birds and butterfly you can fly as in Fire Flipper are 3D models made by other artists and shared on
 Sketchfab under the [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
 licence (CC BY 4.0), which allows commercial use and modification provided the author is credited, a link to the
 licence is given, and changes are indicated. They are credited in the game too (Settings > Credits, and under each bird
@@ -17,7 +17,6 @@ static geometry (noted per model below).
 | Rainbow Phoenix  | "Low poly Rainbow Macaw In Flying 3D Model Free" | [iRahulRajput](https://sketchfab.com/rt699448) | [Sketchfab](https://sketchfab.com/3d-models/low-poly-rainbow-macaw-in-flying-3d-model-free-7ac34a313b63475cabcadaf48b92b80b) |
 | Sapphire Macaw   | "Macaw+3d+model"                                 | [iRahulRajput](https://sketchfab.com/rt699448) | [Sketchfab](https://sketchfab.com/3d-models/macaw3dmodel-0a16d7ad853e475f87a3694baa8ed46c)                                   |
 | Ember Toucan     | "Toco Toucan Bird 3D Model Free"                 | [iRahulRajput](https://sketchfab.com/rt699448) | [Sketchfab](https://sketchfab.com/3d-models/toco-toucan-bird-3d-model-free-384e7f893a1d4148b2ced5cb184956b3)                 |
-| Magma Hoatzin    | "hoatzin"                                        | [graduisc](https://sketchfab.com/graduisc)     | [Sketchfab](https://sketchfab.com/3d-models/hoatzin-607caf85a0f24586bb8b70a124d168a1)                                        |
 | Fire Morpho      | "morpho" (a butterfly)                           | [Qween](https://sketchfab.com/QweenH)          | [Sketchfab](https://sketchfab.com/3d-models/morpho-0f2f9980584749fda6875b8ef8617b98)                                         |
 
 ### Changes made to the models
@@ -31,11 +30,9 @@ Before Fire Flipper (for the Bulbuli World Explorer game):
   re-centred.
 - **Toco Toucan:** a 424,000-triangle model simplified to about 17,000 triangles, scaled to life size, textures reduced
   to one JPEG, re-centred.
-- **hoatzin:** a 519,000-triangle sculpt simplified to about 26,700 triangles, scaled to life size, textures reduced,
-  re-centred; baked into static geometry.
 - **morpho:** twenty parts joined into one static model, scaled up to a 30 cm wingspan, textures reduced, re-centred.
 
-By Fire Flipper (all six):
+By Fire Flipper (all five):
 
 - Re-coloured at run time as a fire bird: the plumage is tinted with a flame gradient, and extra glow, a flame tail and
   a light are added.
@@ -46,11 +43,9 @@ By Fire Flipper (all six):
 
 ## Code-built birds from the Bulbuli project
 
-The **Bulbuli** birds (Fire, Sunburst, Blue-Flame and Obsidian Bulbuli) and the **tanagers** (Ember and Cobalt) are not
-downloaded models. They are built in code, from primitive shapes and generated geometry, and were ported from the
-Bulbuli project (the same author as Fire Flipper): the player bird in `games/PlayerBird3D.jsx`, and the Amazon
-rainforest tanager in `games/world-explorer/rendering/rainforestBird.js` and `AmazonBirdAvatar.jsx` with its mesh-building
-helpers (`mangroveGeometry.js`). There is no third-party licence to carry for them. Here they were given fire colour
+The **Bulbuli** birds (Fire, Sunburst, Blue-Flame and Obsidian Bulbuli) are not downloaded models. They are built in
+code, from primitive shapes, and were ported from the Bulbuli project (the same author as Fire Flipper): the player
+bird in `games/PlayerBird3D.jsx`. There is no third-party licence to carry for them. Here they were given fire colour
 schemes, glow and a flame tail, and wing beats driven by the game's flight state.
 
 The Bulbuli mascot's 3D model file (`public/models/bulbuli.glb` in that project) was **not** used: it is a Sketchfab

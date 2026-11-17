@@ -182,16 +182,15 @@ input entries).
 
 ### Choosing your bird
 
-**Your bird** on the menu (or Settings > Bird) opens a picker with a live preview. There are sixteen birds:
+**Your bird** on the menu (or Settings > Bird) opens a picker with a live preview. There are thirteen birds:
 
 - **Fire Flipper** (the original bird in four colour schemes: Ember, Azure Flame, Verdant Blaze, Void Phoenix). The
   last three unlock by best free-play score.
-- **Bulbuli and friends** (always free): birds built in code, ported from the Bulbuli project, with real wing
-  beats: four colourways of **Bulbuli** the red-whiskered bulbul (**Fire**, **Sunburst**, **Blue-Flame** and **Obsidian
-  Bulbuli**) and two tanagers (**Ember** and **Cobalt Tanager**). No files to download and no third-party licence.
-- **Fire-lit wildlife** (always free): six real 3D models re-lit as fire birds: **Blaze Macaw**, **Rainbow
-  Phoenix**, **Sapphire Macaw**, **Ember Toucan**, **Magma Hoatzin** and a butterfly, the **Fire
-  Morpho**. The butterfly's wings beat for real: its model joins them only at the body, so each wing mesh is split into
+- **Bulbuli** (always free): birds built in code, ported from the Bulbuli project, with real wing beats: four
+  colourways of **Bulbuli** the red-whiskered bulbul (**Fire**, **Sunburst**, **Blue-Flame** and **Obsidian
+  Bulbuli**). No files to download and no third-party licence.
+- **Fire-lit wildlife** (always free): five real 3D models re-lit as fire birds: **Blaze Macaw**, **Rainbow
+  Phoenix**, **Sapphire Macaw**, **Ember Toucan** and a butterfly, the **Fire Morpho**. The butterfly's wings beat for real: its model joins them only at the body, so each wing mesh is split into
   a left and right half at run time (`systems/avatars/splitWing.js`) and hung from a hinge along its tilted body.
 
 The choice is cosmetic: every bird has the same physics and collision size. It is remembered between visits.
@@ -206,13 +205,13 @@ so there is no seam, and the two sides mirror. The stroke is the same as the oth
 **The body moves with the wings** (`components/scene/birdMotion.js`, `secondaryMotion`), for every bird: the body rises
 as the wings push down and sinks as they come up, the nose lifts a little on the downstroke, the head turns against that
 pitch to keep its gaze steady, and the tail flexes against it; after a crash the head droops and the tail hangs. On the
-jointed birds (the original bird, the Bulbuli birds and the tanagers) this moves the head and tail joints; on the
+jointed birds (the original bird and the Bulbuli birds) this moves the head and tail joints; on the
 static models the same shader patch pitches the head end and the tail end of the mesh about the shoulder (the wings are
 left out of that bend), and the butterfly bends its head and abdomen. Each bird's turn, tilt, size and flame colours are data in
 `systems/avatars/avatars.js`. Model files (about 2.5 MB for all six) load on demand, only when a bird is chosen, and if
 one fails to load the original bird stands in.
 
-**Credits.** The six models are by other artists under CC BY 4.0, which requires crediting the author, linking the
+**Credits.** The five models are by other artists under CC BY 4.0, which requires crediting the author, linking the
 licence and stating changes. All three are shown in the app (Settings > Credits, and under each model bird in the
 picker) and in `CREDITS.md`; `npm run test:avatars` checks that the two agree. Keep that if you add birds.
 

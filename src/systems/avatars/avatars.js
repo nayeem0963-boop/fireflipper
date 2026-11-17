@@ -4,9 +4,9 @@ import { SKINS, isUnlocked } from '../skins/skins.js';
  * Every bird the player can fly as. Two kinds:
  *
  *  - 'firebird': the original Fire Flipper bird in one of its colour schemes (unlocked by best score; see skins.js).
- *  - 'bird': a code-built bird from the Bulbuli project (the Bulbuli mascot in four fire colourways, and the
- *    tanager in two), with real wing beats. No model file and no third-party licence: it is built from primitives
- *    and generated geometry. `form` says which ('bulbuli' or 'tanager'); `palette` gives its colours.
+ *  - 'bird': a code-built bird from the Bulbuli project (the Bulbuli mascot in four fire colourways), with real
+ *    wing beats. No model file and no third-party licence: it is built from primitives. `form` says which
+ *    ('bulbuli'); `palette` gives its colours.
  *  - 'model': a real 3D bird model re-lit as a fire bird at run time (flame-coloured plumage, glow and a flame
  *    tail). The models are third-party (CC BY 4.0); credits are in credits.js and shown in the app. They are
  *    free to choose: the choice is cosmetic and changes nothing about the physics or the collision size.
@@ -51,7 +51,7 @@ export const MODEL_BIRDS = Object.freeze([
     tagline: 'A rainbow macaw reborn in flame',
     file: 'macaw-flying.glb',
     facing: Math.PI / 2,
-    pitch: -0.55,
+    pitch: -0.35,
     length: 2.4,
     lift: 0,
     // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
@@ -61,11 +61,12 @@ export const MODEL_BIRDS = Object.freeze([
     palette: {
       low: '#b01540',
       mid: '#ff7a1a',
-      high: '#ffe27a',
+      high: '#ffb040',
       glow: '#ff6a3a',
-      mix: 0.8,
-      glowStrength: 0.9,
-      lumFloor: 0.2,
+      // Keep most of the painted red, yellow and blue feathers (it is a rainbow macaw); the flame tints and lights them.
+      mix: 0.25,
+      glowStrength: 0.35,
+      lumFloor: 0.15,
     },
   },
   {
@@ -115,29 +116,6 @@ export const MODEL_BIRDS = Object.freeze([
     },
   },
   {
-    id: 'hoatzin',
-    name: 'Magma Hoatzin',
-    tagline: 'The crested hoatzin, molten from tail to crown',
-    file: 'hoatzin.glb',
-    facing: Math.PI / 2,
-    pitch: 0,
-    length: 2.0,
-    lift: 0,
-    // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
-    flap: { start: 0.25, full: 0.55, hingeFrac: 0.4, strength: 0.8 },
-    // Eyes (model units from the model's centre): `at` is one eye's centre, mirrored for the other.
-    eye: { at: [0.033, 0.17, 0.37], size: 0.015 },
-    palette: {
-      low: '#8a0a5a',
-      mid: '#ff4a1a',
-      high: '#ffe066',
-      glow: '#ff5a8a',
-      mix: 0.85,
-      glowStrength: 1,
-      lumFloor: 0.25,
-    },
-  },
-  {
     id: 'morpho',
     name: 'Fire Morpho',
     tagline: 'A blue morpho butterfly set ablaze',
@@ -161,9 +139,10 @@ export const MODEL_BIRDS = Object.freeze([
       mid: '#ff5a14',
       high: '#ffd36b',
       glow: '#ff7a2a',
-      mix: 0.9,
-      glowStrength: 1,
-      lumFloor: 0.3,
+      // Let the wing's veins, dark borders and eye-spots show through the flame.
+      mix: 0.7,
+      glowStrength: 0.8,
+      lumFloor: 0.05,
     },
   },
 ]);
@@ -233,78 +212,20 @@ const BULBULI_BIRDS = [
   }),
 ];
 
-/** The tanager (the Bulbuli project's code-built rainforest bird) in two flames. */
-const TANAGER_BIRDS = [
-  {
-    id: 'tanager-ember',
-    name: 'Ember Tanager',
-    tagline: "Bulbuli's rainforest tanager, all afire",
-    form: 'tanager',
-    length: 2.0,
-    palette: {
-      colors: {
-        breast: '#ff7a1a',
-        breastLow: '#ffb347',
-        head: '#ff3a10',
-        headTop: '#ff6a2a',
-        back: '#8a1f0c',
-        backDark: '#4a0f08',
-        tail: '#4a0c08',
-        tailTip: '#1a0504',
-        beak: '#ffd36b',
-        beakTip: '#ff9d2a',
-        leg: '#c0501a',
-      },
-      wing: { root: '#ffb347', tip: '#b3200c', edge: '#400a05' },
-      glow: '#ff6a2a',
-      low: '#a3120a',
-      mid: '#ff5a14',
-      high: '#ffd36b',
-    },
-  },
-  {
-    id: 'tanager-cobalt',
-    name: 'Cobalt Tanager',
-    tagline: 'A tanager in blue flame',
-    form: 'tanager',
-    length: 2.0,
-    palette: {
-      colors: {
-        breast: '#2ea6ff',
-        breastLow: '#9fe3ff',
-        head: '#1f6bff',
-        headTop: '#4aa8ff',
-        back: '#0b2f8a',
-        backDark: '#061a4d',
-        tail: '#061a4d',
-        tailTip: '#030c26',
-        beak: '#d8f6ff',
-        beakTip: '#6cc8ff',
-        leg: '#2a7ad8',
-      },
-      wing: { root: '#9fe3ff', tip: '#0b3fb8', edge: '#04184a' },
-      glow: '#3aa8ff',
-      low: '#0b3fb8',
-      mid: '#2ea6ff',
-      high: '#d8f6ff',
-    },
-  },
-];
-
 /** The full list, in the order the picker shows it. `group` is the section heading. */
 export const AVATARS = Object.freeze([
   ...SKINS.map((s) => ({ ...s, kind: 'firebird', group: 'Fire Flipper' })),
-  ...[...BULBULI_BIRDS, ...TANAGER_BIRDS].map((b) => ({
+  ...BULBULI_BIRDS.map((b) => ({
     ...b,
     kind: 'bird',
-    group: 'Bulbuli and friends',
+    group: 'Bulbuli',
     unlockScore: 0,
   })),
   ...MODEL_BIRDS.map((m) => ({ ...m, kind: 'model', group: 'Fire-lit wildlife', unlockScore: 0 })),
 ]);
 
 /** Section headings, in order. */
-export const AVATAR_GROUPS = Object.freeze(['Fire Flipper', 'Bulbuli and friends', 'Fire-lit wildlife']);
+export const AVATAR_GROUPS = Object.freeze(['Fire Flipper', 'Bulbuli', 'Fire-lit wildlife']);
 
 export const DEFAULT_AVATAR_ID = AVATARS[0].id;
 

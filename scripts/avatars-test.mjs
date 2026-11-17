@@ -19,8 +19,7 @@ import { SKINS } from '../src/systems/skins/skins.js';
 import { AVATAR_GROUPS } from '../src/systems/avatars/avatars.js';
 import { createFireMaterial, createFireUniforms } from '../src/components/scene/fireMaterial.js';
 import { splitWing } from '../src/systems/avatars/splitWing.js';
-import { BufferGeometry, Float32BufferAttribute, Vector3 } from 'three';
-import { TANAGER, createTanagerParts, wingSegment } from '../src/systems/avatars/tanager.js';
+import { BufferGeometry, Float32BufferAttribute } from 'three';
 import {
   STROKE_TIME,
   flapStroke,
@@ -61,7 +60,7 @@ section('Avatar list');
     'the original bird colour schemes are all still there',
     SKINS.every((s) => ids.includes(s.id)),
   );
-  check('there are model birds to choose from', MODEL_BIRDS.length >= 6, `${MODEL_BIRDS.length}`);
+  check('there are model birds to choose from', MODEL_BIRDS.length >= 5, `${MODEL_BIRDS.length}`);
   check(
     'model birds are free to choose',
     MODEL_BIRDS.every((m) => isAvatarUnlocked({ ...m, kind: 'model' }, 0)),
@@ -83,10 +82,25 @@ section('Avatar list');
   );
 }
 
+section('Removed birds');
+{
+  const gone = ['tanager-ember', 'tanager-cobalt', 'hoatzin'];
+  check(
+    'the tanagers and the hoatzin are no longer offered',
+    gone.every((id) => !AVATARS.some((a) => a.id === id)),
+  );
+  check('thirteen birds are offered', AVATARS.length === 13, `${AVATARS.length}`);
+  check(
+    'a saved choice of a removed bird falls back to the default bird',
+    gone.every((id) => resolveAvatar(id, 0).id === DEFAULT_AVATAR_ID),
+  );
+  check('the hoatzin model file is gone', !fs.existsSync(path.join(root, 'public/models/birds/hoatzin.glb')));
+}
+
 section('Code-built birds');
 {
   const built = AVATARS.filter((a) => a.kind === 'bird');
-  check('there are code-built birds', built.length >= 6, `${built.length}`);
+  check('there are code-built birds', built.length >= 4, `${built.length}`);
   check(
     'they are all free',
     built.every((a) => isAvatarUnlocked(a, 0)),
@@ -101,66 +115,18 @@ section('Code-built birds');
   );
   const flame = ['glow', 'low', 'mid', 'high'];
   for (const a of built) {
-    check(`${a.id}: form is known`, a.form === 'bulbuli' || a.form === 'tanager');
+    check(`${a.id}: form is known`, a.form === 'bulbuli');
     check(`${a.id}: has a tagline and a size`, a.tagline.length > 5 && a.length > 0);
     check(
       `${a.id}: flame colours are hex`,
       flame.every((k) => hex.test(a.palette[k])),
     );
-    if (a.form === 'bulbuli') {
-      const keys = ['body', 'wing', 'belly', 'crest', 'cheek', 'accent', 'beak', 'eye'];
-      check(
-        `${a.id}: bulbuli colours are hex`,
-        keys.every((k) => hex.test(a.palette[k])),
-      );
-    } else {
-      check(
-        `${a.id}: tanager colours are hex`,
-        Object.values(a.palette.colors).every((c) => hex.test(c)) &&
-          Object.keys(a.palette.colors).length === 11,
-      );
-      check(
-        `${a.id}: wing colours are hex`,
-        ['root', 'tip', 'edge'].every((k) => hex.test(a.palette.wing[k])),
-      );
-    }
+    const keys = ['body', 'wing', 'belly', 'crest', 'cheek', 'accent', 'beak', 'eye'];
+    check(
+      `${a.id}: bulbuli colours are hex`,
+      keys.every((k) => hex.test(a.palette[k])),
+    );
   }
-  check(
-    'both bulbuli and tanager forms are present',
-    built.some((a) => a.form === 'bulbuli') && built.some((a) => a.form === 'tanager'),
-  );
-
-  // The tanager is generated geometry: it must build, be deterministic, and be the size it claims.
-  const tanagers = built.filter((a) => a.form === 'tanager');
-  const a1 = createTanagerParts(tanagers[0].palette.colors);
-  const a2 = createTanagerParts(tanagers[0].palette.colors);
-  const b1 = createTanagerParts(tanagers[1].palette.colors);
-  check(
-    'the tanager builds all its parts',
-    ['body', 'legs', 'head', 'tail'].every((k) => a1[k].attributes.position.count > 10),
-  );
-  const same = (g, h, attr) => g.attributes[attr].array.every((x, i) => x === h.attributes[attr].array[i]);
-  check(
-    'the tanager is deterministic',
-    same(a1.body, a2.body, 'position') && same(a1.tail, a2.tail, 'color'),
-  );
-  check(
-    'a different colour scheme changes the colours, not the shape',
-    same(a1.body, b1.body, 'position') && !same(a1.body, b1.body, 'color'),
-  );
-  a1.body.computeBoundingBox();
-  const size = a1.body.boundingBox.getSize(new Vector3());
-  check(
-    'the tanager body is about the size it claims',
-    size.z > 0.1 && size.z < TANAGER.length && size.y < TANAGER.height * 1.2,
-    JSON.stringify(size),
-  );
-  const wing = wingSegment(0.14, 0.13, 0.12, 3, tanagers[0].palette.wing);
-  check(
-    'a wing segment has positions and colours',
-    wing.attributes.position.count > 6 && wing.attributes.color.count === wing.attributes.position.count,
-  );
-
   // Wing motion shared by the code-built birds.
   check('a flap snaps the wings up', flapStroke(0.1) > 0.8);
   check('then the powered downstroke takes them below level', flapStroke(0.45) < 0);
@@ -412,7 +378,7 @@ section('Eyes');
     check(`${m.id}: eye is on the side of the head (x > 0)`, e.at[0] > 0 && e.at[0] < 0.2, `${e.at[0]}`);
   }
   const scene = (f) => fs.readFileSync(path.join(root, 'src/components/scene', f), 'utf8');
-  for (const f of ['Firebird', 'BulbuliBird', 'TanagerBird', 'ModelBird', 'ButterflyBird']) {
+  for (const f of ['Firebird', 'BulbuliBird', 'ModelBird', 'ButterflyBird']) {
     const src = scene(`${f}.jsx`);
     check(`${f} draws AvatarEyes`, src.includes('<AvatarEyes') && src.includes("from './AvatarEyes.jsx'"));
     check(`${f} passes the live flight state to the eyes`, /<AvatarEyes[\s\S]*?flight=\{flight\}/.test(src));
@@ -422,15 +388,6 @@ section('Eyes');
   check('eyes close on a crash', /dead/.test(eyes) && /closed/.test(eyes));
   check('eyes follow the climb and fall', /flight\?\.vy/.test(eyes));
   check('eyes use unlit materials so they stay bright', eyes.includes('MeshBasicMaterial'));
-  check(
-    'the tanager builder no longer draws its own tiny eyes',
-    !/C\.eye/.test(
-      fs
-        .readFileSync(path.join(root, 'src/systems/avatars/tanager.js'), 'utf8')
-        .split('parts.head')[0]
-        .split('// head:')[1] ?? '',
-    ),
-  );
 }
 
 section('Credits (CC BY 4.0)');
