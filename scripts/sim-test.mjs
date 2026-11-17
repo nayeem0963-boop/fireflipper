@@ -12,6 +12,7 @@ import { clearanceToObstacle } from '../src/systems/physics/collision.js';
 import { PHYSICS, WORLD, SCORING, POWERUPS } from '../src/systems/physics/constants.js';
 import { seedForKey, todayKey } from '../src/utils/daily.js';
 import { SKINS, getSkin, isUnlocked, resolveSkin, newlyUnlocked } from '../src/systems/skins/skins.js';
+import { BIOME_SHIFT, biomeBlendAt, biomeIdAt } from '../src/systems/biomes/biomes.js';
 import { computeScore } from '../src/systems/scoring/scoring.js';
 
 const DT = PHYSICS.fixedStep;
@@ -364,6 +365,22 @@ section('Skins');
     newlyUnlocked(second.unlockScore, second.unlockScore + 1).length === 0,
   );
   check('a big jump unlocks several', newlyUnlocked(0, 1e9).length === SKINS.length - 1);
+}
+
+// ---------------------------------------------------------------- biomes
+section('Biomes');
+{
+  check('starts fully Ember Valley', biomeBlendAt(0) === 0 && biomeIdAt(0) === 'ember');
+  check('no change before the shift range', biomeBlendAt(BIOME_SHIFT.start) === 0);
+  check(
+    'fully Obsidian Reach after the range',
+    biomeBlendAt(BIOME_SHIFT.end) === 1 && biomeIdAt(1e6) === 'obsidian',
+  );
+  const mid = (BIOME_SHIFT.start + BIOME_SHIFT.end) / 2;
+  check('blend is half way at the midpoint', Math.abs(biomeBlendAt(mid) - 0.5) < 1e-9);
+  let monotonic = true;
+  for (let d = 0; d < 1000; d += 5) if (biomeBlendAt(d + 5) < biomeBlendAt(d)) monotonic = false;
+  check('blend never goes backwards', monotonic);
 }
 
 // ---------------------------------------------------------------- daily challenge

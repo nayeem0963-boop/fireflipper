@@ -58,6 +58,7 @@ src/
     physics/            constants, flight model, 2D collision tests
     obstacles/          patterns, procedural spawner (fairness rules), ObjectPool
     scoring/            pure scoring helpers
+    powerups/ skins/ biomes/   shared display data and pure helpers for those features
     input/              input action bus (flap press/release, dive, pause)
     events/             gameplay event bus (start, flap, orb, crash, over)
     audio/              synthesized Web Audio sound effects (sfx.js) and procedural music (music.js)
@@ -98,6 +99,15 @@ scripts/
 - **Near misses:** passing within 0.28 units of an obstacle's surface without touching it pays a
   "Close call" bonus (3 points). Consecutive close calls within 4 s build a streak that multiplies
   the bonus up to 5x. Tracked in the simulation (`trackNearMiss`) and covered by `npm run test:sim`.
+- **Power-ups:** glowing gems float between sections (never before 120 m). **Shield** absorbs one
+  hit (lava or obstacle) and gives 1.1 s of grace, **Magnet** pulls nearby orbs for 8 s, **Slow-mo**
+  cuts track speed to 70% for 5 s. Pooled in the simulation like orbs.
+- **Biomes:** from 500 m to 700 m the scenery blends from Ember Valley to Obsidian Reach (fog,
+  lights, peaks, ground and sky). Visual only: obstacle layout and physics are unchanged.
+- **Daily challenge:** one seeded track per UTC date, the same for everyone. Daily scores are kept
+  per date and apart from the free-play best.
+- **Bird skins:** four palettes unlocked by best free-play score (0 / 600 / 1,500 / 3,000), chosen in
+  Settings.
 - **Scoring:** 1 point per metre plus 5 per fire orb. Orb supply (passage lines every 3 units, a
   trail before 30% of sections) is tuned so orbs make up about 39% of a skilled 3,000 m run (~1,950
   orb points against 3,000 distance points): a bonus, not the main source of points. Best score is

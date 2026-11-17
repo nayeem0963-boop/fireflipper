@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useGameStore, STATUS } from '../../store/useGameStore.js';
+import { BIOME_NAMES, biomeIdAt } from '../../systems/biomes/biomes.js';
 import { POWERUP_INFO } from '../../systems/powerups/appearance.js';
 
 /** Metres flown before the first-run coaching hints retire for good. */
@@ -19,6 +20,23 @@ export default function RunCallouts() {
   const tutorialDone = useGameStore((s) => s.tutorialDone);
   const completeTutorial = useGameStore((s) => s.completeTutorial);
   const running = status === STATUS.RUNNING;
+
+  // Announce a new area once, when the run first crosses into it.
+  const biome = biomeIdAt(distance);
+  const lastBiome = useRef('ember');
+  const [banner, setBanner] = useState(null);
+  const runId = useGameStore((s) => s.runId);
+  useEffect(() => {
+    lastBiome.current = 'ember';
+    setBanner(null);
+  }, [runId]);
+  useEffect(() => {
+    if (!running || biome === lastBiome.current) return undefined;
+    lastBiome.current = biome;
+    setBanner(BIOME_NAMES[biome]);
+    const id = setTimeout(() => setBanner(null), 3200);
+    return () => clearTimeout(id);
+  }, [running, biome]);
 
   useEffect(() => {
     if (running && !tutorialDone && distance >= TUTORIAL_END) completeTutorial();
@@ -42,6 +60,11 @@ export default function RunCallouts() {
 
   return (
     <div className="callouts" aria-live="polite">
+      {banner && (
+        <p className="biome-banner" key={banner}>
+          {banner}
+        </p>
+      )}
       {running && active.length > 0 && (
         <ul className="power-chips" aria-label="Active power-ups">
           {active.map((c) => (

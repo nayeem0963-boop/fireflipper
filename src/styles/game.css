@@ -315,3 +315,16 @@
   text-transform: uppercase;
   box-shadow: 0 0 12px color-mix(in srgb, var(--chip) 45%, transparent);
 }
+
+/* New-area banner */
+.biome-banner {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(1.2rem, 4.5vw, 2rem);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #dbe6ff;
+  text-shadow: 0 0 22px rgba(90, 130, 255, 0.9);
+  animation: near-miss-pop 3.2s ease-out forwards;
+}
