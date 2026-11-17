@@ -136,6 +136,33 @@ export const MODEL_BIRDS = Object.freeze([
       lumFloor: 0.25,
     },
   },
+  {
+    id: 'morpho',
+    name: 'Fire Morpho',
+    tagline: 'A blue morpho butterfly set ablaze',
+    form: 'butterfly',
+    file: 'morpho.glb',
+    // The model's head is at its -z end and its body is tilted about 39 degrees nose-up in the resting pose.
+    facing: -Math.PI / 2,
+    pitch: -0.67,
+    length: 2.9,
+    lift: 0,
+    // Butterfly wings beat for real: how far the stroke swings them, and the height of the hinge along the body.
+    beat: 0.9,
+    // Where the wings meet the body, and the turn that lines a frame's z axis up with the (tilted) body.
+    hingePoint: [0, 0.054, -0.031],
+    hingeTilt: -2.46,
+    roll: 0.6,
+    palette: {
+      low: '#a3120a',
+      mid: '#ff5a14',
+      high: '#ffd36b',
+      glow: '#ff7a2a',
+      mix: 0.9,
+      glowStrength: 1,
+      lumFloor: 0.3,
+    },
+  },
 ]);
 
 const BULBULI = (id, name, tagline, p) => ({

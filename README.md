@@ -182,15 +182,17 @@ input entries).
 
 ### Choosing your bird
 
-**Your bird** on the menu (or Settings > Bird) opens a picker with a live preview. There are sixteen birds:
+**Your bird** on the menu (or Settings > Bird) opens a picker with a live preview. There are seventeen birds:
 
 - **Fire Flipper** (the original bird in four colour schemes: Ember, Azure Flame, Verdant Blaze, Void Phoenix). The
   last three unlock by best free-play score.
 - **Bulbuli and friends** (always free): birds built in code, ported from the Bulbuli project, with real wing
   beats: four colourways of **Bulbuli** the red-whiskered bulbul (**Fire**, **Sunburst**, **Blue-Flame** and **Obsidian
   Bulbuli**) and two tanagers (**Ember** and **Cobalt Tanager**). No files to download and no third-party licence.
-- **Fire-lit wildlife** (always free): six real 3D bird models re-lit as fire birds: **Blaze Macaw**, **Rainbow
-  Phoenix**, **Sapphire Macaw**, **Ember Toucan**, **Inferno Harpy** and **Magma Hoatzin**.
+- **Fire-lit wildlife** (always free): seven real 3D models re-lit as fire birds: **Blaze Macaw**, **Rainbow
+  Phoenix**, **Sapphire Macaw**, **Ember Toucan**, **Inferno Harpy**, **Magma Hoatzin** and a butterfly, the **Fire
+  Morpho**. The butterfly's wings beat for real: its model joins them only at the body, so each wing mesh is split into
+  a left and right half at run time (`systems/avatars/splitWing.js`) and hung from a hinge along its tilted body.
 
 The choice is cosmetic: every bird has the same physics and collision size. It is remembered between visits.
 
@@ -199,10 +201,10 @@ supplies the detail, but a shader patch replaces its colour with a flame gradien
 low, orange in the middle, bright gold or white along the top) and adds an emissive glow; a soft flame tail, a halo and
 a warm light are added. The models are static (no skeleton), so wing beats are suggested by a gentle body pulse and each
 flap by a quick nose-up kick. Each bird's turn, tilt, size and flame colours are data in
-`systems/avatars/avatars.js`. Model files (about 2.8 MB for all six) load on demand, only when a bird is chosen, and if
+`systems/avatars/avatars.js`. Model files (about 3.3 MB for all seven) load on demand, only when a bird is chosen, and if
 one fails to load the original bird stands in.
 
-**Credits.** The six models are by other artists under CC BY 4.0, which requires crediting the author, linking the
+**Credits.** The seven models are by other artists under CC BY 4.0, which requires crediting the author, linking the
 licence and stating changes. All three are shown in the app (Settings > Credits, and under each model bird in the
 picker) and in `CREDITS.md`; `npm run test:avatars` checks that the two agree. Keep that if you add birds.
 

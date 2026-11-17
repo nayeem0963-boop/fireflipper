@@ -3,7 +3,6 @@
  * Checks the bird list, the model files and the credits (CC BY 4.0 needs author, licence link and changes shown).
  */
 import fs from 'node:fs';
-import { Vector3 } from 'three';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -18,6 +17,8 @@ import {
 import { CREDITS, FIRE_FLIPPER_CHANGES, LICENCE, getCredit } from '../src/systems/avatars/credits.js';
 import { SKINS } from '../src/systems/skins/skins.js';
 import { AVATAR_GROUPS } from '../src/systems/avatars/avatars.js';
+import { splitWing } from '../src/systems/avatars/splitWing.js';
+import { BufferGeometry, Float32BufferAttribute, Vector3 } from 'three';
 import { TANAGER, createTanagerParts, wingSegment } from '../src/systems/avatars/tanager.js';
 import { STROKE_TIME, flapStroke, wingLiftTarget } from '../src/components/scene/birdMotion.js';
 
@@ -54,7 +55,7 @@ section('Avatar list');
     'the original bird colour schemes are all still there',
     SKINS.every((s) => ids.includes(s.id)),
   );
-  check('there are model birds to choose from', MODEL_BIRDS.length >= 6, `${MODEL_BIRDS.length}`);
+  check('there are model birds to choose from', MODEL_BIRDS.length >= 7, `${MODEL_BIRDS.length}`);
   check(
     'model birds are free to choose',
     MODEL_BIRDS.every((m) => isAvatarUnlocked({ ...m, kind: 'model' }, 0)),
@@ -223,6 +224,41 @@ section('Model birds');
     0,
   );
   check('all model files together are under 4 MB', total < 4_000_000, `${total} bytes`);
+}
+
+section('Butterfly');
+{
+  const fly = MODEL_BIRDS.find((m) => m.form === 'butterfly');
+  check('there is a butterfly', Boolean(fly));
+  check('it is free and a model', isAvatarUnlocked({ ...fly, kind: 'model' }, 0));
+  check(
+    'its hinge numbers are sane',
+    fly.hingePoint.length === 3 &&
+      fly.hingePoint.every(Number.isFinite) &&
+      Number.isFinite(fly.hingeTilt) &&
+      Number.isFinite(fly.roll) &&
+      fly.beat > 0,
+  );
+
+  // A tiny two-wing geometry: one triangle on each side of the body, one straddling it on the left.
+  const g = new BufferGeometry();
+  g.setAttribute(
+    'position',
+    new Float32BufferAttribute(
+      [-2, 0, 0, -1, 0, 0, -1.5, 1, 0, 2, 0, 0, 1, 0, 0, 1.5, 1, 0, -0.2, 0, 0, 0.1, 0, 0, -0.3, 1, 0],
+      3,
+    ),
+  );
+  g.setIndex([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+  const { left, right } = splitWing(g);
+  check('the left half has the triangles left of the body', left.index.count === 6);
+  check('the right half has the triangles right of the body', right.index.count === 3);
+  check('every triangle goes to exactly one side', left.index.count + right.index.count === 9);
+  check(
+    'the halves share the source vertex data',
+    left.getAttribute('position') === g.getAttribute('position') &&
+      right.getAttribute('position') === g.getAttribute('position'),
+  );
 }
 
 section('Credits (CC BY 4.0)');

@@ -1,6 +1,7 @@
 import { Component, Suspense } from 'react';
 import Firebird from './Firebird.jsx';
 import ModelBird from './ModelBird.jsx';
+import ButterflyBird from './ButterflyBird.jsx';
 import BulbuliBird from './BulbuliBird.jsx';
 import TanagerBird from './TanagerBird.jsx';
 
@@ -39,7 +40,11 @@ export default function AvatarBird({ avatar, ...props }) {
   return (
     <ModelBoundary fallback={stand} key={avatar.id}>
       <Suspense fallback={stand}>
-        <ModelBird avatar={avatar} {...props} />
+        {avatar.form === 'butterfly' ? (
+          <ButterflyBird avatar={avatar} {...props} />
+        ) : (
+          <ModelBird avatar={avatar} {...props} />
+        )}
       </Suspense>
     </ModelBoundary>
   );

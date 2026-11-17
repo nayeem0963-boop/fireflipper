@@ -75,6 +75,17 @@ export const CREDITS = Object.freeze([
       'A 519,000-triangle sculpt simplified to about 26,700 triangles, scaled to life size, textures reduced, re-centred; baked into static geometry.',
     ],
   },
+  {
+    id: 'morpho',
+    title: 'morpho',
+    author: 'Qween',
+    authorUrl: 'https://sketchfab.com/QweenH',
+    sourceUrl: 'https://sketchfab.com/3d-models/morpho-0f2f9980584749fda6875b8ef8617b98',
+    changes: [
+      'Twenty parts joined into one static model, scaled up to a 30 cm wingspan, textures reduced, re-centred.',
+      'The wings are separated into left and right halves at run time so they can beat; the model file itself is unchanged.',
+    ],
+  },
 ]);
 
 export function getCredit(id) {
