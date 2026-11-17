@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useGameStore, STATUS } from '../../store/useGameStore.js';
+import { useGameStore, STATUS, retryArmed } from '../../store/useGameStore.js';
 import SceneCanvas from '../scene/SceneCanvas.jsx';
 import EmberValleyScene from '../../scenes/EmberValley/EmberValleyScene.jsx';
 import GameHUD from '../ui/GameHUD.jsx';
@@ -14,9 +14,6 @@ import { game } from '../../systems/game/gameInstance.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
 import { BASE_FOV } from '../../scenes/EmberValley/cameraConfig.js';
 import '../../styles/game.css';
-
-/** Ignore retry input this soon after the game-over screen appears (avoids accidental restarts). */
-const RETRY_GUARD_MS = 450;
 
 /**
  * Gameplay screen: composes the fullscreen canvas, HUD and overlays, and
@@ -37,7 +34,7 @@ export default function GameScreen() {
         unlockAudio();
         const { status: st, overAt, restart } = store();
         if (st === STATUS.OVER) {
-          if (performance.now() - overAt > RETRY_GUARD_MS) restart();
+          if (retryArmed(overAt)) restart();
           return;
         }
         if (st === STATUS.READY || st === STATUS.RUNNING) {

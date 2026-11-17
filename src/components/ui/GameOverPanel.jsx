@@ -1,4 +1,5 @@
-import { useGameStore } from '../../store/useGameStore.js';
+import { useEffect, useRef } from 'react';
+import { useGameStore, RETRY_GUARD_MS, retryArmed } from '../../store/useGameStore.js';
 import { SCORING } from '../../systems/physics/constants.js';
 import { formatDistance, formatScore } from '../../systems/scoring/scoring.js';
 import { isCoarsePointer } from '../../utils/device.js';
@@ -9,9 +10,25 @@ export default function GameOverPanel() {
   const result = useGameStore((s) => s.lastResult);
   const bestScore = useGameStore((s) => s.bestScore);
   const sessionBest = useGameStore((s) => s.sessionBest);
+  const overAt = useGameStore((s) => s.overAt);
   const restart = useGameStore((s) => s.restart);
   const exitToMenu = useGameStore((s) => s.exitToMenu);
+  const retryButton = useRef(null);
+
+  // Focus Retry only once the retry guard has passed. Focusing it immediately
+  // would let a Space press (which activates a focused button natively) skip
+  // the guard and restart by accident.
+  useEffect(() => {
+    const wait = Math.max(0, RETRY_GUARD_MS - (performance.now() - overAt));
+    const id = setTimeout(() => retryButton.current?.focus(), wait);
+    return () => clearTimeout(id);
+  }, [overAt]);
+
   if (!result) return null;
+
+  const onRetry = () => {
+    if (retryArmed(overAt)) restart();
+  };
 
   return (
     <div className="overlay overlay--soft overlay--gameover">
@@ -47,7 +64,7 @@ export default function GameOverPanel() {
           </div>
         </dl>
 
-        <button type="button" className="play-btn play-btn--compact" onClick={restart} autoFocus>
+        <button type="button" className="play-btn play-btn--compact" onClick={onRetry} ref={retryButton}>
           <RestartIcon />
           <span>Retry</span>
         </button>

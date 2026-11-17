@@ -18,6 +18,12 @@ export const STATUS = Object.freeze({
 
 export const QUALITY = Object.freeze({ AUTO: 'auto', LOW: 'low', HIGH: 'high' });
 
+/** Ignore retry input this soon after the game-over screen appears (avoids accidental restarts). */
+export const RETRY_GUARD_MS = 450;
+
+/** True once the game-over screen has been up long enough to accept a retry. */
+export const retryArmed = (overAt) => performance.now() - overAt > RETRY_GUARD_MS;
+
 /**
  * Global game/UI state.
  *

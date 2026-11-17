@@ -88,6 +88,10 @@ scripts/
 - **Flight:** a flap sets upward speed. Holding softens gravity while rising (a higher climb), and
   releasing lets gravity take over. Down/S dives faster, with a smooth recovery afterwards. The ground
   is lava, and the ceiling is a soft limit.
+- **Hitbox:** a few circles fitted to the drawn body and head (`BIRD_HITBOX` in
+  `systems/physics/constants.js`) that tilt with the bird, so a crash happens where the bird visibly
+  touches. Wings, tail and the beak tip never collide; orbs use a more generous 0.36 pickup radius.
+  Refit the circles whenever the bird model or its scale changes.
 - **Sections:** gates, single columns, floating rocks, rock formations and narrow passages. Gaps
   shrink, spacing tightens, speed rises (6.5 → 10.5 u/s) and new section types unlock with distance.
 - **Fairness:** each corridor's centre is constrained to be reachable from anywhere the bird could

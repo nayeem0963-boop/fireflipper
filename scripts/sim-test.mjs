@@ -3,8 +3,8 @@
  * Exercises the pure simulation (no browser, no WebGL).
  */
 import { createGameSim, PHASE } from '../src/systems/game/createGameSim.js';
-import { circleIntersectsBox, circleIntersectsCircle, circleHitsObstacle } from '../src/systems/physics/collision.js';
-import { PHYSICS, WORLD, SCORING } from '../src/systems/physics/constants.js';
+import { birdBottom, birdHitsObstacle, circleIntersectsBox, circleIntersectsCircle, circleHitsObstacle } from '../src/systems/physics/collision.js';
+import { BIRD_HITBOX_REACH, PHYSICS, WORLD, SCORING } from '../src/systems/physics/constants.js';
 import { computeScore } from '../src/systems/scoring/scoring.js';
 
 const DT = PHYSICS.fixedStep;
@@ -122,7 +122,28 @@ section('Crash & game over');
     crashed = sim.phase === PHASE.DYING;
   }
   check('hits obstacle in path', crashed);
-  check('crashed at the obstacle face', sim.distance > 3 - 0.5 - PHYSICS.birdRadius - 0.2 && sim.distance < 3);
+  check('crashed at the obstacle face', sim.distance > 3 - 0.5 - BIRD_HITBOX_REACH - 0.2 && sim.distance < 3);
+}
+
+// ---------------------------------------------------------------- bird hitbox
+section('Bird hitbox matches the drawn bird');
+{
+  // Drawn body (PlayerBird scale 0.6): ~0.375 half-length, ~0.246 half-height; head top ~0.36.
+  const floorAt = (top) => ({ shape: 'box', x: 0, y: top - 5, hw: 5, hh: 5 }); // wide slab whose top is at `top`
+  const ceilAt = (bottom) => ({ shape: 'box', x: 0, y: bottom + 5, hw: 5, hh: 5 });
+  const wallAt = (face) => ({ shape: 'box', x: face + 0.5, y: 0, hw: 0.5, hh: 5 });
+  check('no hit just below the drawn belly', !birdHitsObstacle(0, 0, 0, floorAt(-0.26)));
+  check('hit when the belly overlaps', birdHitsObstacle(0, 0, 0, floorAt(-0.2)));
+  check('no hit just above the drawn head', !birdHitsObstacle(0, 0, 0, ceilAt(0.37)));
+  check('hit when the head overlaps', birdHitsObstacle(0, 0, 0, ceilAt(0.3)));
+  check('hit when the head reaches a wall', birdHitsObstacle(0, 0, 0, wallAt(0.5)));
+  check('no hit before the head reaches a wall', !birdHitsObstacle(0, 0, 0, wallAt(0.56)));
+  check('no hit behind the body (tail does not collide)', !birdHitsObstacle(0, 0, 0, wallAt(-1.4)) && !birdHitsObstacle(0, 0, 0, { shape: 'box', x: -0.9, y: 0, hw: 0.45, hh: 5 }));
+  // Hitbox rotates with pitch like the model: diving drops the head.
+  check('level bird bottom is the belly', Math.abs(birdBottom(0, 0) + 0.23) < 1e-9);
+  check('diving bird reaches lower (head down)', birdBottom(0, -1.0) < birdBottom(0, 0) - 0.1);
+  check('climbing bird lifts the head', birdHitsObstacle(0, 0, 0.5, ceilAt(0.45)) && !birdHitsObstacle(0, 0, 0, ceilAt(0.45)));
+  check('reach covers every pitch', BIRD_HITBOX_REACH > 0.5 && BIRD_HITBOX_REACH < 0.65);
 }
 
 // ---------------------------------------------------------------- orbs

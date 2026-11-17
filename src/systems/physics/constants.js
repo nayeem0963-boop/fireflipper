@@ -18,13 +18,33 @@ export const PHYSICS = Object.freeze({
   maxDiveSpeed: -17,
   /** How quickly fall speed eases back to normal after a dive is released (units/s²). */
   diveRecovery: 30,
-  /** Collision radius of the bird. Slightly smaller than the visual for fairness. */
-  birdRadius: 0.36,
+  /** Orb pickup radius around the bird's centre (generous on purpose; collisions use BIRD_HITBOX). */
+  orbPickupRadius: 0.36,
+  /** Height of the body's centre above the ground when the crashed bird lies on it. */
+  birdRestHeight: 0.23,
   /** Fixed simulation timestep (s). Rendering interpolates between steps. */
   fixedStep: 1 / 120,
   /** Clamp long frames (tab switch, GC hitch) so the sim never takes huge leaps. */
   maxFrameDelta: 1 / 15,
 });
+
+/**
+ * The bird's collider: circles in bird-local space (x forward, y up) that
+ * rotate with the bird's pitch, exactly like the drawn model does.
+ * Fitted to the placeholder firebird as drawn by PlayerBird (scale 0.6):
+ * body ≈ 0.375 × 0.246 half-extents, head radius 0.18 at (0.36, 0.18).
+ * Each circle sits slightly inside the outline for fairness. Wings, tail and
+ * the thin beak tip never collide. Refit this when the bird model changes.
+ */
+export const BIRD_HITBOX = Object.freeze([
+  Object.freeze({ x: 0, y: 0, r: 0.23 }), // body centre
+  Object.freeze({ x: -0.17, y: 0, r: 0.2 }), // rear body
+  Object.freeze({ x: 0.17, y: 0, r: 0.2 }), // front body
+  Object.freeze({ x: 0.37, y: 0.18, r: 0.16 }), // head
+]);
+
+/** Farthest any part of the hitbox reaches from the bird's centre, at any pitch (broad phase). */
+export const BIRD_HITBOX_REACH = Math.max(...BIRD_HITBOX.map((c) => Math.hypot(c.x, c.y) + c.r));
 
 export const WORLD = Object.freeze({
   groundY: -3.2,

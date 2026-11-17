@@ -1,6 +1,6 @@
-import { DYING_DURATION, PHYSICS, WORLD } from '../physics/constants.js';
+import { BIRD_HITBOX_REACH, DYING_DURATION, PHYSICS, WORLD } from '../physics/constants.js';
 import { applyFlap, stepFlight } from '../physics/flight.js';
-import { circleHitsObstacle } from '../physics/collision.js';
+import { birdBottom, birdHitsObstacle } from '../physics/collision.js';
 import { ObjectPool } from '../obstacles/ObjectPool.js';
 import { createTrack, fillTrack, resetTrack, speedAt } from '../obstacles/spawner.js';
 import { computeScore, toMetres } from '../scoring/scoring.js';
@@ -214,11 +214,10 @@ export function createGameSim() {
     fillTrack(track, builder, sim.distance, rng);
 
     const bx = sim.distance;
-    const R = PHYSICS.birdRadius;
     const behind = bx - WORLD.despawnBehind;
 
     // Ground is lava: touching it ends the run.
-    if (b.y - R <= WORLD.groundY) {
+    if (birdBottom(b.y, b.pitch) <= WORLD.groundY) {
       die();
       return;
     }
@@ -228,14 +227,14 @@ export function createGameSim() {
         obstacles.release(o);
         continue;
       }
-      if (Math.abs(o.x - bx) > o.extent + R) continue; // broad phase
-      if (circleHitsObstacle(bx, b.y, R, o)) {
+      if (Math.abs(o.x - bx) > o.extent + BIRD_HITBOX_REACH) continue; // broad phase
+      if (birdHitsObstacle(bx, b.y, b.pitch, o)) {
         die();
         return;
       }
     }
 
-    const reach = R + ORB_RADIUS;
+    const reach = PHYSICS.orbPickupRadius + ORB_RADIUS;
     for (const orb of orbs.active) {
       const dx = orb.x - bx;
       if (dx < -WORLD.despawnBehind) {
@@ -271,7 +270,7 @@ export function createGameSim() {
     // World decelerates to a stop; the bird tumbles to the ground.
     sim.speed *= Math.exp(-3.5 * dt);
     sim.distance += sim.speed * dt;
-    const floor = WORLD.groundY + PHYSICS.birdRadius;
+    const floor = WORLD.groundY + PHYSICS.birdRestHeight;
     b.vy = Math.max(b.vy + PHYSICS.gravity * dt, -14);
     b.y += b.vy * dt;
     if (b.y < floor) {

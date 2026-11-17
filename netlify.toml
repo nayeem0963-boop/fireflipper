@@ -1,0 +1,37 @@
+# Netlify configuration for fireflipper.com.
+# Applies to production, branch deploys and deploy previews alike, so every
+# deploy is built the same way as `npm run build` locally.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # package.json requires Node >= 22.12 (Vite 8).
+  NODE_VERSION = "22"
+
+# Single-page app: unknown paths serve the game instead of a 404.
+# Not forced, so real files in dist/ (assets, favicon) still win.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Vite fingerprints everything in /assets/, so it can be cached forever.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# index.html must always be revalidated so new deploys show up immediately.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
