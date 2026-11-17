@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:leaderboard": "node scripts/leaderboard-test.mjs"
+    "test:leaderboard": "node scripts/leaderboard-test.mjs",
+    "balance": "node scripts/balance.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^11.1.9",

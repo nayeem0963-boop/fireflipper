@@ -28,6 +28,7 @@ npm run preview   # serve the production build
 npm run lint      # ESLint
 npm run format    # Prettier (format:check in CI)
 npm run test:leaderboard  # replay verification and leaderboard logic
+npm run balance   # simulated players of four skill levels: where runs end, score mix (informational)
 npm run test:sim  # headless gameplay tests (physics, collisions, scoring, track fairness)
 ```
 

@@ -156,6 +156,8 @@ export function createGameSim() {
     scoredDistance: 0,
     speed: WORLD.baseSpeed,
     orbsCollected: 0,
+    /** How the run ended: { cause: 'lava' | 'obstacle', kind } (for analytics and balance tooling). */
+    death: null,
     /** Near-miss bonus points, count, current streak, and the sim time of the last near miss. */
     bonus: 0,
     nearMisses: 0,
@@ -214,6 +216,7 @@ export function createGameSim() {
       sim.distance = sim.prevDistance = sim.scoredDistance = 0;
       sim.speed = WORLD.baseSpeed;
       sim.orbsCollected = 0;
+      sim.death = null;
       sim.bonus = sim.nearMisses = sim.streak = 0;
       sim.lastNearMissAt = -99;
       sim.deathTime = 0;
@@ -316,7 +319,7 @@ export function createGameSim() {
     // Ground is lava: touching it ends the run.
     if (b.y - R <= WORLD.groundY) {
       if (pw.invuln <= 0 && !absorbHit()) {
-        die();
+        die('lava', 'lava');
         return;
       }
       // The shield bounces the bird off the lava.
@@ -333,7 +336,7 @@ export function createGameSim() {
       if (dx > o.extent + R + SCORING.nearMissMargin) continue; // broad phase
       if (dx <= o.extent + R && circleHitsObstacle(bx, b.y, R, o)) {
         if (pw.invuln <= 0 && !absorbHit()) {
-          die();
+          die('obstacle', o.kind);
           return;
         }
         o.passed = true; // a shielded hit is not a "close call"
@@ -424,9 +427,10 @@ export function createGameSim() {
     sim.events.push({ type: GAME_EVENTS.NEAR_MISS, x: bx, y: by, streak: sim.streak, points });
   }
 
-  function die() {
+  function die(cause, kind) {
     const b = sim.bird;
     sim.phase = PHASE.DYING;
+    sim.death = { cause, kind };
     sim.scoredDistance = sim.distance;
     sim.deathTime = 0;
     b.dead = true;
