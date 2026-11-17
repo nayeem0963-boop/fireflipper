@@ -14,6 +14,8 @@ export function useGameAudio() {
       gameEvents.on(GAME_EVENTS.FLAP, play(sfx.flap)),
       gameEvents.on(GAME_EVENTS.START, play(sfx.start)),
       gameEvents.on(GAME_EVENTS.ORB, play(sfx.orb)),
+      gameEvents.on(GAME_EVENTS.POWERUP, play(sfx.powerup)),
+      gameEvents.on(GAME_EVENTS.SHIELD_BREAK, play(sfx.shieldBreak)),
       gameEvents.on(GAME_EVENTS.NEAR_MISS, (e) => {
         if (useGameStore.getState().soundEnabled) sfx.nearMiss(e.streak);
       }),

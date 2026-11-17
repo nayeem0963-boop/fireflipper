@@ -1,4 +1,4 @@
-import { DYING_DURATION, PHYSICS, SCORING, WORLD } from '../physics/constants.js';
+import { DYING_DURATION, PHYSICS, POWERUPS, SCORING, WORLD } from '../physics/constants.js';
 import { applyFlap, stepFlight } from '../physics/flight.js';
 import { circleHitsObstacle, clearanceToObstacle } from '../physics/collision.js';
 import { ObjectPool } from '../obstacles/ObjectPool.js';
@@ -51,11 +51,15 @@ function createObstacle() {
 function createOrb() {
   return { x: 0, y: 0, phase: 0 };
 }
+function createPowerup() {
+  return { type: 'shield', x: 0, y: 0, phase: 0 };
+}
 
 export function createGameSim() {
   const rng = createRng(1);
   const obstacles = new ObjectPool(createObstacle, undefined, 64);
   const orbs = new ObjectPool(createOrb, undefined, 32);
+  const powerups = new ObjectPool(createPowerup, undefined, 8);
   const track = createTrack();
 
   /** Pool-backed builder handed to obstacle patterns. */
@@ -117,6 +121,13 @@ export function createGameSim() {
       o.cap = 0;
       o.extent = r;
     },
+    powerup(x, y, type) {
+      const p = powerups.acquire();
+      p.type = type;
+      p.x = x;
+      p.y = y;
+      p.phase = rng() * Math.PI * 2;
+    },
     orb(x, y) {
       const orb = orbs.acquire();
       orb.x = x;
@@ -157,6 +168,9 @@ export function createGameSim() {
     fx: { fovKick: 0, shake: 0, lift: 0 },
     obstacles,
     orbs,
+    powerups,
+    /** Active power-ups: shield is a flag, the rest are seconds remaining. invuln follows a shield hit. */
+    power: { shield: false, magnet: 0, slow: 0, invuln: 0 },
     track,
     /** Events produced since the last drain. */
     events: [],
@@ -178,6 +192,10 @@ export function createGameSim() {
       rng.reseed(seed);
       obstacles.releaseAll();
       orbs.releaseAll();
+      powerups.releaseAll();
+      const pw = sim.power;
+      pw.shield = false;
+      pw.magnet = pw.slow = pw.invuln = 0;
       sim.phase = PHASE.READY;
       sim.time = 0;
       sim.distance = sim.prevDistance = sim.scoredDistance = 0;
@@ -255,7 +273,12 @@ export function createGameSim() {
     }
     stepFlight(b, sim.input, dt);
 
-    sim.speed = speedAt(sim.distance);
+    const pw = sim.power;
+    pw.magnet = Math.max(0, pw.magnet - dt);
+    pw.slow = Math.max(0, pw.slow - dt);
+    pw.invuln = Math.max(0, pw.invuln - dt);
+
+    sim.speed = speedAt(sim.distance) * (pw.slow > 0 ? POWERUPS.slowFactor : 1);
     sim.distance += sim.speed * dt;
     fillTrack(track, builder, sim.distance, rng);
 
@@ -265,8 +288,13 @@ export function createGameSim() {
 
     // Ground is lava: touching it ends the run.
     if (b.y - R <= WORLD.groundY) {
-      die();
-      return;
+      if (pw.invuln <= 0 && !absorbHit()) {
+        die();
+        return;
+      }
+      // The shield bounces the bird off the lava.
+      b.y = WORLD.groundY + R + 0.05;
+      b.vy = 7;
     }
 
     for (const o of obstacles.active) {
@@ -277,14 +305,20 @@ export function createGameSim() {
       const dx = Math.abs(o.x - bx);
       if (dx > o.extent + R + SCORING.nearMissMargin) continue; // broad phase
       if (dx <= o.extent + R && circleHitsObstacle(bx, b.y, R, o)) {
-        die();
-        return;
+        if (pw.invuln <= 0 && !absorbHit()) {
+          die();
+          return;
+        }
+        o.passed = true; // a shielded hit is not a "close call"
+        continue;
       }
       trackNearMiss(o, bx, b.y, R);
     }
 
     const reach = R + ORB_RADIUS;
+    const magnetOn = pw.magnet > 0;
     for (const orb of orbs.active) {
+      if (magnetOn) attract(orb, bx, b.y, dt);
       const dx = orb.x - bx;
       if (dx < -WORLD.despawnBehind) {
         orbs.release(orb);
@@ -299,6 +333,50 @@ export function createGameSim() {
         sim.fx.fovKick += 1.4;
         sim.events.push({ type: GAME_EVENTS.ORB, x: orb.x, y: orb.y });
       }
+    }
+
+    collectPowerups(bx, b.y, R);
+  }
+
+  /** Pulls an orb toward the bird while the magnet is active. */
+  function attract(orb, bx, by, dt) {
+    const dx = bx - orb.x;
+    const dy = by - orb.y;
+    const d = Math.hypot(dx, dy);
+    if (d > POWERUPS.magnetRange || d < 0.001) return;
+    const step = Math.min(d, POWERUPS.magnetSpeed * dt);
+    orb.x += (dx / d) * step;
+    orb.y += (dy / d) * step;
+  }
+
+  /** A hit the shield can absorb. Returns true if it did (the run continues). */
+  function absorbHit() {
+    if (!sim.power.shield) return false;
+    sim.power.shield = false;
+    sim.power.invuln = POWERUPS.invulnDuration;
+    sim.fx.shake = 0.25;
+    sim.events.push({ type: GAME_EVENTS.SHIELD_BREAK, x: sim.distance, y: sim.bird.y });
+    return true;
+  }
+
+  function collectPowerups(bx, by, R) {
+    const reach = R + POWERUPS.pickupRadius;
+    for (const p of powerups.active) {
+      const dx = p.x - bx;
+      if (dx < -WORLD.despawnBehind) {
+        powerups.release(p);
+        continue;
+      }
+      if (dx > reach) continue;
+      const dy = p.y - by;
+      if (dx * dx + dy * dy >= reach * reach) continue;
+      powerups.release(p);
+      const pw = sim.power;
+      if (p.type === 'shield') pw.shield = true;
+      else if (p.type === 'magnet') pw.magnet = POWERUPS.magnetDuration;
+      else pw.slow = POWERUPS.slowDuration;
+      sim.fx.fovKick += 1.2;
+      sim.events.push({ type: GAME_EVENTS.POWERUP, kind: p.type, x: p.x, y: p.y });
     }
   }
 

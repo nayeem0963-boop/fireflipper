@@ -60,4 +60,20 @@ export const SCORING = Object.freeze({
   maxStreakMultiplier: 5,
 });
 
+export const POWERUPS = Object.freeze({
+  /** Pickup types and their relative spawn weights. */
+  types: Object.freeze({ shield: 3, magnet: 2.5, slow: 2 }),
+  /** Chance that a section is preceded by a power-up, once past minDistance. */
+  chance: 0.13,
+  minDistance: 120,
+  pickupRadius: 0.45,
+  magnetDuration: 8,
+  magnetRange: 4.5,
+  magnetSpeed: 15,
+  slowDuration: 5,
+  slowFactor: 0.7,
+  /** Grace period after a shield absorbs a hit, so the bird can clear the obstacle. */
+  invulnDuration: 1.1,
+});
+
 export const DYING_DURATION = 1.1; // seconds of crash animation before the game-over screen

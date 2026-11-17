@@ -46,6 +46,8 @@ export const useGameStore = create((set, get) => ({
   orbs: 0,
   /** Latest near-miss callout { id, streak, points } for the HUD; null between runs. */
   callout: null,
+  /** Active power-ups for the HUD: shield flag, magnet/slow seconds remaining (rounded up). */
+  power: { shield: false, magnet: 0, slow: 0 },
   runId: 0, // bumped on every (re)start; the game loop resets the sim on change
   overAt: 0,
   /** { score, distance, orbs, isNewBest } of the last finished run. */
@@ -132,6 +134,11 @@ export const useGameStore = create((set, get) => ({
     set((s) =>
       s.status === STATUS.RUNNING ? { callout: { id: (s.callout?.id ?? 0) + 1, streak, points } } : s,
     ),
+  setPower: (shield, magnet, slow) => {
+    const p = get().power;
+    if (p.shield !== shield || p.magnet !== magnet || p.slow !== slow)
+      set({ power: { shield, magnet, slow } });
+  },
   completeTutorial: () => {
     saveValue('tutorialDone', true);
     set({ tutorialDone: true });
@@ -162,6 +169,7 @@ function freshRun(s) {
     distance: 0,
     orbs: 0,
     callout: null,
+    power: { shield: false, magnet: 0, slow: 0 },
     lastResult: null,
     runId: s.runId + 1,
   };

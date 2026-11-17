@@ -90,6 +90,16 @@ export const sfx = {
     const base = 660 * Math.pow(1.122, Math.min(streak, 6) - 1);
     tone({ type: 'sine', from: base, to: base * 1.5, duration: 0.22, peak: 0.14, delay: 0.04 });
   },
+  powerup() {
+    if (!ready()) return;
+    tone({ type: 'triangle', from: 520, to: 1040, duration: 0.18, peak: 0.16 });
+    tone({ type: 'triangle', from: 780, to: 1560, duration: 0.22, peak: 0.12, delay: 0.09 });
+  },
+  shieldBreak() {
+    if (!ready()) return;
+    noiseBurst({ duration: 0.3, filter: 'highpass', from: 1500, to: 5000, q: 0.8, peak: 0.3 });
+    tone({ type: 'sine', from: 900, to: 220, duration: 0.3, peak: 0.2 });
+  },
   start() {
     if (!ready()) return;
     tone({ type: 'triangle', from: 330, to: 660, duration: 0.3, peak: 0.12 });

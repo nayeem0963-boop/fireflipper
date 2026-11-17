@@ -9,7 +9,7 @@ import {
   circleHitsObstacle,
 } from '../src/systems/physics/collision.js';
 import { clearanceToObstacle } from '../src/systems/physics/collision.js';
-import { PHYSICS, WORLD, SCORING } from '../src/systems/physics/constants.js';
+import { PHYSICS, WORLD, SCORING, POWERUPS } from '../src/systems/physics/constants.js';
 import { seedForKey, todayKey } from '../src/utils/daily.js';
 import { computeScore } from '../src/systems/scoring/scoring.js';
 
@@ -233,6 +233,109 @@ section('Near misses');
   crashed.flap();
   for (let i = 0; i < 600 && crashed.phase === PHASE.RUNNING; i++) crashed.step(DT);
   check('no near-miss events when nothing was passed', crashed.nearMisses === 0);
+}
+
+// ---------------------------------------------------------------- power-ups
+section('Power-ups');
+{
+  const fresh = (seed = 31) => {
+    const sim = createGameSim();
+    sim.reset(seed);
+    sim.obstacles.releaseAll();
+    sim.orbs.releaseAll();
+    sim.powerups.releaseAll();
+    sim.track.nextX = 1e9;
+    return sim;
+  };
+  const grab = (sim, type) => {
+    const p = sim.powerups.acquire();
+    Object.assign(p, { type, x: 1, y: sim.bird.y, phase: 0 });
+  };
+  const wall = (sim, x) => {
+    const o = sim.obstacles.acquire();
+    Object.assign(o, {
+      kind: 'block',
+      shape: 'box',
+      x,
+      y: WORLD.birdStartY,
+      hw: 0.5,
+      hh: 6,
+      extent: 0.5,
+      gap: Infinity,
+      passed: false,
+    });
+  };
+  const run = (sim, steps) => {
+    for (let i = 0; i < steps && sim.phase === PHASE.RUNNING; i++) {
+      sim.bird.y = sim.bird.prevY = WORLD.birdStartY;
+      sim.bird.vy = 0;
+      sim.step(DT);
+    }
+  };
+
+  const s1 = fresh();
+  s1.flap();
+  grab(s1, 'shield');
+  run(s1, 60);
+  check('shield picked up', s1.power.shield === true);
+  check('powerup event once', countEvents(s1, 'powerup') === 1);
+  check('pickup leaves the pool', s1.powerups.active.size === 0);
+
+  wall(s1, s1.distance + 3);
+  run(s1, 200);
+  check('shield absorbs a crash', s1.phase === PHASE.RUNNING, `phase ${s1.phase}`);
+  check('shield is consumed', s1.power.shield === false);
+  check('shield break event once', countEvents(s1, 'shieldBreak') === 1);
+  check('shielded hit is not a near miss', s1.nearMisses === 0);
+
+  wall(s1, s1.distance + 3);
+  run(s1, 200);
+  check('without shield the next wall kills', s1.phase !== PHASE.RUNNING);
+
+  const s2 = fresh();
+  s2.flap();
+  grab(s2, 'magnet');
+  run(s2, 60);
+  check('magnet active', s2.power.magnet > 0 && s2.power.magnet <= POWERUPS.magnetDuration);
+  const orb = s2.orbs.acquire();
+  Object.assign(orb, { x: s2.distance + 3, y: WORLD.birdStartY + 2.5, phase: 0 });
+  run(s2, 120);
+  check('magnet draws in an orb the bird never touches', s2.orbsCollected === 1);
+  run(s2, POWERUPS.magnetDuration * 120);
+  check('magnet expires', s2.power.magnet === 0);
+
+  const s3 = fresh();
+  s3.flap();
+  run(s3, 5);
+  const before = s3.speed;
+  grab(s3, 'slow');
+  run(s3, 60);
+  check('slow-mo reduces speed', s3.speed < before * POWERUPS.slowFactor + 0.2, `${s3.speed} vs ${before}`);
+
+  s3.reset(1);
+  check('reset clears power-ups', !s3.power.shield && s3.power.magnet === 0 && s3.power.slow === 0);
+
+  // Power-ups spawn on real tracks, never before minDistance, and only reachable-height.
+  let spawned = 0;
+  let early = 0;
+  for (let seed = 1; seed <= 20; seed++) {
+    const sim = createGameSim();
+    sim.reset(seed);
+    sim.flap();
+    for (let i = 0; i < 120 * 40; i++) {
+      for (const p of sim.powerups.active) {
+        spawned++;
+        if (p.x < POWERUPS.minDistance) early++;
+        if (p.y < WORLD.groundY || p.y > WORLD.ceilingY) early++;
+      }
+      sim.bird.y = sim.bird.prevY = WORLD.birdStartY;
+      sim.bird.vy = 0;
+      sim.step(DT);
+      if (sim.phase !== PHASE.RUNNING) break;
+    }
+  }
+  check('power-ups spawn on generated tracks', spawned > 0);
+  check('power-ups respect min distance and stay in the flight band', early === 0, `${early} violations`);
 }
 
 // ---------------------------------------------------------------- daily challenge

@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending } from 'three';
 import { getGlowTexture } from '../../utils/textures.js';
 import { GAME_EVENTS, gameEvents } from '../../systems/events/gameEvents.js';
+import { POWERUP_INFO } from '../../systems/powerups/appearance.js';
 
 /**
  * Pooled spark bursts for orb pickups and crashes: one THREE.Points with
@@ -54,7 +55,15 @@ export default function BurstParticles({ sim }) {
     };
     const offOrb = gameEvents.on(GAME_EVENTS.ORB, (e) => emit(e.x, e.y, 14, 3.2, ORB_COLOR, 0.55));
     const offCrash = gameEvents.on(GAME_EVENTS.CRASH, (e) => emit(e.x, e.y, 42, 5.5, CRASH_COLOR, 0.9));
+    const offPower = gameEvents.on(GAME_EVENTS.POWERUP, (e) =>
+      emit(e.x, e.y, 26, 4, POWERUP_INFO[e.kind].rgb, 0.8),
+    );
+    const offShield = gameEvents.on(GAME_EVENTS.SHIELD_BREAK, (e) =>
+      emit(e.x, e.y, 34, 5, POWERUP_INFO.shield.rgb, 0.7),
+    );
     return () => {
+      offPower();
+      offShield();
       offOrb();
       offCrash();
     };

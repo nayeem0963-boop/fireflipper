@@ -53,6 +53,8 @@ export function useGameLoop(sim) {
     if (hudTimer.current >= HUD_INTERVAL) {
       hudTimer.current = 0;
       store.setHud(sim.metres, sim.score, sim.orbsCollected);
+      const pw = sim.power;
+      store.setPower(pw.shield, Math.ceil(pw.magnet), Math.ceil(pw.slow));
     }
   });
 }

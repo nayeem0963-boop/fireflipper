@@ -25,7 +25,8 @@ export default function StartPrompt() {
         )}
       </ul>
       <p className="start-prompt__goal">
-        Dodge the rocks, avoid the lava, collect <span className="orb-dot" aria-hidden="true" /> fire orbs
+        Dodge the rocks, avoid the lava, collect <span className="orb-dot" aria-hidden="true" /> fire orbs,
+        plus gems for a shield, magnet or slow-mo
       </p>
       {touch && portrait && (
         <p className="start-prompt__rotate">

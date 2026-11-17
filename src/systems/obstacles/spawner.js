@@ -1,4 +1,4 @@
-import { WORLD } from '../physics/constants.js';
+import { POWERUPS, WORLD } from '../physics/constants.js';
 import { PATTERNS, gapFor, pickPattern } from './patterns.js';
 
 /**
@@ -24,6 +24,16 @@ export function difficultyAt(distance) {
 export function speedAt(distance) {
   const k = clamp(distance / WORLD.speedRampDistance, 0, 1);
   return WORLD.baseSpeed + (WORLD.maxSpeed - WORLD.baseSpeed) * k;
+}
+
+function pickPowerup(rng) {
+  const entries = Object.entries(POWERUPS.types);
+  let roll = rng() * entries.reduce((s, [, w]) => s + w, 0);
+  for (const [type, w] of entries) {
+    roll -= w;
+    if (roll < 0) return type;
+  }
+  return entries[0][0];
 }
 
 export function createTrack() {
@@ -64,6 +74,12 @@ export function fillTrack(track, builder, distance, rng) {
         const k = i / 4;
         builder.orb(track.nextX + spacing * k, prev + (center - prev) * k);
       }
+    }
+
+    // Occasionally a power-up floats in the open space between sections, on the flight path.
+    if (track.nextX > POWERUPS.minDistance && rng.chance(POWERUPS.chance)) {
+      const prev = track.center;
+      builder.powerup(track.nextX + spacing * 0.4, prev + (center - prev) * 0.4, pickPowerup(rng));
     }
 
     const section = PATTERNS[type](builder, x, center, gap, rng);

@@ -294,3 +294,24 @@
     animation: none;
   }
 }
+
+/* Active power-up chips */
+.power-chips {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.power-chip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--chip);
+  background: rgba(20, 8, 4, 0.6);
+  color: var(--chip);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--chip) 45%, transparent);
+}

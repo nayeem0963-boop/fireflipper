@@ -4,6 +4,7 @@ import EdgeWarning from '../../components/scene/EdgeWarning.jsx';
 import PlayerBird from '../../components/scene/PlayerBird.jsx';
 import ObstacleField from '../../components/scene/ObstacleField.jsx';
 import OrbField from '../../components/scene/OrbField.jsx';
+import PowerUpField from '../../components/scene/PowerUpField.jsx';
 import BurstParticles from '../../components/scene/BurstParticles.jsx';
 import { useRenderSettings } from '../../hooks/useRenderSettings.js';
 import { useGameLoop } from '../../systems/game/useGameLoop.js';
@@ -35,6 +36,7 @@ export default function EmberValleyScene() {
       <Backdrop sim={game} />
       <ObstacleField sim={game} />
       <OrbField sim={game} />
+      <PowerUpField sim={game} />
       <PlayerBird sim={game} />
       <BurstParticles sim={game} />
       {/* Narrow screens see less track ahead, so warn about obstacles just off-screen */}
