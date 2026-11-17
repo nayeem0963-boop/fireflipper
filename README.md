@@ -3,8 +3,8 @@
 **Flip. Burn. Survive.** A 3D fantasy arcade game for the browser, coming to `fireflipper.com`.
 
 > Status: **pass 2: core flight gameplay.** Playable one-touch flying with physics, procedural
-> obstacles, fire orbs, collisions, scoring, game over and retry. Backend, accounts and deployment
-> are intentionally not implemented yet. The firebird is still a placeholder built from primitives.
+> obstacles, fire orbs, collisions, scoring, game over and retry. Deploys run on Netlify (see
+> Development workflow); backend and accounts are intentionally not implemented yet. The firebird is still a placeholder built from primitives.
 
 ## Tech stack
 
@@ -21,12 +21,28 @@ JavaScript (ES modules) only, no TypeScript. Requires Node.js 22.12+.
 ## Getting started
 
 ```bash
-npm install
-npm run dev       # http://localhost:5173
+npm ci
+npm run check     # lint + tests + production build (run before every pull request)
+npm run lint      # ESLint, zero warnings allowed
+npm test          # headless gameplay tests (physics, collisions, scoring, track fairness)
 npm run build     # production build to dist/
+npm run dev       # http://localhost:5173
 npm run preview   # serve the production build
-npm run test:sim  # headless gameplay tests (physics, collisions, scoring, track fairness)
 ```
+
+## Development workflow
+
+Development happens in Claude Code cloud sessions against this GitHub repository; there is no
+required local setup.
+
+1. Each change is made on a feature branch and opened as a pull request against `master`.
+2. GitHub Actions (`.github/workflows/ci.yml`) runs `lint`, `test` and `build` on every pull request.
+3. Netlify builds a Deploy Preview of the complete game for every pull request; test it from the
+   preview link in the pull request.
+4. Merging to `master` (owner only) publishes the release to fireflipper.com. Build settings live in
+   `netlify.toml`.
+
+Rules for Claude sessions are in `CLAUDE.md`.
 
 To test on a phone or tablet on the same Wi-Fi network: `npm run dev -- --host`, then open the
 printed network URL.
@@ -60,10 +76,12 @@ src/
     events/             gameplay event bus (start, flap, orb, crash, over)
     audio/              synthesized Web Audio sound effects
   hooks/                React hooks: input binding, audio, render quality, auto-pause
-scripts/
-  sim-test.mjs          headless tests (npm run test:sim)
   styles/               global tokens + per-screen CSS
   utils/                storage, device detection, fullscreen, math, procedural textures
+scripts/
+  sim-test.mjs          headless tests (npm test)
+.github/workflows/      CI: lint, tests, build on every pull request
+netlify.toml            Netlify build, SPA fallback and headers (production and previews)
 ```
 
 ### Architecture rules
