@@ -4,6 +4,7 @@
  */
 import { createGameSim, INPUT, PHASE } from '../src/systems/game/createGameSim.js';
 import { MAX_TICKS, replayRun, validateLog } from '../src/systems/replay/replay.js';
+import { createGhost } from '../src/systems/replay/ghost.js';
 import { PHYSICS } from '../src/systems/physics/constants.js';
 import { seedForKey } from '../src/utils/daily.js';
 import { createMemoryStore, getBoard, openDays, submitScore } from '../server/leaderboard.js';
@@ -114,6 +115,64 @@ section('Replay');
 
   const idle = replayRun(seed, [0, INPUT.FLAP]);
   check('a single flap run ends (the bird falls into lava)', idle.finished);
+}
+
+// ---------------------------------------------------------------- ghost
+section('Ghost');
+{
+  const seed = seedForKey('2026-11-17');
+  const original = playRun(seed, { metres: 350 });
+
+  // Drive a fresh "live" sim the way a player starting later would: it hovers a different
+  // amount of time, then starts; the ghost must still fly the original path exactly.
+  const ghost = createGhost(seed, original.inputLog);
+  check('ghost starts waiting on the track', ghost.sim.phase === PHASE.READY && ghost.sim.distance === 0);
+  check('ghost has not crashed yet', ghost.finished === false);
+
+  // Reference: the original run's bird height after N steps of running.
+  const ref = createGameSim();
+  ref.reset(seed);
+  let next = 0;
+  const log = original.inputLog;
+  const track = [];
+  while (ref.phase !== PHASE.OVER) {
+    while (next < log.length && log[next] <= ref.tick) {
+      const code = log[next + 1];
+      if (code === INPUT.FLAP) ref.flap();
+      else if (code === INPUT.HOLD_ON) ref.setHolding(true);
+      else if (code === INPUT.HOLD_OFF) ref.setHolding(false);
+      else if (code === INPUT.DIVE_ON) ref.setDive(true);
+      else ref.setDive(false);
+      next += 2;
+    }
+    ref.step(DT);
+    track.push([ref.bird.y, ref.distance]);
+  }
+  // The reference's first `startTick` entries are the hover; ghost steps begin at the first flap.
+  const startTick = log[0];
+  let maxDelta = 0;
+  let steps = 0;
+  while (!ghost.finished && steps < track.length - startTick) {
+    ghost.step();
+    const [y, d] = track[startTick + steps];
+    maxDelta = Math.max(maxDelta, Math.abs(ghost.sim.bird.y - y), Math.abs(ghost.sim.distance - d));
+    steps++;
+  }
+  check('ghost follows the original path exactly', maxDelta === 0, `max delta ${maxDelta}`);
+  check('ghost crashes where the original did', ghost.finished && ghost.sim.metres === original.metres);
+
+  // It must also be independent of the live sim: stepping one does not move the other.
+  const other = createGameSim();
+  other.reset(seed);
+  const ghost2 = createGhost(seed, original.inputLog);
+  other.flap();
+  for (let i = 0; i < 120; i++) other.step(DT);
+  check('ghost is independent of the live sim', ghost2.sim.distance === 0 && ghost2.sim.tick === startTick);
+
+  const empty = createGhost(seed, []);
+  check('an empty log gives a harmless idle ghost', empty.sim.phase === PHASE.READY);
+  empty.step();
+  check('...that does not crash when stepped', empty.sim.tick >= 1);
 }
 
 // ---------------------------------------------------------------- submissions

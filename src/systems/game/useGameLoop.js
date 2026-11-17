@@ -3,6 +3,9 @@ import { useFrame } from '@react-three/fiber';
 import { useGameStore, STATUS } from '../../store/useGameStore.js';
 import { PHYSICS } from '../physics/constants.js';
 import { GAME_EVENTS, gameEvents } from '../events/gameEvents.js';
+import { PHASE } from './createGameSim.js';
+import { ghostState } from './gameInstance.js';
+import { createGhost } from '../replay/ghost.js';
 
 const HUD_INTERVAL = 0.1; // seconds; the HUD only needs ~10 updates/s
 /** Real-time freeze on impact (seconds): a few frames of stillness makes a crash land. Skipped for reduced-motion users. */
@@ -26,6 +29,9 @@ export function useGameLoop(sim) {
 
   useEffect(() => {
     sim.reset(seed ?? undefined);
+    // Race the best attempt of today's daily challenge, if there is one.
+    const { mode, ghost, dailyKey } = useGameStore.getState();
+    ghostState.ghost = mode === 'daily' && ghost?.key === dailyKey ? createGhost(seed, ghost.inputs) : null;
     acc.current = 0;
     hudTimer.current = 0;
     hitPause.current = 0;
@@ -44,7 +50,10 @@ export function useGameLoop(sim) {
     const step = PHYSICS.fixedStep;
     acc.current += Math.min(rawDelta, PHYSICS.maxFrameDelta);
     while (acc.current >= step) {
+      const racing = sim.phase === PHASE.RUNNING;
       sim.step(step);
+      // The ghost takes one step for every step of the live run, so both fly the same clock.
+      if (racing) ghostState.ghost?.step();
       acc.current -= step;
     }
     sim.alpha = acc.current / step;
@@ -56,7 +65,7 @@ export function useGameLoop(sim) {
         else if (e.type === GAME_EVENTS.CRASH) {
           store.crash();
           if (!prefersReducedMotion()) hitPause.current = HIT_PAUSE;
-        } else if (e.type === GAME_EVENTS.OVER) store.endRun(sim.results());
+        } else if (e.type === GAME_EVENTS.OVER) store.endRun(sim.results(), sim.inputLog.slice());
         gameEvents.emit(e.type, e);
       }
       sim.events.length = 0;

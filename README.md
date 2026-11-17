@@ -143,6 +143,14 @@ scripts/
   the browser supports the Vibration API (Android Chrome and most desktop Chromium; not iOS Safari). A
   Settings switch turns it off.
 
+### Ghost (daily challenge)
+
+Replaying the daily challenge races a translucent pale ghost of your best attempt today. The track is the same
+every attempt, so the ghost is meaningful there (free-play seeds are random, so it has none). The ghost is a
+second simulation (`systems/replay/ghost.js`) fed the recorded inputs and stepped in lockstep with the live run,
+so it flies exactly the path it did before. Only today's best attempt is kept (in local storage, capped at 6,000
+input entries).
+
 ### First-run coaching
 
 New players see short hints during their first ~70 m (`RunCallouts`); after that the

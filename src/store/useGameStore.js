@@ -62,6 +62,8 @@ export const useGameStore = create((set, get) => ({
   runsThisSession: 0,
   /** Best score per daily challenge date, e.g. { '2026-11-17': 812 }. Only recent days are kept. */
   dailyBests: loadValue('dailyBests', {}),
+  /** Inputs of today's best daily attempt, replayed as a ghost: { key, score, inputs } or null. */
+  ghost: loadGhost(),
 
   // --- settings ---
   soundEnabled: loadValue('soundEnabled', true),
@@ -101,7 +103,7 @@ export const useGameStore = create((set, get) => ({
   // --- run lifecycle (driven by simulation events + UI) ---
   beginRun: () => set((s) => (s.status === STATUS.READY ? { status: STATUS.RUNNING } : s)),
   crash: () => set((s) => (s.status === STATUS.RUNNING ? { status: STATUS.DYING } : s)),
-  endRun: ({ score, distance, orbs, nearMisses = 0 }) => {
+  endRun: ({ score, distance, orbs, nearMisses = 0 }, inputs) => {
     const s = get();
     // Guard: a run can only end once.
     if (s.status !== STATUS.DYING && s.status !== STATUS.RUNNING) return;
@@ -121,7 +123,13 @@ export const useGameStore = create((set, get) => ({
         saveValue('dailyBests', dailyBests);
       }
     }
+    let ghost = s.ghost;
+    if (daily && isNewDailyBest && inputs && inputs.length <= MAX_GHOST_LENGTH) {
+      ghost = { key: s.dailyKey, score, inputs };
+      saveValue('dailyGhost', ghost);
+    }
     set({
+      ghost,
       status: STATUS.OVER,
       overAt: performance.now(),
       score,
@@ -195,6 +203,15 @@ export const useGameStore = create((set, get) => ({
     set({ quality });
   },
 }));
+
+/** Longest input log kept for a ghost (about 5 minutes of busy tapping), so storage stays small. */
+const MAX_GHOST_LENGTH = 6000;
+
+/** Only today's ghost is useful (the track changes daily); an old or malformed one is dropped. */
+function loadGhost() {
+  const g = loadValue('dailyGhost', null);
+  return g && g.key === todayKey() && Array.isArray(g.inputs) && g.inputs.length > 0 ? g : null;
+}
 
 function loadPlayerId() {
   let id = loadValue('playerId', null);

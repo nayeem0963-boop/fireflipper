@@ -5,6 +5,7 @@ import { getBiome } from './biomeColors.js';
 import EmberParticles from '../../components/scene/EmberParticles.jsx';
 import EdgeWarning from '../../components/scene/EdgeWarning.jsx';
 import PlayerBird from '../../components/scene/PlayerBird.jsx';
+import GhostBird from '../../components/scene/GhostBird.jsx';
 import ObstacleField from '../../components/scene/ObstacleField.jsx';
 import OrbField from '../../components/scene/OrbField.jsx';
 import PowerUpField from '../../components/scene/PowerUpField.jsx';
@@ -53,6 +54,7 @@ export default function EmberValleyScene() {
       <ObstacleField sim={game} />
       <OrbField sim={game} />
       <PowerUpField sim={game} />
+      <GhostBird sim={game} />
       <PlayerBird sim={game} />
       <BurstParticles sim={game} />
       {/* Narrow screens see less track ahead, so warn about obstacles just off-screen */}
