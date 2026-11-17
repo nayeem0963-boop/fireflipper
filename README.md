@@ -22,7 +22,7 @@ JavaScript (ES modules) only, no TypeScript. Requires Node.js 22.12+.
 
 ```bash
 npm ci
-npm run check     # lint + tests + production build (run before every pull request)
+npm run check     # lint + tests + production build (run before every pull request; Node 22, see .nvmrc)
 npm run lint      # ESLint, zero warnings allowed
 npm test          # headless gameplay tests (physics, collisions, scoring, track fairness)
 npm run build     # production build to dist/
@@ -35,14 +35,27 @@ npm run preview   # serve the production build
 Development happens in Claude Code cloud sessions against this GitHub repository; there is no
 required local setup.
 
-1. Each change is made on a feature branch and opened as a pull request against `master`.
-2. GitHub Actions (`.github/workflows/ci.yml`) runs `lint`, `test` and `build` on every pull request.
-3. Netlify builds a Deploy Preview of the complete game for every pull request; test it from the
-   preview link in the pull request.
-4. Merging to `master` (owner only) publishes the release to fireflipper.com. Build settings live in
-   `netlify.toml`.
+| Branch | Role | Netlify |
+| ------ | ---- | ------- |
+| `master` | Production | fireflipper.com |
+| `fireflipper-dev` | Development (GitHub default branch) | Permanent branch deploy: `fireflipper-dev--<project>.netlify.app` |
+| feature branches | One per task | Not deployed |
 
-Rules for Claude sessions are in `CLAUDE.md`.
+1. Each change is made on a feature branch created from `fireflipper-dev` and opened as a pull
+   request against `fireflipper-dev`.
+2. GitHub Actions (`.github/workflows/ci.yml`) runs `lint`, `test` and `build` on every pull request
+   and on every push to `fireflipper-dev` and `master`.
+3. After a pull request is merged, Netlify rebuilds the `fireflipper-dev` branch deploy; test the
+   complete game at the dev URL.
+4. A release is a pull request from `fireflipper-dev` into `master`, merged by the owner with a merge
+   commit (not squash). Netlify then deploys `master` to fireflipper.com. Feature branches and
+   `fireflipper-dev` never deploy to production.
+5. Hotfixes branch from `master`, merge into `master`, then `master` is merged back into
+   `fireflipper-dev`.
+
+Build settings for every deploy live in `netlify.toml`. Which branches deploy is set in the Netlify
+dashboard (production branch `master`, branch deploys only for `fireflipper-dev`, Deploy Previews
+off). Rules for Claude sessions are in `CLAUDE.md`.
 
 To test on a phone or tablet on the same Wi-Fi network: `npm run dev -- --host`, then open the
 printed network URL.
@@ -80,8 +93,8 @@ src/
   utils/                storage, device detection, fullscreen, math, procedural textures
 scripts/
   sim-test.mjs          headless tests (npm test)
-.github/workflows/      CI: lint, tests, build on every pull request
-netlify.toml            Netlify build, SPA fallback and headers (production and previews)
+.github/workflows/      CI: lint, tests, build on pull requests and on pushes to fireflipper-dev / master
+netlify.toml            Netlify build, SPA fallback and headers (production and the dev branch deploy)
 ```
 
 ### Architecture rules

@@ -6,27 +6,37 @@ before changing gameplay or rendering code.
 
 ## Workflow (cloud sessions, GitHub, Netlify)
 
-- `master` is the production branch. Netlify publishes fireflipper.com from it, so merging to
-  `master` is a production release.
-- Never push, commit or merge to `master`. Work on a feature branch and open a pull request.
-  Only the owner merges.
-- Never enable auto-merge, never force-push a shared branch, and never change GitHub or Netlify
-  settings.
+| Branch | Role | Netlify |
+| --- | --- | --- |
+| `master` | Production. Changes only through a release the owner merges. | fireflipper.com |
+| `fireflipper-dev` | Development and integration (GitHub default branch). | Permanent branch deploy at `fireflipper-dev--<project>.netlify.app` |
+| feature branches | One per task, created from `fireflipper-dev`. | Not deployed |
+
+- Start every task from the latest `fireflipper-dev` and work on a feature branch.
+- Open pull requests against `fireflipper-dev`, never against `master`. Only the owner merges.
+- Never push, commit or merge to `master`, and never open a release pull request unless the owner
+  asks for one. Releases are `fireflipper-dev` → `master`, merged by the owner with a merge commit
+  (not squash), so the two branches keep a shared history.
+- Never push directly to `fireflipper-dev`, never force-push or delete `master` or
+  `fireflipper-dev`, never enable auto-merge, and never change GitHub or Netlify settings.
 - Before asking for review, run `npm run check` (lint, headless tests, production build) and
   report the result honestly in the pull request. If it fails, fix the cause or say why it fails.
-- Every pull request gets a Netlify Deploy Preview with the complete game. The owner tests it
-  there; describe in the pull request what to try (screens, controls, phone portrait/landscape).
+- Feature branches get no Netlify deploy. After the owner merges a pull request, the dev URL
+  updates and the owner tests the complete game there, so say in the pull request what to try
+  (screens, controls, phone portrait/landscape).
+- Hotfixes, only when the owner asks: branch from `master`, open a pull request into `master`,
+  then a second one merging `master` back into `fireflipper-dev`.
 - Keep pull requests small and focused, one feature or fix each.
 
 ## Commands
 
 ```bash
-npm ci            # install exactly what package-lock.json specifies (Node 22.12+, see .nvmrc)
+npm ci            # install exactly what package-lock.json specifies (Node 22, see .nvmrc)
 npm run check     # everything below, in order; must pass before review
 npm run lint      # ESLint, zero warnings allowed
 npm test          # headless gameplay tests (physics, collisions, scoring, track fairness)
 npm run build     # production build into dist/
-npm run dev       # dev server (not needed in cloud sessions; use the Deploy Preview)
+npm run dev       # dev server (not needed in cloud sessions; the owner tests on the dev URL)
 ```
 
 ## Rules for changes

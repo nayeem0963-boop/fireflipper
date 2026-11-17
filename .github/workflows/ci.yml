@@ -1,12 +1,13 @@
 # Lint, headless gameplay tests and production build for every pull request
-# and every push to the production branch. Require the "check" job in the
-# master branch ruleset so nothing merges unless it passes.
+# (features into fireflipper-dev, releases into master) and every push to the
+# development and production branches. Require the "check" job in the branch
+# rulesets so nothing merges unless it passes.
 name: CI
 
 on:
   pull_request:
   push:
-    branches: [master]
+    branches: [master, fireflipper-dev]
 
 permissions:
   contents: read
