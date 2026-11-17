@@ -10,4 +10,4 @@
  * the server rejects submissions from an out-of-date page (asks the player to reload), and saved ghosts
  * from an older version are discarded.
  */
-export const SIM_VERSION = 1;
+export const SIM_VERSION = 2;

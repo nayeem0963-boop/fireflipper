@@ -1,6 +1,6 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Object3D } from 'three';
+import { AdditiveBlending, Color, Object3D } from 'three';
 
 /**
  * Renders every pooled obstacle with a handful of InstancedMeshes, so
@@ -11,7 +11,14 @@ import { Object3D } from 'three';
  * Geometry and materials are declared in JSX, so R3F disposes them when
  * the scene unmounts.
  */
-const MAX = { column: 48, block: 12, rock: 112 };
+const MAX = { column: 48, block: 12, rock: 112, geyser: 12 };
+
+// Geyser colours (additive, so black is invisible): a dim ember while charging, a hot orange plume when
+// erupting, with a brighter narrow core inside.
+const GEYSER_COOL = new Color('#3a1204');
+const GEYSER_HOT = new Color('#ff7a1a');
+const CORE_COOL = new Color('#000000');
+const CORE_HOT = new Color('#ffe9b0');
 const CAP_THICKNESS = 0.14;
 
 export default function ObstacleField({ sim }) {
@@ -20,7 +27,18 @@ export default function ObstacleField({ sim }) {
   const blocks = useRef();
   const blockCaps = useRef();
   const rocks = useRef();
+  const geysers = useRef();
+  const cores = useRef();
   const dummy = useMemo(() => new Object3D(), []);
+  const tint = useMemo(() => new Color(), []);
+
+  // Instance colours must exist before the first frame.
+  useEffect(() => {
+    for (let i = 0; i < MAX.geyser; i++) {
+      geysers.current?.setColorAt(i, GEYSER_COOL);
+      cores.current?.setColorAt(i, CORE_COOL);
+    }
+  }, []);
 
   useFrame(() => {
     if (!columns.current) return;
@@ -31,6 +49,7 @@ export default function ObstacleField({ sim }) {
     let nBlock = 0;
     let nBlockCap = 0;
     let nRock = 0;
+    let nGeyser = 0;
 
     for (const o of sim.obstacles.active) {
       const x = o.x - dist;
@@ -43,6 +62,25 @@ export default function ObstacleField({ sim }) {
         dummy.scale.set(o.r * o.sx, o.r * o.sy, o.r * o.sz);
         dummy.updateMatrix();
         rocks.current.setMatrixAt(nRock++, dummy.matrix);
+        continue;
+      }
+
+      if (o.kind === 'geyser') {
+        if (nGeyser >= MAX.geyser) continue;
+        dummy.position.set(x, o.y, 0);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(o.w * 0.85, o.h, o.d * 0.85);
+        dummy.updateMatrix();
+        geysers.current.setMatrixAt(nGeyser, dummy.matrix);
+        tint.copy(GEYSER_COOL).lerp(GEYSER_HOT, o.glow);
+        geysers.current.setColorAt(nGeyser, tint);
+        dummy.scale.set(o.w * 0.36, o.h, o.d * 0.36);
+        dummy.updateMatrix();
+        cores.current.setMatrixAt(nGeyser, dummy.matrix);
+        // The core only lights up during the eruption itself.
+        tint.copy(CORE_COOL).lerp(CORE_HOT, Math.max(0, (o.glow - 0.5) * 2));
+        cores.current.setColorAt(nGeyser, tint);
+        nGeyser++;
         continue;
       }
 
@@ -71,6 +109,10 @@ export default function ObstacleField({ sim }) {
     commit(blocks.current, nBlock);
     commit(blockCaps.current, nBlockCap);
     commit(rocks.current, nRock);
+    commit(geysers.current, nGeyser);
+    commit(cores.current, nGeyser);
+    if (geysers.current.instanceColor) geysers.current.instanceColor.needsUpdate = true;
+    if (cores.current.instanceColor) cores.current.instanceColor.needsUpdate = true;
   });
 
   return (
@@ -103,6 +145,31 @@ export default function ObstacleField({ sim }) {
       <instancedMesh ref={blockCaps} args={[undefined, undefined, MAX.block]} frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
         <meshBasicMaterial color="#ff7a1f" toneMapped={false} />
+      </instancedMesh>
+
+      <instancedMesh
+        ref={geysers}
+        args={[undefined, undefined, MAX.geyser]}
+        frustumCulled={false}
+        renderOrder={2}
+      >
+        <cylinderGeometry args={[0.5, 0.62, 1, 10]} />
+        <meshBasicMaterial
+          toneMapped={false}
+          transparent
+          opacity={0.85}
+          depthWrite={false}
+          blending={AdditiveBlending}
+        />
+      </instancedMesh>
+      <instancedMesh
+        ref={cores}
+        args={[undefined, undefined, MAX.geyser]}
+        frustumCulled={false}
+        renderOrder={3}
+      >
+        <cylinderGeometry args={[0.5, 0.6, 1, 10]} />
+        <meshBasicMaterial toneMapped={false} transparent depthWrite={false} blending={AdditiveBlending} />
       </instancedMesh>
 
       <instancedMesh ref={rocks} args={[undefined, undefined, MAX.rock]} frustumCulled={false}>

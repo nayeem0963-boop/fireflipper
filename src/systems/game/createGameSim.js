@@ -6,6 +6,7 @@ import { createTrack, fillTrack, resetTrack, speedAt } from '../obstacles/spawne
 import { computeScore, streakMultiplier, toMetres } from '../scoring/scoring.js';
 import { GAME_EVENTS } from '../events/gameEvents.js';
 import { createRng, randomSeed } from '../../utils/random.js';
+import { DYN, animate } from '../obstacles/dynamics.js';
 
 /**
  * The whole game simulation as plain JavaScript: no React, no Three.js.
@@ -51,6 +52,21 @@ function createObstacle() {
     /** Closest approach so far (near-miss tracking) and whether the bird has cleared it. */
     gap: Infinity,
     passed: false,
+    /** Dynamic behaviour: 0 static, 1 swinging gate edge, 2 geyser. See animate(). */
+    dyn: 0,
+    /** Collidable right now (a geyser is harmless while charging or resting). */
+    live: true,
+    /** 0..1 render hint: how hot a geyser is (telegraph glow). */
+    glow: 0,
+    edge0: 0,
+    farY: 0,
+    side: 1,
+    amp: 0,
+    freq: 0,
+    period: 0,
+    maxH: 0,
+    /** Phase offset into the motion: radians for a swinging gate, seconds for a geyser. */
+    offset: 0,
   };
 }
 function createOrb() {
@@ -67,12 +83,20 @@ export function createGameSim() {
   const powerups = new ObjectPool(createPowerup, undefined, 8);
   const track = createTrack();
 
+  /** Clears per-run state on a pooled obstacle record. */
+  function reset(o) {
+    o.gap = Infinity;
+    o.passed = false;
+    o.dyn = 0;
+    o.live = true;
+    o.glow = 0;
+  }
+
   /** Pool-backed builder handed to obstacle patterns. */
   const builder = {
     column(cx, yBottom, yTop, w, cap) {
       const o = obstacles.acquire();
-      o.gap = Infinity;
-      o.passed = false;
+      reset(o);
       o.kind = 'column';
       o.shape = 'box';
       o.x = cx;
@@ -90,8 +114,7 @@ export function createGameSim() {
     },
     block(x0, x1, yBottom, yTop, cap) {
       const o = obstacles.acquire();
-      o.gap = Infinity;
-      o.passed = false;
+      reset(o);
       o.kind = 'block';
       o.shape = 'box';
       o.x = (x0 + x1) / 2;
@@ -107,10 +130,59 @@ export function createGameSim() {
       o.cap = cap;
       o.extent = o.w / 2;
     },
+    /**
+     * A gate whose opening swings up and down: both columns share one sine wave, so the gap keeps its
+     * height and only its position moves. `freq` is in cycles per second.
+     */
+    swingGate(cx, w, center, gap, amp, freq, phase) {
+      for (const side of [-1, 1]) {
+        const o = obstacles.acquire();
+        reset(o);
+        o.kind = 'column';
+        o.shape = 'box';
+        o.x = cx;
+        o.z = 0;
+        o.w = w;
+        o.d = w;
+        o.hw = w * 0.4;
+        o.rot = rng() * Math.PI;
+        o.spin = 0;
+        o.cap = -side; // glow on the end facing the gap
+        o.extent = w / 2;
+        o.dyn = DYN.SWING;
+        o.side = side;
+        o.edge0 = center + (side * gap) / 2;
+        o.farY = side < 0 ? WORLD.groundY - 1.5 : WORLD.obstacleTopY;
+        o.amp = amp;
+        o.freq = freq;
+        o.offset = phase;
+        animate(o, 0);
+      }
+    },
+    /** A lava geyser vent on the ground: quiet, then a telegraphed eruption up to `maxH`, on a cycle. */
+    geyser(cx, w, maxH, period, phaseSeconds) {
+      const o = obstacles.acquire();
+      reset(o);
+      o.kind = 'geyser';
+      o.shape = 'box';
+      o.x = cx;
+      o.z = 0;
+      o.w = w;
+      o.d = w;
+      o.hw = w * 0.4;
+      o.rot = 0;
+      o.spin = 0;
+      o.cap = 0;
+      o.extent = w / 2;
+      o.dyn = DYN.GEYSER;
+      o.maxH = maxH;
+      o.period = period;
+      o.offset = phaseSeconds;
+      animate(o, 0);
+    },
     rock(x, y, r) {
       const o = obstacles.acquire();
-      o.gap = Infinity;
-      o.passed = false;
+      reset(o);
       o.kind = 'rock';
       o.shape = 'circle';
       o.x = x;
@@ -166,6 +238,8 @@ export function createGameSim() {
     deathTime: 0,
     /** Interpolation factor between the last two fixed steps (set by the loop). */
     alpha: 1,
+    /** Seconds since the first flap; drives moving obstacles so they are identical in every replay. */
+    runTime: 0,
     bird: {
       y: WORLD.birdStartY,
       prevY: WORLD.birdStartY,
@@ -211,6 +285,7 @@ export function createGameSim() {
       sim.phase = PHASE.READY;
       sim.time = 0;
       sim.tick = 0;
+      sim.runTime = 0;
       sim.inputLog.length = 0;
       sim.logOverflow = false;
       sim.distance = sim.prevDistance = sim.scoredDistance = 0;
@@ -294,6 +369,7 @@ export function createGameSim() {
 
   function stepRunning(dt) {
     const b = sim.bird;
+    sim.runTime += dt;
     if (sim.input.flapQueued) {
       sim.input.flapQueued = false;
       applyFlap(b);
@@ -332,6 +408,8 @@ export function createGameSim() {
         obstacles.release(o);
         continue;
       }
+      if (o.dyn) animate(o, sim.runTime);
+      if (!o.live) continue; // e.g. a geyser that is charging or resting
       const dx = Math.abs(o.x - bx);
       if (dx > o.extent + R + SCORING.nearMissMargin) continue; // broad phase
       if (dx <= o.extent + R && circleHitsObstacle(bx, b.y, R, o)) {

@@ -93,11 +93,23 @@ scripts/
 - **Flight:** a flap sets upward speed. Holding softens gravity while rising (a higher climb), and
   releasing lets gravity take over. Down/S dives faster, with a smooth recovery afterwards. The ground
   is lava, and the ceiling is a soft limit.
-- **Sections:** gates, single columns, floating rocks, rock formations and narrow passages. Gaps
-  shrink, spacing tightens, speed rises (6.5 → 10.5 u/s) and new section types unlock with distance.
+- **Sections:** gates, single columns, floating rocks, rock formations and narrow passages, plus two moving
+  hazards: **swinging gates** (from 150 m; the opening slides up and down) and **lava geysers** (from 260 m;
+  a telegraphed glow, then an eruption, on a cycle, with low orbs as bait). Gaps shrink, spacing tightens,
+  speed rises (6.5 → 10.5 u/s) and new section types unlock with distance.
+- **Rhythm:** after every 4-6 hazard sections the track opens into a **breather**: an orb arc and no hazards
+  (the last two sections before one come slightly faster, so tension builds and releases).
+- **Late game:** past the main ramp (about 1,640 m) the track keeps escalating over the next 2,400 m: gaps
+  shrink by up to 0.35, spacing by up to 0.9 and speed rises by up to 1 u/s (to 11.5). Without this a perfect
+  player never met anything harder than the 1,640 m track.
+- **Moving hazards stay fair:** a swinging gate always has a lane that is open at every moment of the swing
+  (at least about 2.5 units wide), so no timing is needed, though timing the wide moment gives more room. A
+  geyser never erupts above the corridor it guards. Motion is a pure function of run time since the first flap
+  (`systems/obstacles/dynamics.js`), so replays, the server check and the ghost all see the same hazards.
 - **Fairness:** each corridor's centre is constrained to be reachable from anywhere the bird could
   have left the previous section, using conservative climb (3.2 u/s) and drop (4.5 u/s) rates. An
-  autopilot in `npm run test:sim` survives 40 of 40 random tracks to 3,000 m.
+  autopilot in `npm run test:sim` survives 40 of 40 random tracks to 3,000 m (late game and moving hazards
+  included).
 - **Near misses:** passing within 0.28 units of an obstacle's surface without touching it pays a
   "Close call" bonus (3 points). Consecutive close calls within 4 s build a streak that multiplies
   the bonus up to 5x. Tracked in the simulation (`trackNearMiss`) and covered by `npm run test:sim`.
@@ -111,7 +123,7 @@ scripts/
 - **Bird skins:** four palettes unlocked by best free-play score (0 / 600 / 1,500 / 3,000), chosen in
   Settings.
 - **Scoring:** 1 point per metre plus 5 per fire orb. Orb supply (passage lines every 3 units, a
-  trail before 30% of sections) is tuned so orbs make up about 39% of a skilled 3,000 m run (~1,950
+  trail before 30% of sections) is tuned so orbs make up about 40% of a skilled 3,000 m run (~1,950
   orb points against 3,000 distance points): a bonus, not the main source of points. Best score is
   saved locally; session best is kept until the page closes. Crashes and pickups can only register
   once (orbs leave the pool immediately, and both the simulation and the store guard the end of a run).

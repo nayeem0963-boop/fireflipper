@@ -13,6 +13,8 @@ import { PHYSICS, WORLD, SCORING, POWERUPS } from '../src/systems/physics/consta
 import { seedForKey, todayKey } from '../src/utils/daily.js';
 import { SKINS, getSkin, isUnlocked, resolveSkin, newlyUnlocked } from '../src/systems/skins/skins.js';
 import { BIOME_SHIFT, biomeBlendAt, biomeIdAt } from '../src/systems/biomes/biomes.js';
+import { DYN, GEYSER, geyserState, swingEdge } from '../src/systems/obstacles/dynamics.js';
+import { escalationAt, speedAt } from '../src/systems/obstacles/spawner.js';
 import { computeScore } from '../src/systems/scoring/scoring.js';
 
 const DT = PHYSICS.fixedStep;
@@ -381,6 +383,189 @@ section('Biomes');
   let monotonic = true;
   for (let d = 0; d < 1000; d += 5) if (biomeBlendAt(d + 5) < biomeBlendAt(d)) monotonic = false;
   check('blend never goes backwards', monotonic);
+}
+
+// ---------------------------------------------------------------- track rhythm
+section('Track rhythm and escalation');
+{
+  // Autopilot a number of tracks, recording what the generator produced.
+  let breathers = 0;
+  let breathersWithHazards = 0;
+  let breathersWithOrbs = 0;
+  let maxHazardRun = 0;
+  const kinds = new Set();
+  for (let seed = 1; seed <= 12; seed++) {
+    const sim = createGameSim();
+    sim.reset(seed);
+    sim.flap();
+    const seenBreathers = new Set();
+    let run = 0;
+    let lastType = null;
+    for (let i = 0; i < 120 * 200 && sim.phase === PHASE.RUNNING && sim.distance < 1200; i++) {
+      const c = sim.track.corridors.find((k) => k.x1 > sim.distance - 0.3);
+      const target = c ? Math.max(c.lo + 0.8, c.center - 0.6) : 0;
+      if (sim.bird.vy < 0 && (sim.bird.y < target || (c && sim.bird.y < c.lo + 0.5))) sim.flap();
+      sim.step(DT);
+      for (const k of sim.track.corridors) {
+        if (k.type !== lastType && k.x0 > 0 && !seenBreathers.has(k)) {
+          seenBreathers.add(k);
+          if (k.type === 'breather') {
+            breathers++;
+            run = 0;
+            const inside = [...sim.obstacles.active].filter(
+              (o) => o.x + o.extent > k.x0 + 0.6 && o.x - o.extent < k.x1,
+            );
+            if (inside.length) breathersWithHazards++;
+            if ([...sim.orbs.active].some((o) => o.x >= k.x0 && o.x <= k.x1)) breathersWithOrbs++;
+          } else {
+            run++;
+            maxHazardRun = Math.max(maxHazardRun, run);
+          }
+        }
+      }
+      for (const o of sim.obstacles.active)
+        kinds.add(o.dyn ? (o.dyn === DYN.SWING ? 'swing' : 'geyser') : o.kind);
+    }
+  }
+  check('breathers appear on generated tracks', breathers >= 12, `${breathers}`);
+  // (A rock formation can overhang the end of its own section by a fraction of a unit, so ignore the first 0.6.)
+  check('breathers contain no hazards', breathersWithHazards === 0, `${breathersWithHazards} had hazards`);
+  check('breathers offer orbs', breathersWithOrbs >= breathers * 0.9, `${breathersWithOrbs}/${breathers}`);
+  check('hazard stretches stay bounded (relief is regular)', maxHazardRun <= 8, `longest ${maxHazardRun}`);
+  check('swinging gates appear', kinds.has('swing'));
+  check('geysers appear', kinds.has('geyser'));
+
+  check('escalation is zero before the late game', escalationAt(1000) === 0 && escalationAt(1640) === 0);
+  check('escalation keeps rising after the main ramp', escalationAt(2500) > 0.3 && escalationAt(4100) === 1);
+  check(
+    'speed keeps rising after the main ramp',
+    speedAt(3000) > WORLD.maxSpeed && speedAt(1500) === WORLD.maxSpeed,
+  );
+}
+
+// ---------------------------------------------------------------- moving hazards
+section('Moving hazards');
+{
+  const swing = (over = {}) => ({
+    dyn: DYN.SWING,
+    side: -1,
+    edge0: 1,
+    amp: 0.7,
+    freq: 0.35,
+    offset: 0.4,
+    farY: -4.7,
+    ...over,
+  });
+
+  // A swinging gate: both edges move together, so the opening keeps its height.
+  const lower = swing({ side: -1, edge0: 1 - 1.5, farY: -4.7 });
+  const upper = swing({ side: 1, edge0: 1 + 1.5, farY: 14 });
+  let minOpen = Infinity;
+  let maxOpen = -Infinity;
+  let laneLo = -Infinity;
+  let laneHi = Infinity;
+  for (let t = 0; t < 12; t += 0.01) {
+    const lo = swingEdge(lower, t);
+    const hi = swingEdge(upper, t);
+    minOpen = Math.min(minOpen, hi - lo);
+    maxOpen = Math.max(maxOpen, hi - lo);
+    laneLo = Math.max(laneLo, lo);
+    laneHi = Math.min(laneHi, hi);
+  }
+  check('the opening keeps a constant height', maxOpen - minOpen < 1e-9);
+  check('a lane stays open at every moment', laneHi - laneLo > 3 - 2 * 0.7 - 0.01, `${laneHi - laneLo}`);
+  check(
+    'the lane matches the generator guarantee',
+    Math.abs(laneLo - (1 - 1.5 + 0.7)) < 0.01 && Math.abs(laneHi - (1 + 1.5 - 0.7)) < 0.01,
+  );
+
+  // Geyser cycle.
+  const g = { period: 3.4, offset: 0, maxH: 4 };
+  let liveBeforeTelegraphEnds = false;
+  let sawLive = false;
+  let maxH = 0;
+  for (let t = 0; t < g.period * 3; t += 0.005) {
+    const st = geyserState(g, t);
+    const u = t % g.period;
+    if (u < GEYSER.telegraph && st.live) liveBeforeTelegraphEnds = true;
+    if (st.live) sawLive = true;
+    maxH = Math.max(maxH, st.h);
+  }
+  check('a geyser always telegraphs before it can hurt', !liveBeforeTelegraphEnds);
+  check('a geyser does erupt', sawLive);
+  check('a geyser never exceeds its height', maxH <= g.maxH + 1e-9);
+  check(
+    'a geyser is quiet for part of every cycle',
+    !geyserState(g, g.period - 0.2).live && !geyserState(g, 0.2).live,
+  );
+  check('the glow rises through the telegraph', geyserState(g, 0.7).glow > geyserState(g, 0.05).glow);
+  check('the cycle repeats', geyserState(g, 1.3).h === geyserState(g, 1.3 + g.period).h);
+
+  // In the simulation: erupting geysers kill, quiet ones do not, and the run clock only starts on the first flap.
+  const arrival = 4 / WORLD.baseSpeed;
+  const flyThrough = (offset) => {
+    const sim = createGameSim();
+    sim.reset(41);
+    sim.obstacles.releaseAll();
+    sim.orbs.releaseAll();
+    sim.powerups.releaseAll();
+    sim.track.nextX = 1e9;
+    sim.flap();
+    const o = sim.obstacles.acquire();
+    Object.assign(o, {
+      kind: 'geyser',
+      shape: 'box',
+      x: 4,
+      z: 0,
+      w: 1.4,
+      d: 1.4,
+      hw: 0.56,
+      extent: 0.7,
+      rot: 0,
+      cap: 0,
+      dyn: DYN.GEYSER,
+      maxH: 4,
+      period: 3.4,
+      offset,
+      live: true,
+      glow: 0,
+      gap: Infinity,
+      passed: false,
+    });
+    for (let i = 0; i < 400 && sim.phase === PHASE.RUNNING; i++) {
+      sim.bird.y = sim.bird.prevY = -1.6; // low enough to be inside an eruption, above the lava
+      sim.bird.vy = 0;
+      sim.step(DT);
+      if (sim.distance > 7) break;
+    }
+    return sim;
+  };
+  const erupting = flyThrough(GEYSER.telegraph + 0.4 - arrival);
+  check(
+    'flying into an erupting geyser is fatal',
+    erupting.phase !== PHASE.RUNNING && erupting.death?.kind === 'geyser',
+    `${erupting.phase} ${erupting.death?.kind}`,
+  );
+  const resting = flyThrough(GEYSER.telegraph + GEYSER.erupt + GEYSER.retract + 0.3 - arrival);
+  check(
+    'a quiet geyser can be flown past',
+    resting.phase === PHASE.RUNNING && resting.distance > 6,
+    `${resting.phase}`,
+  );
+  const charging = flyThrough(0.1 - arrival);
+  check(
+    'a charging geyser is harmless',
+    charging.phase === PHASE.RUNNING && charging.distance > 6,
+    `${charging.phase}`,
+  );
+
+  const clock = createGameSim();
+  clock.reset(5);
+  for (let i = 0; i < 120; i++) clock.step(DT);
+  check('the run clock waits for the first flap', clock.runTime === 0);
+  clock.flap();
+  for (let i = 0; i < 120; i++) clock.step(DT);
+  check('...then counts run time', Math.abs(clock.runTime - 1) < 1e-6, `${clock.runTime}`);
 }
 
 // ---------------------------------------------------------------- daily challenge
