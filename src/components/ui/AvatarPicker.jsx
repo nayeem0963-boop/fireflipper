@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useGameStore } from '../../store/useGameStore.js';
-import { AVATARS, isAvatarUnlocked } from '../../systems/avatars/avatars.js';
+import { AVATARS, AVATAR_GROUPS, isAvatarUnlocked } from '../../systems/avatars/avatars.js';
 import { LICENCE, getCredit } from '../../systems/avatars/credits.js';
 import { useSkin } from '../../hooks/useSkin.js';
 import SceneCanvas from '../scene/SceneCanvas.jsx';
@@ -10,9 +10,9 @@ import { CloseIcon } from './Icons.jsx';
 import '../../styles/panel.css';
 
 const swatch = (a) =>
-  a.kind === 'model'
-    ? { '--skin': a.palette.mid, '--skin-2': a.palette.high }
-    : { '--skin': a.palette.wing ?? '#ff6a1a', '--skin-2': a.palette.belly ?? '#ffb347' };
+  a.kind === 'firebird'
+    ? { '--skin': a.palette.wing ?? '#ff6a1a', '--skin-2': a.palette.belly ?? '#ffb347' }
+    : { '--skin': a.palette.mid, '--skin-2': a.palette.high };
 
 /** Choose which bird to fly as. A live preview shows the selection; model birds credit their authors. */
 export default function AvatarPicker() {
@@ -31,11 +31,11 @@ export default function AvatarPicker() {
     return () => window.removeEventListener('keydown', onKey);
   }, [close]);
 
-  const group = (title, kind) => (
-    <section className="avatars__group" aria-label={title}>
+  const group = (title) => (
+    <section key={title} className="avatars__group" aria-label={title}>
       <h3 className="avatars__heading">{title}</h3>
       <div className="avatars__grid" role="radiogroup" aria-label={title}>
-        {AVATARS.filter((a) => a.kind === kind).map((a) => {
+        {AVATARS.filter((a) => a.group === title).map((a) => {
           const unlocked = isAvatarUnlocked(a, bestScore);
           return (
             <button
@@ -101,8 +101,7 @@ export default function AvatarPicker() {
           </p>
         )}
 
-        {group('Fire Flipper', 'firebird')}
-        {group('Fire-lit wildlife', 'model')}
+        {AVATAR_GROUPS.map((title) => group(title))}
         <p className="panel__note">Your choice changes how your bird looks, not how it flies.</p>
       </div>
     </div>

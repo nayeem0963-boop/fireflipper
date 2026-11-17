@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
-import { AdditiveBlending, Box3, Euler, Matrix4, Vector3 } from 'three';
+import { Box3, Euler, Matrix4, Vector3 } from 'three';
 import { modelUrl } from '../../systems/avatars/avatars.js';
-import { getGlowTexture } from '../../utils/textures.js';
+import FlameAura from './FlameAura.jsx';
 import { createFireMaterial, createFireUniforms } from './fireMaterial.js';
 
 /**
@@ -16,16 +16,6 @@ import { createFireMaterial, createFireUniforms } from './fireMaterial.js';
 const STROKE_TIME = 0.22;
 const easeOut = (u) => 1 - (1 - u) * (1 - u);
 
-/** Trail of glows behind the bird: [x offset, size, opacity], brightest at the bird. */
-const FLAME_PUFFS = [
-  [-0.1, 1.5, 0.75],
-  [-0.55, 1.35, 0.6],
-  [-1.0, 1.15, 0.5],
-  [-1.4, 0.95, 0.4],
-  [-1.75, 0.75, 0.3],
-  [-2.05, 0.55, 0.2],
-];
-
 export default function ModelBird({
   avatar,
   float = 0.12,
@@ -36,9 +26,7 @@ export default function ModelBird({
   ...props
 }) {
   const { scene } = useGLTF(modelUrl(avatar));
-  const glowMap = useMemo(getGlowTexture, []);
   const wrap = useRef();
-  const flame = useRef();
   const phase = useRef(Math.random() * 6);
   const kick = useRef(0);
 
@@ -93,39 +81,12 @@ export default function ModelBird({
     g.rotation.z = k * 0.2;
     g.rotation.x = dead ? 1.1 : beat * 0.05;
     g.scale.set(s * (1 - 0.04 * k), s * (1 + 0.07 * k + (dead ? 0 : beat * 0.025)), s);
-
-    // Flame tail: three tongues that flicker in length and sway.
-    flame.current?.children.forEach((puff, i) => {
-      const flick = 0.85 + 0.2 * Math.sin(t * 17 + i * 2.1) + 0.08 * Math.sin(t * 29 + i);
-      const { size, x } = puff.userData;
-      puff.scale.set(size * flick, size * 0.55 * flick, 1);
-      puff.position.y = Math.sin(t * 7 + i * 1.7) * 0.06 * (i + 1) * 0.4;
-      puff.position.x = x * (0.95 + 0.08 * Math.sin(t * 11 + i));
-    });
   });
 
   const { palette } = avatar;
   return (
     <group {...props}>
-      {/* Further out and gentler than the original bird's light: these models are bigger and would blow out */}
-      <pointLight
-        color={palette.glow}
-        intensity={lightIntensity * 0.55}
-        distance={9}
-        decay={1.6}
-        position={[0.2, 0.6, 2.4]}
-      />
-      <sprite scale={[4.2, 4.2, 1]} renderOrder={-1}>
-        <spriteMaterial
-          map={glowMap}
-          color={palette.glow}
-          transparent
-          opacity={glow}
-          depthWrite={false}
-          blending={AdditiveBlending}
-          toneMapped={false}
-        />
-      </sprite>
+      <FlameAura palette={palette} tailX={tail} glow={glow} lightIntensity={lightIntensity} />
 
       <group ref={wrap}>
         <group rotation={[0, 0, avatar.pitch]}>
@@ -137,23 +98,6 @@ export default function ModelBird({
             />
           </group>
         </group>
-      </group>
-
-      {/* Flame tail: a comet of soft glows trailing behind the bird, flickering in size */}
-      <group ref={flame} position={[tail * 0.9, 0, 0]}>
-        {FLAME_PUFFS.map(([x, size, opacity], i) => (
-          <sprite key={i} position={[x, 0, 0]} scale={[size, size * 0.55, 1]} userData={{ size, x }}>
-            <spriteMaterial
-              map={glowMap}
-              color={i < 2 ? palette.high : i < 4 ? palette.mid : palette.low}
-              transparent
-              opacity={opacity}
-              depthWrite={false}
-              blending={AdditiveBlending}
-              toneMapped={false}
-            />
-          </sprite>
-        ))}
       </group>
     </group>
   );

@@ -43,6 +43,18 @@ By Fire Flipper (all six):
 - Turned to face the direction of flight (and, for the harpy eagle and the rainbow macaw, tilted to fly level) and
   scaled to fit the game. The model files themselves are unchanged.
 
+## Code-built birds from the Bulbuli project
+
+The **Bulbuli** birds (Fire, Sunburst, Blue-Flame and Obsidian Bulbuli) and the **tanagers** (Ember and Cobalt) are not
+downloaded models. They are built in code, from primitive shapes and generated geometry, and were ported from the
+Bulbuli project (the same author as Fire Flipper): the player bird in `games/PlayerBird3D.jsx`, and the Amazon
+rainforest tanager in `games/world-explorer/rendering/rainforestBird.js` and `AmazonBirdAvatar.jsx` with its mesh-building
+helpers (`mangroveGeometry.js`). There is no third-party licence to carry for them. Here they were given fire colour
+schemes, glow and a flame tail, and wing beats driven by the game's flight state.
+
+The Bulbuli mascot's 3D model file (`public/models/bulbuli.glb` in that project) was **not** used: it is a Sketchfab
+export with no author or licence recorded, so it is not safe to redistribute here until that is known.
+
 ## Everything else
 
 Fire Flipper's own code, its original firebird and its procedural sound and music are the project's own.

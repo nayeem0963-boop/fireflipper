@@ -182,10 +182,13 @@ input entries).
 
 ### Choosing your bird
 
-**Your bird** on the menu (or Settings > Bird) opens a picker with a live preview. There are ten birds:
+**Your bird** on the menu (or Settings > Bird) opens a picker with a live preview. There are sixteen birds:
 
 - **Fire Flipper** (the original bird in four colour schemes: Ember, Azure Flame, Verdant Blaze, Void Phoenix). The
   last three unlock by best free-play score.
+- **Bulbuli and friends** (always free): birds built in code, ported from the Bulbuli project, with real wing
+  beats: four colourways of **Bulbuli** the red-whiskered bulbul (**Fire**, **Sunburst**, **Blue-Flame** and **Obsidian
+  Bulbuli**) and two tanagers (**Ember** and **Cobalt Tanager**). No files to download and no third-party licence.
 - **Fire-lit wildlife** (always free): six real 3D bird models re-lit as fire birds: **Blaze Macaw**, **Rainbow
   Phoenix**, **Sapphire Macaw**, **Ember Toucan**, **Inferno Harpy** and **Magma Hoatzin**.
 
