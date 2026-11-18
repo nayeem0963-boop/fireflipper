@@ -27,6 +27,7 @@ export const DRIFT = {
   arctic: { color: '#ffffff', size: 0.13, opacity: 0.85, fall: 0.05, drift: 0.09 },
   celestial: { color: '#cfd2ff', size: 0.1, opacity: 0.8, fall: -0.02, drift: 0.04 },
   palace: { color: '#ffc4d8', size: 0.14, opacity: 0.8, fall: 0.04, drift: 0.1 },
+  sanctuary: { color: '#ffe3a0', size: 0.11, opacity: 0.8, fall: -0.025, drift: 0.05 },
 };
 
 /** Deterministic particle seeds (u, v across the loop, w for depth and speed variation). */

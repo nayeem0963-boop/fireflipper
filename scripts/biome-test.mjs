@@ -1,5 +1,5 @@
 /**
- * Scenery-zone tests (Red Rock Canyon 0-1500 m, Arctic 1500-2000 m, Celestial Realm 2000-3000 m, Rose Sky Palace 3000-5000 m).
+ * Scenery-zone tests (Red Rock Canyon 0-1500 m, Arctic 1500-2000 m, Celestial Realm 2000-3000 m, Rose Sky Palace 3000-5000 m, Cloud Sanctuary 5000 m onwards).
  * Run with: npm run test:biome
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -22,21 +22,23 @@ const K = BIOMES.canyon;
 const R = BIOMES.arctic;
 const C = BIOMES.celestial;
 const P = BIOMES.palace;
+const SZ = BIOMES.sanctuary;
 
 // ------------------------------------------------------------------ ranges
 check('Red Rock Canyon covers 0 to 1500 m', K.start === 0 && K.end === 1500);
 check('Frosty Polar covers 1500 to 2000 m', R.start === 1500 && R.end === 2000);
 check('Celestial Realm covers 2000 to 3000 m', C.start === 2000 && C.end === 3000);
 check('Rose Sky Palace covers 3000 to 5000 m', P.start === 3000 && P.end === 5000);
-check('four live zones, in order; the retired scenes are not among them', ZONE_IDS.join() === 'canyon,arctic,celestial,palace' && BIOMES.sundarbans.retired && BIOMES.amazon.retired);
-check('zone lookup by border', biomeAt(0)?.id === 'canyon' && biomeAt(1499.9)?.id === 'canyon' && biomeAt(1500)?.id === 'arctic' && biomeAt(1999.9)?.id === 'arctic' && biomeAt(2000)?.id === 'celestial' && biomeAt(2999.9)?.id === 'celestial' && biomeAt(3000)?.id === 'palace' && biomeAt(4999.9)?.id === 'palace' && biomeAt(5000) === null && biomeAt(9000) === null);
+check('five live zones, in order; the retired scenes are not among them', ZONE_IDS.join() === 'canyon,arctic,celestial,palace,sanctuary' && BIOMES.sundarbans.retired && BIOMES.amazon.retired);
+check('zone lookup by border', biomeAt(0)?.id === 'canyon' && biomeAt(1499.9)?.id === 'canyon' && biomeAt(1500)?.id === 'arctic' && biomeAt(1999.9)?.id === 'arctic' && biomeAt(2000)?.id === 'celestial' && biomeAt(2999.9)?.id === 'celestial' && biomeAt(3000)?.id === 'palace' && biomeAt(4999.9)?.id === 'palace' && biomeAt(5000)?.id === 'sanctuary' && biomeAt(9000)?.id === 'sanctuary' && biomeAt(1e7)?.id === 'sanctuary');
 check('game-over wording per zone', /canyon/i.test(K.lavaCopy) && /ice/i.test(R.lavaCopy) && /cloud/i.test(C.lavaCopy) && /pool/i.test(P.lavaCopy));
 
 // Each zone is full strength well inside it, and absent well outside it.
 check('Canyon is full strength from the start to 1460 m, gone from 1540 m', [0, 1, 250, 750, 1250, 1460].every((d) => zoneWeight(K, d) === 1) && zoneWeight(K, 1540) === 0 && zoneWeight(K, 6000) === 0);
 check('Arctic is off before 1460 m, full from 1540 to 1960 m, gone from 2040 m', zoneWeight(R, 0) === 0 && zoneWeight(R, 1460) === 0 && [1540, 1700, 1960].every((d) => zoneWeight(R, d) === 1) && zoneWeight(R, 2040) === 0);
 check('Celestial is off before 1960 m, full from 2040 to 2960 m, gone from 3040 m', zoneWeight(C, 0) === 0 && zoneWeight(C, 1960) === 0 && [2040, 2500, 2960].every((d) => zoneWeight(C, d) === 1) && zoneWeight(C, 3040) === 0);
-check('Palace is off before 2960 m, full from 3040 to 4920 m, gone by 5000 m', zoneWeight(P, 0) === 0 && zoneWeight(P, 2960) === 0 && [3040, 4000, 4920].every((d) => zoneWeight(P, d) === 1) && zoneWeight(P, 5000) === 0 && zoneWeight(P, 9000) === 0);
+check('Palace is off before 2960 m, full from 3040 to 4960 m, gone by 5040 m', zoneWeight(P, 0) === 0 && zoneWeight(P, 2960) === 0 && [3040, 4000, 4960].every((d) => zoneWeight(P, d) === 1) && zoneWeight(P, 5040) === 0 && zoneWeight(P, 9000) === 0);
+check('Cloud Sanctuary starts at 5000 m, never ends, and is full from 5040 m for ever', SZ.start === 5000 && SZ.end === Infinity && zoneWeight(SZ, 4960) === 0 && [5040, 9000, 123456, 1e9].every((d) => zoneWeight(SZ, d) === 1) && Math.abs(zoneWeight(SZ, 5000) - 0.5) < 1e-9);
 check('FADE and CROSSFADE are 80 m', FADE === 80 && CROSSFADE === 80);
 
 // Handover between zones: the weights add up to exactly 1 (so the original scenery never flashes in), and each fades smoothly.
@@ -48,10 +50,10 @@ const blank = () => Object.fromEntries(ZONE_IDS.map((id) => [id, 0]));
 const peaks = blank();
 const turns = blank();
 const dir = blank();
-for (let d = 0.5; d <= 5100; d += 0.5) {
+for (let d = 0.5; d <= 5200; d += 0.5) {
   const w = biomeWeights(d);
   const sum = Object.values(w).reduce((a, b) => a + b, 0);
-  if (d <= 4920 && Math.abs(sum - 1) > 1e-9) sumsToOne = false;
+  if (Math.abs(sum - 1) > 1e-9) sumsToOne = false;
   if (zoneStrength(d) < -1e-9 || zoneStrength(d) > 1 + 1e-9) strengthOk = false;
   for (const k of Object.keys(w)) {
     const step = w[k] - prevW[k];
@@ -63,17 +65,18 @@ for (let d = 0.5; d <= 5100; d += 0.5) {
     prevW[k] = w[k];
   }
 }
-check('weights add up to 1 from the start to 4920 m (no gap between zones)', sumsToOne);
+check('weights add up to 1 at every distance, through 5200 m (no gap between zones)', sumsToOne);
+check('weights add up to 1 far beyond (10 km, 100 km)', [10000, 55555, 100000].every((d) => Math.abs(Object.values(biomeWeights(d)).reduce((a, b) => a + b, 0) - 1) < 1e-9));
 check('combined strength stays within 0..1', strengthOk);
 check('every handover is smooth (no pops)', smoothSteps);
 check('each zone rises once and falls once (never flickers back)', Object.values(turns).every((t) => t <= 1) && Object.values(peaks).every((p) => Math.abs(p - 1) < 1e-9), JSON.stringify({ turns, peaks }));
-check('cross-fade is centred on the 1500, 2000 and 3000 m borders', [[K, R, 1500], [R, C, 2000], [C, P, 3000]].every(([a, b, at]) => Math.abs(zoneWeight(a, at) - 0.5) < 1e-9 && Math.abs(zoneWeight(b, at) - 0.5) < 1e-9));
+check('cross-fade is centred on the 1500, 2000, 3000 and 5000 m borders', [[K, R, 1500], [R, C, 2000], [C, P, 3000], [P, SZ, 5000]].every(([a, b, at]) => Math.abs(zoneWeight(a, at) - 0.5) < 1e-9 && Math.abs(zoneWeight(b, at) - 0.5) < 1e-9));
 check('the run starts inside the canyon with no fade-in', zoneWeight(K, 0) === 1);
-check('the original scenery is back by 5000 m', zoneStrength(5000) === 0 && zoneStrength(4960) > 0.1 && zoneStrength(4960) < 0.9);
-check('dominant zone', dominantZone(10)?.id === 'canyon' && dominantZone(1700)?.id === 'arctic' && dominantZone(2500)?.id === 'celestial' && dominantZone(4000)?.id === 'palace' && dominantZone(6000) === null);
+check('the original scenery never returns: the zones cover every distance', [0, 1500, 5000, 5020, 7777, 1e6].every((d) => Math.abs(zoneStrength(d) - 1) < 1e-9));
+check('dominant zone', dominantZone(10)?.id === 'canyon' && dominantZone(1700)?.id === 'arctic' && dominantZone(2500)?.id === 'celestial' && dominantZone(4000)?.id === 'palace' && dominantZone(6000)?.id === 'sanctuary' && dominantZone(50000)?.id === 'sanctuary');
 
 // ------------------------------------------------------------------ obstacle looks
-check('obstacle look by position: the canyon, celestial and palace recolour; the arctic keeps the original', obstacleStyleAt(0) === 'canyon' && obstacleStyleAt(1499.9) === 'canyon' && obstacleStyleAt(1500) === null && obstacleStyleAt(2500) === 'celestial' && obstacleStyleAt(4000) === 'palace' && obstacleStyleAt(5000) === null);
+check('obstacle look by position: the canyon, celestial and palace recolour; the arctic and everything from 5000 m on keep the original', obstacleStyleAt(0) === 'canyon' && obstacleStyleAt(1499.9) === 'canyon' && obstacleStyleAt(1500) === null && obstacleStyleAt(2500) === 'celestial' && obstacleStyleAt(4000) === 'palace' && obstacleStyleAt(5000) === null && obstacleStyleAt(8000) === null);
 check('no obstacle look with its own shapes is live (the animal and pillar looks are retired but kept)', ACTIVE_OBSTACLE_LOOKS.length === 0);
 
 // ------------------------------------------------------------------ fairness: obstacles and orbs read against every backdrop colour
@@ -130,14 +133,27 @@ for (const theme of THEME_LIST) {
   check(`arctic/${theme.id}: daytime orbs read against the sky and the snow`, [R.scene.skyTop, R.scene.snow, R.scene.snowShadow].every((bc) => contrast(T.orbHaloDay, bc) >= 1.7), '');
 }
 
+// The Cloud Sanctuary also keeps the themed (original) obstacles: test them against the sanctuary's sky and cloud colours.
+for (const theme of THEME_LIST) {
+  const T = theme.scene;
+  SZ.scene.backdrops.forEach((bc, i) => {
+    const pillar = Math.max(contrast(T.column.color, bc), contrast(T.column.cap, bc));
+    const slab = Math.max(contrast(T.block.color, bc), contrast(T.block.cap, bc));
+    check(`sanctuary/${theme.id}: pillar reads against backdrop colour ${i + 1}`, pillar >= 2, pillar.toFixed(2));
+    check(`sanctuary/${theme.id}: slab reads against backdrop colour ${i + 1}`, slab >= 2, slab.toFixed(2));
+  });
+  check(`sanctuary/${theme.id}: daytime orbs read against the sky and the clouds`, [SZ.scene.skyMid, SZ.scene.cloud, SZ.scene.cloudShadow].every((bc) => contrast(T.orbHaloDay, bc) >= 1.7), '');
+}
+
 // ------------------------------------------------------------------ paintings
 const PAINTINGS = {
   canyon: ['canyon-a.jpg', 'canyon-b.jpg', 'canyon-c.jpg'],
   arctic: ['frosty-glacier-valley.jpg', 'frosty-crystal-canyon.jpg', 'frosty-aurora-lake.jpg'],
   celestial: ['celestial-a.jpg', 'celestial-b.jpg', 'celestial-c.jpg'],
   palace: ['palace-a.jpg', 'palace-b.jpg', 'palace-c.jpg'],
+  sanctuary: ['sanctuary-dragon.jpg', 'sanctuary-cat.jpg', 'sanctuary-deer.jpg', 'sanctuary-tiger.jpg', 'sanctuary-clouds.jpg'],
 };
-const LIMIT_KB = { canyon: 180, arctic: 340, celestial: 180, palace: 220 };
+const LIMIT_KB = { canyon: 180, arctic: 340, celestial: 180, palace: 220, sanctuary: 300 };
 for (const [zone, files] of Object.entries(PAINTINGS)) {
   for (const f of files) {
     const path = new URL(`../public/images/backdrop/${f}`, import.meta.url);
@@ -147,7 +163,7 @@ for (const [zone, files] of Object.entries(PAINTINGS)) {
 }
 check('the retired scenery is gone from the live scene', !existsSync(new URL('../src/scenes/EmberValley/SundarbansBackdrop.jsx', import.meta.url)) && !existsSync(new URL('../src/scenes/EmberValley/AmazonBackdrop.jsx', import.meta.url)) && !existsSync(new URL('../src/scenes/EmberValley/VolcanoBackdrop.jsx', import.meta.url)));
 const sceneSource = read('src/scenes/EmberValley/EmberValleyScene.jsx');
-check('the scene mounts all four painted backdrops', ['CanyonBackdrop', 'ArcticBackdrop', 'CelestialBackdrop', 'PalaceBackdrop'].every((n) => new RegExp(n).test(sceneSource)));
+check('the scene mounts all five painted backdrops', ['CanyonBackdrop', 'ArcticBackdrop', 'CelestialBackdrop', 'PalaceBackdrop', 'SanctuaryBackdrop'].every((n) => new RegExp(n).test(sceneSource)));
 const zoneParts = read('src/scenes/EmberValley/ZoneParts.jsx');
 check('paintings load lazily, each at its own distance', /paintings\[i\]\.loadAt \?\? preloadAt/.test(zoneParts));
 const canyon = read('src/scenes/EmberValley/CanyonBackdrop.jsx');

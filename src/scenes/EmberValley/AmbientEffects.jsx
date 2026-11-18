@@ -9,7 +9,7 @@ import { BAND_Z } from './ZoneParts.jsx';
  * DriftParticles (canyon dust, snow, sparkles, petals: one Points draw call, all behind the flight plane) and AuroraShimmer (soft additive streaks over the
  * Frosty Polar sky). Purely visual.
  */
-const SEEDS = { canyon: 11, arctic: 22, celestial: 33, palace: 44 };
+const SEEDS = { canyon: 11, arctic: 22, celestial: 33, palace: 44, sanctuary: 55 };
 
 export function DriftParticles({ sim, wRef, zoneId }) {
   const cfg = DRIFT[zoneId];

@@ -14,6 +14,7 @@ const LOOKS = {
   arctic: { make: () => new DodecahedronGeometry(0.5, 0), squash: 0.5, color: '#e6f0f7', emissive: '#6a86a8', seed: 202 },
   celestial: { make: () => new OctahedronGeometry(0.5, 0), squash: 1.5, color: '#9a8cff', emissive: '#7a78c8', seed: 303 },
   palace: { make: () => new DodecahedronGeometry(0.5, 1), squash: 0.7, color: '#e58aa8', emissive: '#ffb0c8', seed: 404 },
+  sanctuary: { make: () => new DodecahedronGeometry(0.5, 1), squash: 0.6, color: '#fff2fa', emissive: '#d8c8ff', seed: 505 },
 };
 
 function ZoneForeground({ sim, zoneId }) {

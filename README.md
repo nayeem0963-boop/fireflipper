@@ -262,3 +262,9 @@ is capped (`SLIDE_CAP`, 0.2 units per metre) so the backdrop never outruns the 3
   rising sparkles, petals), and an aurora shimmer (additive curtains) over Crystal Ice Canyon and Aurora Lake. Island bobbing now follows the distance too, so scenery no longer uses the wall clock.
   `EmberParticles` and the bird animations still use the clock (they are not scenery scrolling).
 - `npm run test:ambient` covers residency, the memory budget, particle safety and the no-wall-clock rule. In development `window.__fireflipper.gl` exposes the renderer for stats.
+
+### Cloud Sanctuary (5000 m onwards, endless)
+
+This replaces the original scenery after 5000 m (the owner's later request): the Cloud Sanctuary zone starts at 5000 m (cross-fading with the palace) and never ends. Its five paintings are shown for 1000 m each (dragon, cat, deer, tiger,
+empty clouds) and the cycle repeats for ever (`cyclePlan` in `scrollDriver.js`, `LoopingPaintings` in `ZoneParts.jsx`). At most two paintings are on the GPU at a time (the next loads 150 m ahead, the previous is
+disposed 100 m after the cut). Obstacles keep their original look. The zone weights now add up to 1 at every distance, so the original mountains never come back.

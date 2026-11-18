@@ -1,6 +1,6 @@
 // Scenery scroll driver tests: distance-driven, frame-rate independent, pause-safe, seamless, correctly layered.
 import { readFileSync, readdirSync } from 'node:fs';
-import { DEPTH_SLIDE, SCROLL_SPEED, SLIDE_CAP, effectiveSlack, layerSlack, loopOffset, paintingSlide, paintingSpan, progress, slideWidth, wrap } from '../src/systems/world/scrollDriver.js';
+import { CYCLE, DEPTH_SLIDE, SCROLL_SPEED, cyclePlan, cycleSpan, SLIDE_CAP, effectiveSlack, layerSlack, loopOffset, paintingSlide, paintingSpan, progress, slideWidth, wrap } from '../src/systems/world/scrollDriver.js';
 import { BIOMES, CROSSFADE, ZONE_IDS } from '../src/systems/world/biomes.js';
 
 let failed = 0;
@@ -65,6 +65,7 @@ const viewWs = { desktop: 158, phonePortrait: 42, phoneLandscape: 120 };
 const read = (f) => readFileSync(new URL(`../src/scenes/EmberValley/${f}`, import.meta.url), 'utf8');
 const zoneFiles = { canyon: 'CanyonBackdrop.jsx', arctic: 'ArcticBackdrop.jsx', celestial: 'CelestialBackdrop.jsx', palace: 'PalaceBackdrop.jsx' };
 for (const id of ZONE_IDS) {
+  if (id === 'sanctuary') continue; // the looping zone is tested below
   const z = BIOMES[id];
   const src = read(zoneFiles[id]);
   const cuts = JSON.parse(/const CUTS = (\[[^\]]*\])/.exec(src)[1]);
@@ -104,6 +105,33 @@ for (const id of ['canyon', 'arctic', 'celestial', 'palace']) ok(/\bdepth\s*\/>/
 
 // a later painting always draws over an earlier one, whatever their horizons (explicit renderOrder by painting index)
 ok(/renderOrder=\{-2 \+ i \* 0\.1\}/.test(read('ZoneParts.jsx')) && /renderOrder=\{-2 \+ i \* 0\.1 \+ \(k \+ 1\) \* 0\.02\}/.test(read('ZoneParts.jsx')), 'painting draw order follows the painting index (far, mid, near within each)');
+
+// ---- the looping Cloud Sanctuary (5000 m onwards, five paintings of 1000 m each, repeating for ever)
+{
+  const files = ['dragon', 'cat', 'deer', 'tiger', 'clouds'];
+  const shown = (d) => files[cyclePlan(d, 5000).k % 5];
+  ok(shown(5000) === 'dragon' && shown(5999) === 'dragon' && shown(6000) === 'cat' && shown(7000) === 'deer' && shown(8000) === 'tiger' && shown(9000) === 'clouds', 'five paintings, 1000 m each, in the order dragon, cat, deer, tiger, clouds');
+  ok(shown(10000) === 'dragon' && shown(14999) === 'clouds' && shown(15000) === 'dragon' && shown(5000 + 5000 * 20 + 3000) === 'tiger', 'the cycle repeats after the fifth (10000 m = dragon again), for any distance');
+  ok(cyclePlan(4990, 5000).k === -1 && cyclePlan(4990, 5000).wanted.join() === '0', 'the first painting is preloaded before the zone starts');
+  // never more than two paintings wanted, never two in the same slot, over a very long run
+  let most = 0, clash = false, missingCurrent = false;
+  for (let d = 4000; d < 60000; d += 7) {
+    const p = cyclePlan(d, 5000);
+    most = Math.max(most, p.wanted.length);
+    if (new Set(p.wanted.map((k) => k % 2)).size !== p.wanted.length) clash = true;
+    if (p.k >= 0 && !p.wanted.includes(p.k)) missingCurrent = true;
+  }
+  ok(most <= 2 && !clash && !missingCurrent, `at most ${most} paintings resident at any distance up to 60 km, each in its own slot, the current one always included`);
+  ok(cyclePlan(5900, 5000).wanted.join() === '0' && cyclePlan(5860, 5000).wanted.join() === '0,1' && cyclePlan(6050, 5000).wanted.join() === '1,0' || cyclePlan(6050, 5000).wanted.includes(0), 'the next painting loads 150 m ahead; the previous stays until 100 m past the cut');
+  ok(!cyclePlan(6150, 5000).wanted.includes(0), 'the previous painting is dropped 100 m after the cut');
+  const [a, b] = cycleSpan(3, 5000);
+  ok(a === 5000 + 3000 - CYCLE.dissolve / 2 && b === 5000 + 4000 + CYCLE.dissolve / 2, 'each painting slides across its own stretch (dissolve overlap included)');
+  // the dissolve at each cut is continuous: alpha of painting k rises over the dissolve and the old painting stays underneath
+  const alpha = (k, d) => { const t = Math.min(1, Math.max(0, (d - (5000 + k * 1000 - 30)) / 60)); return t * t * (3 - 2 * t); };
+  let monotone = true;
+  for (let d = 5900; d < 6100; d += 0.5) if (alpha(1, d + 0.5) < alpha(1, d)) monotone = false;
+  ok(monotone && alpha(1, 5969) === 0 && alpha(1, 6031) === 1, 'the dissolve into the next painting is monotone and takes 60 m');
+}
 
 // no wall-clock time in the painted-backdrop path or the driver
 const parts = read('ZoneParts.jsx');

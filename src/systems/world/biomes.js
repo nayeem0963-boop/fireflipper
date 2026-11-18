@@ -199,6 +199,7 @@ export const BIOMES = Object.freeze({
     start: 3000,
     end: 5000,
     joinsPrev: true,
+    joinsNext: true,
     lavaCopy: 'Splashed into the palace pool',
     orbStyle: 'day',
     scene: Object.freeze({
@@ -227,9 +228,43 @@ export const BIOMES = Object.freeze({
       backdrops: Object.freeze(['#8d729e', '#cb85a8', '#e4b4a3', '#fbc5ca', '#bb8b9f', '#552921', '#8a1a3a']),
     }),
   }),
+  /**
+   * Cloud Sanctuary (5000 m onwards, without end): five paintings (a girl with a dragon, a cat, a deer and a tiger on a cloud sea, then the empty
+   * cloud sea) shown for 1000 m each, then the cycle starts again. See `LoopingPaintings` (ZoneParts.jsx) and `cyclePlan` (scrollDriver.js).
+   */
+  sanctuary: Object.freeze({
+    id: 'sanctuary',
+    name: 'Cloud Sanctuary',
+    start: 5000,
+    end: Infinity,
+    joinsPrev: true,
+    lavaCopy: 'Fell through the clouds',
+    orbStyle: 'day',
+    scene: Object.freeze({
+      // Taken from the paintings: deep blue sky with gold swirls, a gold sunrise, lavender and peach clouds.
+      skyTop: '#2c4fa8',
+      skyMid: '#9aa4e0',
+      skyBottom: '#f6dcb4',
+      fog: '#dcc8e4',
+      bg: '#5a78c4',
+      ambient: '#fff1e2',
+      hemiSky: '#bcd0ff',
+      hemiGround: '#d8b8d0',
+      key: '#fff0d0',
+      cloud: '#e6d8f0',
+      cloudLight: '#fff6e6',
+      cloudShadow: '#b4a4d0',
+      glow: '#ffd890',
+      island: '#c9b8d8',
+      grass: ['#8aa860', '#e8a0c0', '#fff0d0'],
+      crystal: ['#fff0e0', '#ffe0b0', '#d8e0ff'],
+      /** What the obstacles are tested against (see biome-test.mjs): the colours the player sees behind them. */
+      backdrops: Object.freeze(['#9aa4e0', '#f6dcb4', '#e6d8f0', '#fff6e6', '#b4a4d0', '#dcc8e4']),
+    }),
+  }),
 });
 
-const ZONES = Object.freeze([BIOMES.canyon, BIOMES.arctic, BIOMES.celestial, BIOMES.palace]);
+const ZONES = Object.freeze([BIOMES.canyon, BIOMES.arctic, BIOMES.celestial, BIOMES.palace, BIOMES.sanctuary]);
 
 /** Zone ids in order (the order lights and fog blend in). */
 export const ZONE_IDS = Object.freeze(ZONES.map((z) => z.id));
@@ -248,11 +283,11 @@ const smoothstep = (a, b, x) => {
 export function zoneWeight(zone, distance) {
   const h = CROSSFADE / 2;
   const fadeIn = zone.start === 0 ? 1 : zone.joinsPrev ? smoothstep(zone.start - h, zone.start + h, distance) : smoothstep(zone.start, zone.start + FADE, distance);
-  const fadeOut = zone.joinsNext ? 1 - smoothstep(zone.end - h, zone.end + h, distance) : 1 - smoothstep(zone.end - FADE, zone.end, distance);
+  const fadeOut = zone.end === Infinity ? 1 : zone.joinsNext ? 1 - smoothstep(zone.end - h, zone.end + h, distance) : 1 - smoothstep(zone.end - FADE, zone.end, distance);
   return Math.min(fadeIn, fadeOut);
 }
 
-/** One weight per live zone ({ canyon, arctic, celestial, palace }) at a distance. They add up to 1 from the start to 4920 m, then fade to 0 by 5000 m. */
+/** One weight per live zone ({ canyon, arctic, celestial, palace, sanctuary }) at a distance. They add up to 1 at every distance (the last zone never ends). */
 export function biomeWeights(distance) {
   return Object.fromEntries(ZONES.map((z) => [z.id, zoneWeight(z, distance)]));
 }
@@ -278,7 +313,7 @@ export function zoneStrength(distance) {
   return Math.min(1, sum);
 }
 
-/** The zone a distance belongs to (by its border, not its fade), or null for the original scenery. */
+/** The zone a distance belongs to (by its border, not its fade). Every distance from 0 belongs to a zone; null only for a negative distance. */
 export function biomeAt(distance) {
   return ZONES.find((z) => distance >= z.start && distance < z.end) ?? null;
 }
@@ -292,11 +327,11 @@ export const ACTIVE_OBSTACLE_LOOKS = Object.freeze([]);
 
 /**
  * Which obstacle look applies at a track position: the id of a zone whose obstacles are recoloured ('canyon', 'celestial', 'palace': the original shapes in the
- * zone's own colours) or null (the original look, including the whole Arctic stretch). Decided by the obstacle's own position, so it is the same however the
+ * zone's own colours) or null (the original look, including the whole Arctic stretch and everything from 5000 m on). Decided by the obstacle's own position, so it is the same however the
  * camera sees it.
  */
 export function obstacleStyleAt(x) {
   const zone = biomeAt(x);
-  if (!zone || zone.id === 'arctic') return null;
+  if (!zone || zone.id === 'arctic' || zone.id === 'sanctuary') return null;
   return zone.id;
 }

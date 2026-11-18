@@ -1,7 +1,7 @@
 // Step 5 tests: texture lifecycle (residency + memory budget), distance-driven ambient animation, safety.
 import { readFileSync } from 'node:fs';
 import { AMBIENT, DRIFT, auroraStrength, driftItems, driftPoint, pulse } from '../src/systems/world/ambient.js';
-import { UNLOAD_AFTER, paintingSpan, residency } from '../src/systems/world/scrollDriver.js';
+import { UNLOAD_AFTER, cyclePlan, paintingSpan, residency } from '../src/systems/world/scrollDriver.js';
 import { BIOMES, CROSSFADE, ZONE_IDS } from '../src/systems/world/biomes.js';
 import { WORLD } from '../src/systems/physics/constants.js';
 
@@ -20,6 +20,7 @@ ok(residency(5, -1, 530, true) === 'keep' && residency(3000, -1, 530, true) === 
 const info = { canyon: ['CanyonBackdrop.jsx', 1280, 720], arctic: ['ArcticBackdrop.jsx', 1408, 792], celestial: ['CelestialBackdrop.jsx', 1280, 698], palace: ['PalaceBackdrop.jsx', 1280, 720] };
 const residents = [];
 for (const id of ZONE_IDS) {
+  if (id === 'sanctuary') continue; // looping zone: tested below
   const [file, w, h] = info[id];
   const src = read(file);
   const cuts = JSON.parse(/const CUTS = (\[[^\]]*\])/.exec(src)[1]);
@@ -55,6 +56,19 @@ console.log(`     for comparison, keeping every painting would use ${oldPeak.toF
 }
 // loads happen ahead of the dissolve that shows them
 for (const r of residents) ok(r.loadAt < 0 || r.end - r.loadAt >= 100, `${r.file} loads ahead of its stretch (loadAt ${r.loadAt}, ends ${r.end})`);
+
+// ---- the looping zone: at most two sanctuary paintings on the GPU, ever
+{
+  const mb = (1408 * 792 * 4 * 1.33) / 1e6;
+  let peakLoop = 0;
+  for (let d = 4800; d < 80000; d += 5) peakLoop = Math.max(peakLoop, cyclePlan(d, 5000).wanted.length * mb);
+  ok(peakLoop <= 12, `the endless Cloud Sanctuary never holds more than two paintings (${peakLoop.toFixed(1)} MB), however far the run goes`);
+  // at the palace / sanctuary handover: the last palace painting and the first canyon painting (never unloaded) are also resident
+  const small = (1280 * 720 * 4 * 1.33) / 1e6;
+  ok(peakLoop + 2 * small <= 25, `at the palace / sanctuary handover the total (${(peakLoop + 2 * small).toFixed(1)} MB) stays inside the 25 MB target`);
+  const zpSrc = read('ZoneParts.jsx');
+  ok(/sl\.token !== token/.test(zpSrc) && /sl\.tex\?\.dispose\(\)/.test(zpSrc), 'a looping painting that finishes loading after it was replaced is freed');
+}
 
 // ---- stale loads are freed
 const zp = read('ZoneParts.jsx');

@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { CanvasTexture, Color, Object3D, SRGBColorSpace, TextureLoader } from 'three';
 import { WORLD } from '../../systems/physics/constants.js';
 import { CROSSFADE, zoneWeight } from '../../systems/world/biomes.js';
-import { DEPTH_SLIDE, effectiveSlack, layerSlack, loopOffset, paintingSlide, paintingSpan, residency, slideWidth } from '../../systems/world/scrollDriver.js';
+import { CYCLE, DEPTH_SLIDE, cyclePlan, cycleSpan, effectiveSlack, layerSlack, loopOffset, paintingSlide, paintingSpan, residency, slideWidth } from '../../systems/world/scrollDriver.js';
 
 /**
  * Parts shared by the painted scenery zones (Canyon, Frosty Polar, Celestial City, Palace): the per-frame zone weight, a gradient sky, the
@@ -347,5 +347,109 @@ export function ParallaxLayer({ sim, wRef, geometry, depth, scale, count, span, 
         <meshStandardMaterial vertexColors flatShading roughness={1} emissive={emissive ?? '#000000'} emissiveIntensity={emissive ? emissiveIntensity : 0} />
       </instancedMesh>
     </group>
+  );
+}
+
+/**
+ * A painted backdrop that never ends: `files` are shown for `CYCLE.length` (1000) m each from the zone's start and then repeat, for as long as the run
+ * goes on. Two slots (k % 2) hold the painting being shown and its neighbour: the next one loads 150 m before it is needed, the previous one is disposed
+ * 100 m after it has dissolved out, and a load that finishes late is freed. Each painting slides across its own stretch like the other paintings; the picture
+ * row `horizon` sits on the game's horizon. Position, dissolve and loading depend only on the run distance.
+ */
+export function LoopingPaintings({ sim, wRef, zone, files, aspect, horizon = 0.7, cover = 1.5 }) {
+  const meshes = useRef([]);
+  const mats = useRef([]);
+  const slots = useRef([
+    { k: -1, tex: null, token: 0 },
+    { k: -1, tex: null, token: 0 },
+  ]);
+  useEffect(() => {
+    const own = slots.current;
+    return () => own.forEach((sl) => sl.tex?.dispose());
+  }, []);
+
+  const place = (slotIndex, k) => {
+    const sl = slots.current[slotIndex];
+    sl.tex?.dispose();
+    sl.tex = null;
+    sl.k = k;
+    const token = ++sl.token;
+    if (mats.current[slotIndex]) {
+      mats.current[slotIndex].map = null;
+      mats.current[slotIndex].needsUpdate = true;
+    }
+    if (k < 0) return;
+    const base = import.meta.env?.BASE_URL ?? '/';
+    new TextureLoader().load(
+      `${base}images/backdrop/${files[((k % files.length) + files.length) % files.length]}`,
+      (tex) => {
+        if (sl.token !== token) {
+          tex.dispose(); // replaced while loading
+          return;
+        }
+        tex.colorSpace = SRGBColorSpace;
+        tex.anisotropy = 4;
+        sl.tex = tex;
+        const m = mats.current[slotIndex];
+        if (m) {
+          m.map = tex;
+          m.needsUpdate = true;
+        }
+      },
+      undefined,
+      () => {},
+    );
+  };
+
+  useFrame((frame) => {
+    const d = sim.renderDistance();
+    const plan = cyclePlan(d, zone.start);
+    // residency: exactly the wanted paintings are on the GPU, each in its own slot (k % 2)
+    for (let s = 0; s < 2; s++) if (slots.current[s].k >= 0 && !plan.wanted.includes(slots.current[s].k)) place(s, -1);
+    for (const k of plan.wanted) if (slots.current[k % 2].k !== k) place(k % 2, k);
+
+    const w = wRef.current;
+    if (w <= 0.001) return;
+    const cam = frame.camera;
+    const fov = (cam.fov * Math.PI) / 180;
+    const dist = cam.position.z - BAND_Z;
+    const viewH = 2 * dist * Math.tan(fov / 2);
+    const viewW = viewH * cam.aspect;
+    const needH = cam.position.y - WORLD.groundY + viewH * 0.58;
+    const W = Math.max(slideWidth(viewW, CYCLE.length + CYCLE.dissolve), needH * cover * aspect);
+    const H = W / aspect;
+    const slack = (W - viewW) / 2;
+    const vMin = Math.min(0.99, needH / H);
+    const v = clamp(horizon, vMin, 1);
+    const y = WORLD.groundY + H * (v - 0.5);
+    let newest = -1;
+    for (let s = 0; s < 2; s++) newest = Math.max(newest, slots.current[s].k);
+    for (let s = 0; s < 2; s++) {
+      const sl = slots.current[s];
+      const m = meshes.current[s];
+      const mat = mats.current[s];
+      if (!m || !mat) continue;
+      const show = sl.k >= 0 && !!mat.map;
+      m.visible = show;
+      if (!show) continue;
+      const startK = zone.start + sl.k * CYCLE.length;
+      const alpha = sl.k === 0 ? w : w * smooth(startK - CYCLE.dissolve / 2, startK + CYCLE.dissolve / 2, d);
+      const [a, b] = cycleSpan(sl.k, zone.start);
+      m.position.set(cam.position.x + paintingSlide(d, a, b, effectiveSlack(slack, a, b)), y, BAND_Z);
+      m.scale.set(W, H, 1);
+      m.renderOrder = sl.k === newest ? -1.9 : -2; // the newer painting always draws over the older one
+      mat.opacity = Math.min(1, alpha * 1.5);
+    }
+  });
+
+  return (
+    <>
+      {[0, 1].map((s) => (
+        <mesh key={s} ref={(m) => (meshes.current[s] = m)} renderOrder={-2} visible={false}>
+          <planeGeometry args={[1, 1]} />
+          <meshBasicMaterial ref={(m) => (mats.current[s] = m)} transparent opacity={0} depthWrite={false} fog={false} toneMapped={false} />
+        </mesh>
+      ))}
+    </>
   );
 }

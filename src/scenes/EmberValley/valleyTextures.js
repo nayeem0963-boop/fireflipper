@@ -242,6 +242,51 @@ export function createPalacePoolTexture(s) {
 }
 
 /**
+ * The Cloud Sanctuary's floor: a soft cloud sea of lavender and cream billows with golden glints, seamless on both axes (one tile = 4 world units).
+ */
+export function createCloudSeaTexture(s) {
+  const size = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const rnd = seededRnd(91);
+  ctx.fillStyle = s.cloud;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 16; i++) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    const r = 40 + rnd() * 70;
+    const light = i % 3 !== 0;
+    for (const dx of [-size, 0, size]) {
+      for (const dy of [-size, 0, size]) {
+        const g = ctx.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
+        g.addColorStop(0, light ? 'rgba(255,246,230,0.55)' : 'rgba(150,130,190,0.35)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x + dx - r, y + dy - r, r * 2, r * 2);
+      }
+    }
+  }
+  ctx.fillStyle = s.glow;
+  for (let i = 0; i < 20; i++) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    ctx.globalAlpha = 0.35 + rnd() * 0.4;
+    for (const dx of [-size, 0, size]) for (const dy of [-size, 0, size]) {
+      ctx.beginPath();
+      ctx.ellipse(x + dx, y + dy, 5 + rnd() * 5, 1.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = tex.wrapT = RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+/**
  * The Red Rock Canyon's floor: dusty faceted red-orange earth with darker strata streaks and lighter sunlit patches, like the paintings' canyon
  * bed. Tiles in both directions (one tile = 4 world units).
  */

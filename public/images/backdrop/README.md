@@ -24,3 +24,9 @@ planet and nebulae. The cloud-sea floor and the floating crystal islands are dra
 with a great cathedral), supplied by the project owner for the 3000 to 5000 m stretch (originally 1672x941 WebP, 350 to 440 kB each). Each is a whole scene, resized to 1280x720 JPEG (about 175 to 205 kB).
 The waterline of each picture sits on the game's horizon (row 0.62 of the first two, 0.66 of the third); everything below it is replaced by a 3D mirror pool, drawn by
 `src/scenes/EmberValley/PalaceBackdrop.jsx`.
+
+## Cloud Sanctuary backdrop (5000 m onwards)
+
+`sanctuary-dragon.jpg`, `sanctuary-cat.jpg`, `sanctuary-deer.jpg`, `sanctuary-tiger.jpg` and `sanctuary-clouds.jpg` are five 16:9 paintings supplied by the project owner (a girl with a white dragon, a cat, a deer and a white tiger on a cloud sea
+under floating golden cities and a shooting star, then the empty cloud sea; originally 1672x941 WebP). Each is resized to 1408x792 JPEG (191 to 255 kB). From 5000 m each is shown for 1000 m in that order, then the cycle
+starts again, for ever. The cloud sea of each picture (row 0.70) sits on the game's horizon; a 3D cloud-sea floor, floating islands and golden sparkles are drawn by `src/scenes/EmberValley/SanctuaryBackdrop.jsx`.

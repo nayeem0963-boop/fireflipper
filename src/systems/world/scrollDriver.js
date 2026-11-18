@@ -84,3 +84,27 @@ export function residency(distance, loadAt, spanEnd, loaded) {
   if (loadAt >= 0 && (distance > spanEnd + UNLOAD_AFTER || distance < loadAt - UNLOAD_AFTER)) return 'unload';
   return 'keep';
 }
+
+/**
+ * Looping painted zones (the Cloud Sanctuary, 5000 m onwards without end): painting k covers [start + k * length, start + (k + 1) * length) and the
+ * file shown is `k % count`, so the pictures repeat for ever. Only the painting being shown, the next one (preloaded `preload` m before it is needed) and
+ * the previous one (kept `unloadAfter` m, while it is dissolving out) are ever on the GPU: at most two at once, one per slot (`k % 2`).
+ */
+export const CYCLE = { length: 1000, dissolve: 60, preload: 150, unloadAfter: 100 };
+
+export function cyclePlan(distance, start, length = CYCLE.length, preload = CYCLE.preload, unloadAfter = CYCLE.unloadAfter) {
+  const pos = distance - start;
+  const k = Math.floor(pos / length);
+  const off = pos - k * length;
+  const wanted = [];
+  if (k >= 0) wanted.push(k);
+  if (off > length - preload && k + 1 >= 0) wanted.push(k + 1);
+  if (off <= unloadAfter && k - 1 >= 0) wanted.push(k - 1);
+  return { k, off, wanted };
+}
+
+/** The stretch of the run over which painting `k` of a looping zone slides: from half a dissolve before it starts to half a dissolve after it ends. */
+export function cycleSpan(k, start, length = CYCLE.length, dissolve = CYCLE.dissolve, crossfade = 80) {
+  const a = start + k * length - (k === 0 ? crossfade / 2 : dissolve / 2);
+  return [a, start + (k + 1) * length + dissolve / 2];
+}
