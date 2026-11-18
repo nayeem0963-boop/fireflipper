@@ -52,3 +52,13 @@ export function paintingSpan(zone, cuts, dissolve, i, count, crossfade) {
  * its edge: the view plus the travel.
  */
 export const slideWidth = (viewW, spanMetres, speed = SCROLL_SPEED.far) => viewW + speed * spanMetres;
+
+/**
+ * Painted backdrops cannot loop, so their depth layers slide at much smaller speeds than the 3D layers (the picture would run out).
+ * With `depth` on, the same picture is drawn three times through different masks (the whole picture, the side cliffs, the near edges)
+ * and each layer slides this fast (units per metre, at the minimum width); the painting is sized for the fastest one.
+ */
+export const DEPTH_SLIDE = { far: 0.05, mid: 0.08, near: 0.1 };
+
+/** Slack (units each side) a layer slides: the fastest layer uses all of it, slower layers a proportional part. */
+export const layerSlack = (slack, layer) => slack * (DEPTH_SLIDE[layer] / DEPTH_SLIDE.near);

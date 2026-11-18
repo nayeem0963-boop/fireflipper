@@ -229,3 +229,10 @@ layer speeds far 0.05 / mid 0.25 / near 0.7 world units per metre, seamless loop
 backdrops (`paintingSlide`). Each painting now slides across its whole stretch of the run (it used to crawl at about 1% of its width) and is
 sized so it never shows an edge. Offsets depend only on distance, so they are frame-rate independent, freeze on pause and use no wall clock.
 `npm run test:scroll` covers this (part of `test:all`).
+
+### Step 2: painted depth layers
+
+With the `depth` prop, `PaintedHorizon` draws each painting three times through the same texture: the whole picture (far), the side cliffs through a
+soft alpha mask (mid) and the near edges (near). The layers slide at 0.05 / 0.08 / 0.10 units per metre (`DEPTH_SLIDE`), aligned at the middle
+of each painting's stretch, so any ghosting is largest at the ends of the stretch, where the painting is dissolving anyway. On for the canyon,
+celestial and palace zones; the arctic zone is replaced in step 4. Cost: two extra draw calls per visible painting, no extra textures.

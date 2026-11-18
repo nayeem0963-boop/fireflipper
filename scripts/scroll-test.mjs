@@ -1,6 +1,6 @@
 // Scenery scroll driver tests: distance-driven, frame-rate independent, pause-safe, seamless, correctly layered.
 import { readFileSync, readdirSync } from 'node:fs';
-import { SCROLL_SPEED, loopOffset, paintingSlide, paintingSpan, progress, slideWidth, wrap } from '../src/systems/world/scrollDriver.js';
+import { DEPTH_SLIDE, SCROLL_SPEED, layerSlack, loopOffset, paintingSlide, paintingSpan, progress, slideWidth, wrap } from '../src/systems/world/scrollDriver.js';
 import { BIOMES, CROSSFADE, ZONE_IDS } from '../src/systems/world/biomes.js';
 
 let failed = 0;
@@ -73,12 +73,26 @@ for (const id of ZONE_IDS) {
   for (let i = 0; i < count; i++) {
     const [a, b] = paintingSpan(z, cuts, dissolve, i, count, CROSSFADE);
     for (const [name, vw] of Object.entries(viewWs)) {
-      const W = slideWidth(vw, b - a);
-      const speed = (W - vw) / (b - a);
-      ok(speed >= SCROLL_SPEED.far - 1e-9 && speed < SCROLL_SPEED.mid, `${id} painting ${i} (${a}-${b} m) on ${name}: slides at ${speed.toFixed(3)} u/m`);
+      const depth = /\bdepth\s*\/>/.test(src);
+      const W = slideWidth(vw, b - a, depth ? DEPTH_SLIDE.near : undefined);
+      const slack = (W - vw) / 2;
+      const speed = (2 * (depth ? layerSlack(slack, 'far') : slack)) / (b - a);
+      ok(speed >= SCROLL_SPEED.far - 1e-9 && speed < SCROLL_SPEED.mid, `${id} painting ${i} (${a}-${b} m) on ${name}: far layer slides at ${speed.toFixed(3)} u/m${depth ? ' (depth layers)' : ''}`);
+      if (depth) {
+        const [fs, ms, ns] = ['far', 'mid', 'near'].map((l) => layerSlack(slack, l));
+        ok(fs < ms && ms < ns && ns <= slack + 1e-9, `${id} painting ${i} on ${name}: layer slides ordered far < mid < near and inside the painting`);
+      }
     }
   }
   ok(!/\bpan=\{/.test(src), `${id}: no leftover static pan prop`);
+}
+
+// depth layers: ordered speeds, masks created and disposed, enabled on the zones that have been reviewed
+ok(DEPTH_SLIDE.far < DEPTH_SLIDE.mid && DEPTH_SLIDE.mid < DEPTH_SLIDE.near && DEPTH_SLIDE.near < SCROLL_SPEED.mid, 'painted depth layers slide slower than the 3D mid layer');
+for (const id of ['canyon', 'celestial', 'palace']) ok(/\bdepth\s*\/>/.test(read(zoneFiles[id])), `${id} uses painted depth layers`);
+{
+  const p = read('ZoneParts.jsx');
+  ok(/createDepthMask\('mid'\)/.test(p) && /masks\?\.mid\.dispose\(\)/.test(p), 'depth masks are created and disposed');
 }
 
 // no wall-clock time in the painted-backdrop path or the driver

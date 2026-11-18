@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { CanvasTexture, Color, Object3D, SRGBColorSpace, TextureLoader } from 'three';
 import { WORLD } from '../../systems/physics/constants.js';
 import { CROSSFADE, zoneWeight } from '../../systems/world/biomes.js';
-import { loopOffset, paintingSlide, paintingSpan, slideWidth } from '../../systems/world/scrollDriver.js';
+import { DEPTH_SLIDE, layerSlack, loopOffset, paintingSlide, paintingSpan, slideWidth } from '../../systems/world/scrollDriver.js';
 
 /**
  * Parts shared by the painted scenery zones (Volcanic Coast, Arctic Ice Shelf): the per-frame zone weight, a gradient sky, the
@@ -29,6 +29,32 @@ export function seeded(seed) {
     s = (s * 9301 + 49297) % 233280;
     return s / 233280;
   };
+}
+
+/**
+ * Soft alpha masks (grey canvas, used as an alphaMap) that cut a depth layer out of a painting: `mid` keeps the side cliffs (outer
+ * ~30% each side, fading towards the centre and the top), `near` keeps the outer ~14% and only the lower part of the picture.
+ */
+function createDepthMask(kind) {
+  const w = 128, h = 64;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const u = x / (w - 1), v = y / (h - 1);
+      const edge = Math.min(u, 1 - u);
+      const a = kind === 'mid' ? smooth(0.3, 0.1, edge) * smooth(0.06, 0.3, v) : smooth(0.15, 0.04, edge) * smooth(0.4, 0.62, v);
+      const g = Math.round(255 * a);
+      const k = (y * w + x) * 4;
+      img.data[k] = img.data[k + 1] = img.data[k + 2] = g;
+      img.data[k + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return new CanvasTexture(c);
 }
 
 /** Computes the zone's weight once per frame for every part, and hides the whole group once it is gone. */
@@ -86,12 +112,17 @@ export function GradientSky({ wRef, top, bottom }) {
  * cover the view and slides down as you fly, from `rise.from` to `rise.to` (the fraction of the picture, from its top, that sits on the horizon),
  * so the view climbs from the floating cities up into the cosmos. No top fade is needed there.
  */
-export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30, preloadAt, fadeRgb, rise }) {
+export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30, preloadAt, fadeRgb, rise, depth = false }) {
   const meshes = useRef([]);
   const mats = useRef([]);
   const fades = useRef([]);
   const fadeMats = useRef([]);
   const state = useRef({ requested: [], textures: [] });
+  // depth layers (mid, near): extra planes sharing the painting's texture through a soft mask; mid-layer slides slower than near, both slower than the 3D layers
+  const layerMeshes = useRef([]);
+  const layerMats = useRef([]);
+  const masks = useMemo(() => (depth ? { mid: createDepthMask('mid'), near: createDepthMask('near') } : null), [depth]);
+  useEffect(() => () => { masks?.mid.dispose(); masks?.near.dispose(); }, [masks]);
   const fadeTex = useMemo(() => {
     const c = document.createElement('canvas');
     c.width = 4;
@@ -130,6 +161,12 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
           m.map = tex;
           m.needsUpdate = true;
         }
+        layerMats.current[i]?.forEach((lm) => {
+          if (lm) {
+            lm.map = tex;
+            lm.needsUpdate = true;
+          }
+        });
       },
       undefined,
       () => {}, // a missing painting just leaves the gradient sky and the 3D floor
@@ -154,8 +191,8 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
     // Wide enough to cover the view and, in addition, to slide across the whole of its stretch at no less than the far-layer speed (see scrollDriver.js).
     const longest = Math.max(...paintings.map((_, i) => { const [a, b] = paintingSpan(zone, cuts, dissolve, i, paintings.length, CROSSFADE); return b - a; }));
     const W = rise
-      ? Math.max(slideWidth(viewW, longest), needH * (rise.cover ?? 1.5) * refAspect)
-      : Math.max(slideWidth(viewW, longest), Math.min(needH * refAspect, viewW * 2.6));
+      ? Math.max(slideWidth(viewW, longest, depth ? DEPTH_SLIDE.near : undefined), needH * (rise.cover ?? 1.5) * refAspect)
+      : Math.max(slideWidth(viewW, longest, depth ? DEPTH_SLIDE.near : undefined), Math.min(needH * refAspect, viewW * 2.6));
     const slack = (W - viewW) / 2;
     paintings.forEach(({ aspect, horizon }, i) => {
       const alpha = i === 0 ? w : w * smooth(cuts[i - 1] - dissolve / 2, cuts[i - 1] + dissolve / 2, d);
@@ -165,10 +202,11 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
       const show = ready && alpha > 0.002;
       if (m) m.visible = show;
       if (f) f.visible = show;
+      if (!show) layerMeshes.current[i]?.forEach((lm) => lm && (lm.visible = false));
       if (!show) return;
       // distance-driven slide across this painting's own stretch of the run (no wall clock, no per-frame accumulation)
       const [a, b] = paintingSpan(zone, cuts, dissolve, i, paintings.length, CROSSFADE);
-      const x = cam.position.x + paintingSlide(d, a, b, slack);
+      const x = cam.position.x + paintingSlide(d, a, b, depth ? layerSlack(slack, 'far') : slack);
       const H = W / aspect;
       let y = WORLD.groundY + H / 2 - 0.05;
       if (rise) {
@@ -181,6 +219,15 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
       m.position.set(x, y, BAND_Z);
       m.scale.set(W, H, 1);
       mats.current[i].opacity = Math.min(1, alpha * 1.5);
+      if (depth) {
+        layerMeshes.current[i]?.forEach((lm, k) => {
+          if (!lm) return;
+          lm.visible = true;
+          lm.position.set(cam.position.x + paintingSlide(d, a, b, layerSlack(slack, k === 0 ? 'mid' : 'near')), y, BAND_Z + 0.002 * (k + 1));
+          lm.scale.set(W, H, 1);
+          layerMats.current[i][k].opacity = Math.min(1, alpha * 1.5);
+        });
+      }
       if (rise) {
         f.visible = false;
       } else {
@@ -199,6 +246,13 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
             <planeGeometry args={[1, 1]} />
             <meshBasicMaterial ref={(m) => (mats.current[i] = m)} transparent opacity={0} depthWrite={false} fog={false} toneMapped={false} />
           </mesh>
+          {depth &&
+            ['mid', 'near'].map((kind, k) => (
+              <mesh key={kind} ref={(m) => ((layerMeshes.current[i] ??= [])[k] = m)} renderOrder={-1.6 + k * 0.1} visible={false}>
+                <planeGeometry args={[1, 1]} />
+                <meshBasicMaterial ref={(m) => ((layerMats.current[i] ??= [])[k] = m)} alphaMap={masks[kind]} transparent opacity={0} depthWrite={false} fog={false} toneMapped={false} />
+              </mesh>
+            ))}
           <mesh ref={(m) => (fades.current[i] = m)} renderOrder={-1} visible={false}>
             <planeGeometry args={[1, 1]} />
             <meshBasicMaterial ref={(m) => (fadeMats.current[i] = m)} map={fadeTex} transparent opacity={0} depthWrite={false} fog={false} toneMapped={false} />
