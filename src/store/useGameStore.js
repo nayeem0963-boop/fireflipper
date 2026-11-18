@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { loadValue, saveValue } from '../utils/storage.js';
+import { newlyUnlocked } from '../systems/skins/skins.js';
+import { DEFAULT_AVATAR_ID, getAvatar, isAvatarUnlocked, resolveAvatar } from '../systems/avatars/avatars.js';
 
 export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
 
@@ -31,6 +33,8 @@ export const useGameStore = create((set, get) => ({
   // --- navigation ---
   screen: SCREENS.HOME,
   settingsOpen: false,
+  avatarsOpen: false,
+  creditsOpen: false,
 
   // --- current run ---
   status: STATUS.IDLE,
@@ -48,6 +52,11 @@ export const useGameStore = create((set, get) => ({
   sessionBest: 0,
   runsThisSession: 0,
 
+  /** Selected bird skin id (species + colour). Cosmetic only: no effect on physics or collisions. */
+  skinId: loadValue('skinId', DEFAULT_AVATAR_ID),
+  /** Completed runs per bird species, for collection progress: { species: runs }. */
+  flown: loadValue('flown', {}),
+
   // --- settings ---
   soundEnabled: loadValue('soundEnabled', true),
   quality: loadValue('quality', QUALITY.AUTO),
@@ -59,6 +68,10 @@ export const useGameStore = create((set, get) => ({
       ...freshRun(s),
     })),
   exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE }),
+  openAvatars: () => set({ avatarsOpen: true }),
+  closeAvatars: () => set({ avatarsOpen: false }),
+  openCredits: () => set({ creditsOpen: true }),
+  closeCredits: () => set({ creditsOpen: false }),
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
 
@@ -72,13 +85,18 @@ export const useGameStore = create((set, get) => ({
     const previousBest = s.bestScore;
     const isNewBest = score > previousBest;
     if (isNewBest) saveValue('bestScore', score);
+    const species = resolveAvatar(s.skinId, s.bestScore).species;
+    const flown = { ...s.flown, [species]: (s.flown[species] ?? 0) + 1 };
+    saveValue('flown', flown);
+    const unlockedSkins = newlyUnlocked(previousBest, score).map((k) => k.name);
     set({
+      flown,
       status: STATUS.OVER,
       overAt: performance.now(),
       score,
       distance,
       orbs,
-      lastResult: { score, distance, orbs, bestStreak, nearMisses, cause, isNewBest, previousBest },
+      lastResult: { score, distance, orbs, bestStreak, nearMisses, cause, isNewBest, previousBest, unlockedSkins },
       bestScore: Math.max(s.bestScore, score),
       sessionBest: Math.max(s.sessionBest, score),
       runsThisSession: s.runsThisSession + 1,
@@ -101,6 +119,12 @@ export const useGameStore = create((set, get) => ({
   },
 
   // --- settings ---
+  selectSkin: (id) => {
+    const s = get();
+    if (!isAvatarUnlocked(getAvatar(id), s.bestScore)) return;
+    saveValue('skinId', id);
+    set({ skinId: id });
+  },
   toggleSound: () =>
     set((s) => {
       saveValue('soundEnabled', !s.soundEnabled);

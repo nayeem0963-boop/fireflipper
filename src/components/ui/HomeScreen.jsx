@@ -4,6 +4,8 @@ import ShowcaseScene from '../../scenes/Showcase/ShowcaseScene.jsx';
 import IconButton from './IconButton.jsx';
 import SoundToggle from './SoundToggle.jsx';
 import { FlameIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
+import { useSkin } from '../../hooks/useSkin.js';
+import { collectionProgress } from '../../systems/avatars/avatars.js';
 import { formatScore } from '../../systems/scoring/scoring.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
 import '../../styles/home.css';
@@ -13,6 +15,11 @@ export default function HomeScreen() {
   const startGame = useGameStore((s) => s.startGame);
   const openSettings = useGameStore((s) => s.openSettings);
   const settingsOpen = useGameStore((s) => s.settingsOpen);
+  const avatarsOpen = useGameStore((s) => s.avatarsOpen);
+  const openAvatars = useGameStore((s) => s.openAvatars);
+  const flown = useGameStore((s) => s.flown);
+  const skin = useSkin();
+  const progress = collectionProgress(bestScore, flown);
 
   return (
     <main className="home">
@@ -28,7 +35,7 @@ export default function HomeScreen() {
 
       <section className="home__stage" aria-label="Firebird preview">
         {/* Stop rendering the preview while the settings modal covers it */}
-        <SceneCanvas camera={{ position: [0, 0.25, 6], fov: 45 }} frameloop={settingsOpen ? 'demand' : 'always'}>
+        <SceneCanvas camera={{ position: [0, 0.25, 6], fov: 45 }} frameloop={settingsOpen || avatarsOpen ? 'demand' : 'always'}>
           <ShowcaseScene />
         </SceneCanvas>
       </section>
@@ -76,6 +83,13 @@ export default function HomeScreen() {
             </div>
           </article>
         </div>
+
+        <button type="button" className="ghost-btn home__bird" onClick={openAvatars}>
+          <FlameIcon />
+          <span>
+            Your bird: {skin.name} ({skin.colorName}) · {progress.unlocked}/{progress.total} skins
+          </span>
+        </button>
       </section>
     </main>
   );

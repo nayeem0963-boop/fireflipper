@@ -152,6 +152,17 @@
   }
 }
 
+.gameover__unlock {
+  margin: 2px 0 0;
+  padding: 4px 12px;
+  border: 1px solid var(--fire-300);
+  border-radius: 999px;
+  background: rgba(255, 150, 50, 0.14);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--fire-200);
+}
+
 /* Progress toward personal best */
 .pb {
   width: min(300px, 100%);

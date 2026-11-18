@@ -1,6 +1,8 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import Firebird from './Firebird.jsx';
+import AvatarBird from './AvatarBird.jsx';
+import TrailEffect from './TrailEffect.jsx';
+import { useSkin } from '../../hooks/useSkin.js';
 
 /**
  * The player's firebird, positioned from the simulation each frame
@@ -9,6 +11,7 @@ import Firebird from './Firebird.jsx';
  */
 export default function PlayerBird({ sim }) {
   const group = useRef();
+  const skin = useSkin();
 
   useFrame(() => {
     const g = group.current;
@@ -18,9 +21,21 @@ export default function PlayerBird({ sim }) {
   });
 
   return (
-    <group ref={group}>
+    <>
+      <TrailEffect sim={sim} trail={skin.trail} />
+      <group ref={group}>
       {/* Scaled so the body matches the 0.36 collision radius; wings and tail don't collide. */}
-      <Firebird scale={0.6} rotation={[0, -0.12, 0]} flight={sim.bird} float={0.03} wingSpeed={9} lightIntensity={8} glow={0.6} />
-    </group>
+      <AvatarBird
+        avatar={skin}
+        scale={0.6}
+        rotation={[0, -0.12, 0]}
+        flight={sim.bird}
+        float={0.03}
+        wingSpeed={9}
+        lightIntensity={8}
+        glow={0.6}
+      />
+      </group>
+    </>
   );
 }

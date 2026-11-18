@@ -126,3 +126,11 @@ scripts/
 | Retry         | Space (game over)  | Retry button             |
 
 The run also pauses automatically when the tab is hidden or the window loses focus.
+
+## Bird customisation
+
+Seven birds (Flipper, Bulbuli, Scarlet Macaw, Rainbow Macaw, Blue-and-Yellow Macaw, Toco Toucan, Morpho Butterfly),
+each in three skins (Fire, Blue, White): 21 in all. Fire is always free; Blue and White unlock at best scores of
+600 and 1,500. Each skin has its own cosmetic trail colours and tints the orb-pickup sparks. Everything is visual:
+birds share one hitbox and one physics model (`npm run test:avatars` guards against gameplay fields on a bird).
+Bird models are third-party (CC BY 4.0); see `public/models/CREDITS.md` and the in-app credits.

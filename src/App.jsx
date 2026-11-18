@@ -2,6 +2,8 @@ import { useGameStore, SCREENS } from './store/useGameStore.js';
 import HomeScreen from './components/ui/HomeScreen.jsx';
 import GameScreen from './components/game/GameScreen.jsx';
 import SettingsPanel from './components/ui/SettingsPanel.jsx';
+import AvatarPicker from './components/ui/AvatarPicker.jsx';
+import CreditsPanel from './components/ui/CreditsPanel.jsx';
 
 /**
  * Top-level screen router. Intentionally thin: screens own their own
@@ -10,12 +12,16 @@ import SettingsPanel from './components/ui/SettingsPanel.jsx';
 export default function App() {
   const screen = useGameStore((s) => s.screen);
   const settingsOpen = useGameStore((s) => s.settingsOpen);
+  const avatarsOpen = useGameStore((s) => s.avatarsOpen);
+  const creditsOpen = useGameStore((s) => s.creditsOpen);
 
   return (
     <>
       {screen === SCREENS.HOME && <HomeScreen />}
       {screen === SCREENS.GAME && <GameScreen />}
       {settingsOpen && <SettingsPanel />}
+      {avatarsOpen && <AvatarPicker />}
+      {creditsOpen && <CreditsPanel />}
     </>
   );
 }

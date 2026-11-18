@@ -91,7 +91,7 @@ export default function GameOverPanel() {
 
   if (!result) return null;
 
-  const { previousBest, distance, orbs, bestStreak, nearMisses, cause } = result;
+  const { previousBest, distance, orbs, bestStreak, nearMisses, cause, unlockedSkins = [] } = result;
   const hasBest = previousBest > 0;
   const personalBest = Math.max(previousBest, score);
   const pct = hasBest ? Math.min(1, score / previousBest) : 1;
@@ -129,6 +129,12 @@ export default function GameOverPanel() {
               </div>
             </div>
             {isRecord && <span className={`badge${done ? ' badge--pop' : ''}`}>New personal best</span>}
+
+            {unlockedSkins.length > 0 && (
+              <p className="gameover__unlock">
+                Skin unlocked: {unlockedSkins.join(', ')} — pick it under Your bird
+              </p>
+            )}
 
             <div className="pb" aria-label="Progress toward personal best">
               <div className="pb__track">

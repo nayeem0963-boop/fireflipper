@@ -1,7 +1,9 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, DoubleSide, Shape } from 'three';
-import { getGlowTexture } from '../../utils/textures.js';
+import { getGlowTexture, getNeutralGlowTexture } from '../../utils/textures.js';
+import { secondaryMotion } from './birdMotion.js';
+import AvatarEyes from './AvatarEyes.jsx';
 
 /**
  * Placeholder firebird built from primitive geometry. It faces +X, so a
@@ -10,6 +12,8 @@ import { getGlowTexture } from '../../utils/textures.js';
  * the swap is local to this file.
  *
  * Props:
+ *  - palette:     optional colour overrides (see systems/skins/skins.js)
+ *  - neutralGlow: use a plain white halo texture (for the Blue and White colours) instead of the warm one
  *  - float:       vertical bob amplitude (world units)
  *  - wingSpeed:   base wing-beat speed (radians/sec)
  *  - glow:        halo sprite opacity
@@ -39,7 +43,10 @@ const COLORS = {
   wingEmissive: '#ff3c00',
   wingInner: '#ffd36b',
   flame: '#ffe39a',
-  eye: '#1a0a04',
+  bellyEmissive: '#ff9a2e',
+  beak: '#ffcf6a',
+  beakEmissive: '#ff9d2a',
+  glow: '#ff7a2a',
 };
 
 function createWingShape() {
@@ -59,18 +66,29 @@ function createWingShape() {
   return s;
 }
 
-export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lightIntensity = 6, flight, ...props }) {
+export default function Firebird({
+  palette,
+  neutralGlow = false,
+  float = 0.12,
+  wingSpeed = 7,
+  glow = 0.55,
+  lightIntensity = 6,
+  flight,
+  ...props
+}) {
   const root = useRef();
   const leftWing = useRef();
   const rightWing = useRef();
   const tail = useRef();
   const crest = useRef();
   const halo = useRef();
+  const colors = useMemo(() => ({ ...COLORS, ...palette }), [palette]);
   const phase = useRef(0);
   const lift = useRef(0.25);
+  const lag = useRef(0.25);
 
   const wingShape = useMemo(createWingShape, []);
-  const glowMap = useMemo(getGlowTexture, []);
+  const glowMap = useMemo(() => (neutralGlow ? getNeutralGlowTexture() : getGlowTexture()), [neutralGlow]);
 
   useFrame((state, delta) => {
     const t = state.clock.elapsedTime;
@@ -105,6 +123,9 @@ export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lig
 
     // Smooth toward the target so stroke/idle transitions never pop.
     lift.current += (targetLift - lift.current) * (1 - Math.exp(-30 * dt));
+    lag.current += (lift.current - lag.current) * (1 - Math.exp(-12 * dt));
+    // The rest of the body moves with the wings: it heaves and pitches, and the tail flexes against the pitch.
+    const move = secondaryMotion(lift.current, lag.current, flight?.dead);
     if (rightWing.current) {
       rightWing.current.rotation.x = Math.PI / 2 - lift.current;
       rightWing.current.rotation.z = sweep;
@@ -115,12 +136,12 @@ export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lig
     }
 
     if (root.current) {
-      root.current.position.y = Math.sin(t * 1.6) * float - beat * 0.03;
-      root.current.rotation.z = Math.sin(t * 1.1) * 0.06;
+      root.current.position.y = Math.sin(t * 1.6) * float + move.heave;
+      root.current.rotation.z = Math.sin(t * 1.1) * 0.06 + move.bodyPitch;
       root.current.rotation.x = Math.sin(t * 0.8) * 0.04;
     }
     if (tail.current) {
-      tail.current.rotation.z = Math.sin(t * 2.4) * 0.12;
+      tail.current.rotation.z = Math.sin(t * 2.4) * 0.12 + move.tailPitch;
       tail.current.rotation.y = Math.sin(t * 1.7) * 0.1;
     }
     if (crest.current) {
@@ -133,14 +154,20 @@ export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lig
     <group {...props}>
       <group ref={root}>
         {/* Warm light the bird casts onto the scene */}
-        <pointLight color="#ff7a2a" intensity={lightIntensity} distance={8} decay={1.6} position={[0.2, 0.3, 0.8]} />
+        <pointLight
+          color={colors.glow}
+          intensity={lightIntensity}
+          distance={8}
+          decay={1.6}
+          position={[0.2, 0.3, 0.8]}
+        />
 
         {/* Halo */}
         <sprite scale={[4.2, 4.2, 1]} renderOrder={-1}>
           <spriteMaterial
             ref={halo}
             map={glowMap}
-            color="#ff7a24"
+            color={colors.glow}
             transparent
             opacity={glow}
             depthWrite={false}
@@ -152,38 +179,55 @@ export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lig
         {/* Body */}
         <mesh scale={[1.25, 0.82, 0.78]}>
           <sphereGeometry args={[0.5, 32, 24]} />
-          <meshStandardMaterial color={COLORS.body} emissive={COLORS.bodyEmissive} emissiveIntensity={1.4} roughness={0.45} metalness={0.1} />
+          <meshStandardMaterial
+            color={colors.body}
+            emissive={colors.bodyEmissive}
+            emissiveIntensity={1.4}
+            roughness={0.45}
+            metalness={0.1}
+          />
         </mesh>
         {/* Belly highlight */}
         <mesh position={[0.12, -0.12, 0]} scale={[0.9, 0.55, 0.62]}>
           <sphereGeometry args={[0.5, 24, 16]} />
-          <meshStandardMaterial color={COLORS.belly} emissive="#ff9a2e" emissiveIntensity={1.1} roughness={0.5} />
+          <meshStandardMaterial
+            color={colors.belly}
+            emissive={colors.bellyEmissive}
+            emissiveIntensity={1.1}
+            roughness={0.5}
+          />
         </mesh>
 
         {/* Head */}
         <group position={[0.6, 0.3, 0]}>
           <mesh>
             <sphereGeometry args={[0.3, 28, 20]} />
-            <meshStandardMaterial color={COLORS.body} emissive={COLORS.bodyEmissive} emissiveIntensity={1.4} roughness={0.4} />
+            <meshStandardMaterial
+              color={colors.body}
+              emissive={colors.bodyEmissive}
+              emissiveIntensity={1.4}
+              roughness={0.4}
+            />
           </mesh>
           {/* Beak */}
           <mesh position={[0.34, -0.04, 0]} rotation={[0, 0, -Math.PI / 2]}>
             <coneGeometry args={[0.085, 0.3, 12]} />
-            <meshStandardMaterial color="#ffcf6a" emissive="#ff9d2a" emissiveIntensity={1.2} roughness={0.3} />
+            <meshStandardMaterial
+              color={colors.beak}
+              emissive={colors.beakEmissive}
+              emissiveIntensity={1.2}
+              roughness={0.3}
+            />
           </mesh>
-          {/* Eyes */}
-          {[0.2, -0.2].map((z) => (
-            <group key={z} position={[0.17, 0.08, z]}>
-              <mesh>
-                <sphereGeometry args={[0.055, 12, 10]} />
-                <meshStandardMaterial color={COLORS.eye} roughness={0.2} />
-              </mesh>
-              <mesh position={[0.025, 0.02, z > 0 ? 0.03 : -0.03]}>
-                <sphereGeometry args={[0.016, 8, 6]} />
-                <meshBasicMaterial color="#fff4d6" toneMapped={false} />
-              </mesh>
-            </group>
-          ))}
+          {/* Eyes: big and glowing so they read against the flame-coloured head */}
+          <AvatarEyes
+            at={[0.17, 0.09, 0.2]}
+            size={0.07}
+            outwardAxis="z"
+            forward={1}
+            palette={colors}
+            flight={flight}
+          />
           {/* Flame crest */}
           <group ref={crest} position={[-0.05, 0.22, 0]}>
             {[
@@ -193,7 +237,7 @@ export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lig
             ].map(([x, y, rz, h], i) => (
               <mesh key={i} position={[x, y + h / 2, 0]} rotation={[0, 0, rz]}>
                 <coneGeometry args={[0.07, h * 1.6, 10]} />
-                <meshBasicMaterial color={COLORS.flame} transparent opacity={0.92} toneMapped={false} />
+                <meshBasicMaterial color={colors.flame} transparent opacity={0.92} toneMapped={false} />
               </mesh>
             ))}
           </group>
@@ -202,12 +246,12 @@ export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lig
         {/* Wings: pivot at the shoulder; rotation.x is animated */}
         <group position={[0.05, 0.18, 0.22]}>
           <group ref={rightWing} rotation={[Math.PI / 2, 0, 0]}>
-            <Wing shape={wingShape} />
+            <Wing shape={wingShape} colors={colors} />
           </group>
         </group>
         <group position={[0.05, 0.18, -0.22]}>
           <group ref={leftWing} rotation={[-Math.PI / 2, 0, 0]}>
-            <Wing shape={wingShape} />
+            <Wing shape={wingShape} colors={colors} />
           </group>
         </group>
 
@@ -224,8 +268,8 @@ export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lig
               <mesh position={[-len / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]} scale={[1, 1, 0.35]}>
                 <coneGeometry args={[0.13, len, 10]} />
                 <meshStandardMaterial
-                  color={COLORS.wing}
-                  emissive={COLORS.wingEmissive}
+                  color={colors.wing}
+                  emissive={colors.wingEmissive}
                   emissiveIntensity={1.6}
                   toneMapped={false}
                   roughness={0.6}
@@ -233,7 +277,7 @@ export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lig
               </mesh>
               <mesh position={[-len + 0.05, 0, 0]}>
                 <sphereGeometry args={[0.07, 10, 8]} />
-                <meshBasicMaterial color={COLORS.flame} toneMapped={false} />
+                <meshBasicMaterial color={colors.flame} toneMapped={false} />
               </mesh>
             </group>
           ))}
@@ -243,14 +287,14 @@ export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lig
   );
 }
 
-function Wing({ shape }) {
+function Wing({ shape, colors }) {
   return (
     <>
       <mesh>
         <shapeGeometry args={[shape, 12]} />
         <meshStandardMaterial
-          color={COLORS.wing}
-          emissive={COLORS.wingEmissive}
+          color={colors.wing}
+          emissive={colors.wingEmissive}
           emissiveIntensity={1.3}
           side={DoubleSide}
           roughness={0.55}
@@ -260,7 +304,13 @@ function Wing({ shape }) {
       {/* Inner, brighter layer for a hot-core gradient */}
       <mesh position={[0.06, 0.02, 0.01]} scale={[0.62, 0.6, 1]}>
         <shapeGeometry args={[shape, 8]} />
-        <meshBasicMaterial color={COLORS.wingInner} side={DoubleSide} transparent opacity={0.85} toneMapped={false} />
+        <meshBasicMaterial
+          color={colors.wingInner}
+          side={DoubleSide}
+          transparent
+          opacity={0.85}
+          toneMapped={false}
+        />
       </mesh>
     </>
   );
