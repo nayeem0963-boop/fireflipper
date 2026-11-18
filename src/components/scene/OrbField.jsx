@@ -70,7 +70,7 @@ export default function OrbField({ sim }) {
   const halo = (color, opacity, size) => (
     <>
       <icosahedronGeometry args={[size, 2]} />
-      <meshBasicMaterial color={color} transparent opacity={opacity} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+      <meshBasicMaterial color={color} transparent opacity={opacity} depthWrite={false} blending={AdditiveBlending} fog={false} toneMapped={false} />
     </>
   );
 
@@ -78,7 +78,7 @@ export default function OrbField({ sim }) {
     <group>
       <instancedMesh ref={refs.orb} args={[undefined, undefined, MAX.orb]} frustumCulled={false}>
         <icosahedronGeometry args={[0.2, 2]} />
-        <meshBasicMaterial color="#fff0b8" toneMapped={false} />
+        <meshBasicMaterial color="#fff0b8" fog={false} toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={refs.orbHalo} args={[undefined, undefined, MAX.orb]} frustumCulled={false} renderOrder={2}>
         {halo('#ff8a24', 0.35, 0.46)}
@@ -86,7 +86,7 @@ export default function OrbField({ sim }) {
 
       <instancedMesh ref={refs.gem} args={[undefined, undefined, MAX.gem]} frustumCulled={false}>
         <octahedronGeometry args={[0.3, 0]} />
-        <meshBasicMaterial color="#8af4ff" toneMapped={false} />
+        <meshBasicMaterial color="#8af4ff" fog={false} toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={refs.gemHalo} args={[undefined, undefined, MAX.gem]} frustumCulled={false} renderOrder={2}>
         {halo('#38b6ff', 0.4, 0.5)}
@@ -94,7 +94,7 @@ export default function OrbField({ sim }) {
 
       <instancedMesh ref={refs.shield} args={[undefined, undefined, MAX.shield]} frustumCulled={false}>
         <cylinderGeometry args={[0.36, 0.36, 0.12, 6]} />
-        <meshBasicMaterial color="#6dffb4" toneMapped={false} />
+        <meshBasicMaterial color="#6dffb4" fog={false} toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={refs.shieldHalo} args={[undefined, undefined, MAX.shield]} frustumCulled={false} renderOrder={2}>
         {halo('#2fe08a', 0.38, 0.5)}
@@ -102,7 +102,7 @@ export default function OrbField({ sim }) {
 
       <instancedMesh ref={refs.magnet} args={[undefined, undefined, MAX.magnet]} frustumCulled={false}>
         <torusGeometry args={[0.27, 0.1, 8, 22]} />
-        <meshBasicMaterial color="#ff7ae8" toneMapped={false} />
+        <meshBasicMaterial color="#ff7ae8" fog={false} toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={refs.magnetHalo} args={[undefined, undefined, MAX.magnet]} frustumCulled={false} renderOrder={2}>
         {halo('#e040c8', 0.38, 0.52)}

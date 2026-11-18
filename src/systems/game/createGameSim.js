@@ -4,6 +4,7 @@ import { circleHitsObstacle, clearanceToObstacle } from '../physics/collision.js
 import { ObjectPool } from '../obstacles/ObjectPool.js';
 import { createTrack, fillTrack, resetTrack, speedAt } from '../obstacles/spawner.js';
 import { BOULDER, RING, SPINNER, applyTime, fillRingNodes } from '../obstacles/dynamics.js';
+import { BIOMES, biomeIndexAt } from '../world/environments.js';
 import { computeScore, toMetres } from '../scoring/scoring.js';
 import { bonusPoints, multiplierFor, nearMissBase } from '../scoring/streak.js';
 import { GAME_EVENTS } from '../events/gameEvents.js';
@@ -263,6 +264,8 @@ export function createGameSim() {
     gemsCollected: 0,
     ringsPassed: 0,
     nearMisses: 0,
+    /** Index of the environment the bird is in (see world/environments.js). */
+    envIndex: 0,
     /** Bonus points earned so far by source (already multiplied when earned). Distance is separate. */
     points: { orbs: 0, gems: 0, rings: 0, nearMiss: 0, other: 0 },
     /** Orb streak: see STREAK in constants. */
@@ -329,6 +332,7 @@ export function createGameSim() {
       sim.gemsCollected = 0;
       sim.ringsPassed = 0;
       sim.nearMisses = 0;
+      sim.envIndex = 0;
       Object.assign(sim.points, { orbs: 0, gems: 0, rings: 0, nearMiss: 0, other: 0 });
       Object.assign(sim.streak, { count: 0, mult: 1, timeLeft: 0, best: 0, maxMult: 1, stamp: 0 });
       sim.shield = false;
@@ -410,6 +414,14 @@ export function createGameSim() {
     sim.distance += sim.speed * dt;
     sim.runTime += dt;
     fillTrack(track, builder, sim.distance, rng);
+
+    // Crossing into a new environment is announced once, at the boundary.
+    const env = biomeIndexAt(sim.distance);
+    if (env !== sim.envIndex) {
+      sim.envIndex = env;
+      const biome = BIOMES[env];
+      sim.events.push({ type: GAME_EVENTS.ENVIRONMENT, index: env, id: biome.id, name: biome.name, tagline: biome.tagline });
+    }
 
     const bx = sim.distance;
     const R = PHYSICS.birdRadius;

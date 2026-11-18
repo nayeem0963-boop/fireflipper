@@ -21,6 +21,8 @@ export const GAME_EVENTS = Object.freeze({
   /** A shield took a hit: { x, y, cause }. */
   SHIELD_BREAK: 'shieldBreak',
   MAGNET_END: 'magnetEnd',
+  /** The bird crossed into a new environment: { index, id, name, tagline }. */
+  ENVIRONMENT: 'environment',
   /** The bird flew through the middle of a fire ring: { x, y }. */
   RING: 'ring',
   /** A falling boulder hit the lava: { x, y }. */

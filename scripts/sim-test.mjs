@@ -8,8 +8,9 @@ import { createStepper } from '../src/systems/game/fixedStep.js';
 import { createRng } from '../src/utils/random.js';
 import { CELLS, MOVING_MARGIN, SIGHT_DISTANCE, cellOf, cellY, createPlanner } from '../src/systems/obstacles/planner.js';
 import { BOULDER, RING, SPINNER, applyTime, fillRingNodes, speedAt, timeAtDistance } from '../src/systems/obstacles/dynamics.js';
-import { PATTERNS, UNLOCK } from '../src/systems/obstacles/patterns.js';
-import { difficultyAt } from '../src/systems/obstacles/spawner.js';
+import { PATTERNS, UNLOCK, gapFor } from '../src/systems/obstacles/patterns.js';
+import { difficultyAt, lateAt } from '../src/systems/obstacles/spawner.js';
+import { BIOMES, BOUNDARIES, SCENERY_BUDGET, biomeIndexAt, createEnvState, environmentAt, patternWeightsAt } from '../src/systems/world/environments.js';
 import { RENDER_CAPS } from '../src/systems/obstacles/renderCaps.js';
 import { PHYSICS, WORLD, SCORING, STREAK, POWERUPS } from '../src/systems/physics/constants.js';
 import { modelScores } from './balance-model.mjs';
@@ -735,6 +736,231 @@ section('Scoring balance (distance stays the backbone)');
   check('elite play: distance is still at least 42%', elite.share >= 0.42, pct(elite));
   check('even every pickup on every route leaves distance at 33% or more', ceiling.share >= 0.33, pct(ceiling));
   check('collecting more always scores more', casual.total < skilled.total && skilled.total < elite.total && elite.total < ceiling.total);
+}
+
+// ---------------------------------------------------------------- the journey (phase 4)
+section('Environments: boundaries and seamless blending');
+{
+  check('five environments in the planned order', BIOMES.map((b) => b.id).join() === 'plains,canyon,islands,forest,storm');
+  check('boundaries at 500 / 1,000 / 1,500 / 2,000 m', BOUNDARIES.join() === '500,1000,1500,2000');
+  check('the right environment at each distance', biomeIndexAt(0) === 0 && biomeIndexAt(499) === 0 && biomeIndexAt(500) === 1 && biomeIndexAt(999) === 1 && biomeIndexAt(1000) === 2 && biomeIndexAt(1499) === 2 && biomeIndexAt(1500) === 3 && biomeIndexAt(2000) === 4 && biomeIndexAt(9000) === 4);
+
+  // No parameter may jump: walk the whole journey a metre at a time.
+  const st = createEnvState();
+  let prev = null;
+  let worstColour = 0;
+  let worstFog = 0;
+  let worstWeight = 0;
+  const flat = (e) => {
+    const out = {};
+    for (const g of ['sky', 'fog', 'ambient', 'hemi', 'key', 'ground', 'obstacle', 'peak', 'scenery', 'particles', 'effects']) {
+      for (const k in e[g]) {
+        const v = e[g][k];
+        if (Array.isArray(v)) v.forEach((c, i) => (out[`${g}.${k}.${i}`] = c));
+        else out[`${g}.${k}`] = v;
+      }
+    }
+    return out;
+  };
+  for (let d = 0; d <= 3200; d += 1) {
+    environmentAt(d, st);
+    const cur = flat(st);
+    if (prev) {
+      for (const k in cur) {
+        const dv = Math.abs(cur[k] - prev[k]);
+        if (k.startsWith('scenery.')) worstWeight = Math.max(worstWeight, dv);
+        else if (k.startsWith('fog.near') || k.startsWith('fog.far')) worstFog = Math.max(worstFog, dv);
+        else if (/\.\d$/.test(k)) worstColour = Math.max(worstColour, dv);
+      }
+    }
+    prev = cur;
+  }
+  console.log(`  largest change per metre: colour ${worstColour.toFixed(4)}, fog distance ${worstFog.toFixed(3)} u, scenery weight ${worstWeight.toFixed(4)}`);
+  check('colours change by under 0.8% per metre everywhere', worstColour < 0.008, `${worstColour}`);
+  check('fog distance changes by under 0.5 u per metre', worstFog < 0.5, `${worstFog}`);
+  check('scenery weights change by under 1.5% per metre', worstWeight < 0.015, `${worstWeight}`);
+
+  // Half way through a boundary the world is exactly half of each neighbour.
+  for (let i = 1; i < BIOMES.length; i++) {
+    const mid = environmentAt(BIOMES[i].from, createEnvState());
+    const a = BIOMES[i - 1];
+    const b = BIOMES[i];
+    const ok =
+      Math.abs(mid.fog.far - (a.fog.far + b.fog.far) / 2) < 1e-9 &&
+      Math.abs(mid.sky.hor[0] - (a.sky.hor[0] + b.sky.hor[0]) / 2) < 1e-9 &&
+      Math.abs(mid.scenery.trees - (a.scenery.trees + b.scenery.trees) / 2) < 1e-9;
+    check(`the ${b.name} boundary is an even blend of both sides`, ok);
+  }
+  const far = environmentAt(250, createEnvState());
+  check('well inside an environment it is that environment exactly', far.fog.far === BIOMES[0].fog.far && far.t === 0);
+  // The next environment's obstacles ramp in across the transition: roughly half strength at the
+  // boundary itself, full strength 70 m later (and absent before the boundary).
+  const before = {};
+  const atEdge = {};
+  const after = {};
+  patternWeightsAt(BOUNDARIES[0] - 30, 0.3, before);
+  patternWeightsAt(BOUNDARIES[0] + 1, 0.3, atEdge);
+  patternWeightsAt(BOUNDARIES[0] + 75, 0.3, after);
+  const fresh = ['tunnel', 'boulders'];
+  check('canyon obstacles are absent before the boundary', fresh.every((k) => !(before[k] > 0)));
+  check('and ramp in across it (about half strength at the boundary, full 75 m later)', fresh.every((k) => atEdge[k] > 0.35 * after[k] && atEdge[k] < 0.65 * after[k]), fresh.map((k) => `${k} ${atEdge[k].toFixed(2)}/${after[k].toFixed(2)}`).join(' '));
+}
+
+section('Environments: the simulation announces each one');
+{
+  const s = createGameSim();
+  s.reset(3);
+  const seen = [];
+  for (let d = 0; d <= 2600; d += 5) {
+    s.distance = s.prevDistance = d;
+    s.phase = PHASE.RUNNING;
+    s.step(0);
+    for (const e of s.events) if (e.type === 'environment') seen.push(`${e.id}@${d}`);
+    s.events.length = 0;
+    for (const o of s.obstacles.active) if (o.x + o.extent < d - 12) s.obstacles.release(o);
+    s.bird.y = 0.4;
+  }
+  check('one announcement per boundary, in order', seen.join() === 'canyon@500,islands@1000,forest@1500,storm@2000', seen.join());
+  check('the run starts in the first environment', createGameSim().envIndex === 0);
+}
+
+section('Environments: forward visibility is never sacrificed');
+{
+  // Fog can thicken for atmosphere, but the track ahead must stay readable in every environment
+  // and at every point of every transition. (Obstacle caps are also drawn without fog.)
+  const st = createEnvState();
+  let minFar = Infinity;
+  let minNear = Infinity;
+  let minSpan = Infinity;
+  let minLight = Infinity;
+  let minCapContrast = Infinity;
+  const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  for (let d = 0; d <= 3200; d += 4) {
+    environmentAt(d, st);
+    minFar = Math.min(minFar, st.fog.far);
+    minNear = Math.min(minNear, st.fog.near);
+    minSpan = Math.min(minSpan, st.fog.far - st.fog.near);
+    minLight = Math.min(minLight, st.ambient.intensity + st.hemi.intensity + st.key.intensity);
+    minCapContrast = Math.min(minCapContrast, lum(st.obstacle.cap) / Math.max(1e-4, lum(st.fog.color)));
+  }
+  console.log(`  tightest fog: ${minNear.toFixed(1)} to ${minFar.toFixed(1)} u (${minSpan.toFixed(1)} u of falloff); dimmest light ${minLight.toFixed(2)}; weakest cap contrast ${minCapContrast.toFixed(1)}x`);
+  check('fog never starts closer than 14 u', minNear >= 14, `${minNear}`);
+  check('fog never ends closer than 40 u (obstacles spawn 46 u ahead; the view is ~13 u on a widescreen, ~7 u on a phone)', minFar >= 40, `${minFar}`);
+  check('fog always fades in over at least 25 u', minSpan >= 25, `${minSpan}`);
+  check('the scene never gets dimmer than a floor', minLight >= 2.2, `${minLight}`);
+  check('glowing obstacle caps are at least 20x brighter than the fog behind them, everywhere', minCapContrast >= 20, `${minCapContrast}`);
+  // Lightning only ever brightens; the base light stays above the floor even without it.
+  check('storm is the only environment with lightning', BIOMES.filter((b) => b.effects.storm > 0).map((b) => b.id).join() === 'storm');
+}
+
+section('Environments: each has its own obstacles');
+{
+  // Distribution of obstacle sections per environment over many tracks.
+  const dist = BIOMES.map(() => ({}));
+  const counts = BIOMES.map(() => 0);
+  const movingShare = BIOMES.map(() => 0);
+  const MOVINGSET = new Set(['geysers', 'spinner', 'boulders', 'ashfall']);
+  for (let seed = 1; seed <= 20; seed++) {
+    const s = createGameSim();
+    s.reset(seed);
+    const seen = new Set();
+    for (let d = 0; d <= 3200; d += 2) {
+      s.distance = s.prevDistance = d;
+      s.phase = PHASE.RUNNING;
+      s.step(0);
+      s.events.length = 0;
+      for (const c of s.track.corridors) {
+        if (seen.has(c.x0)) continue;
+        seen.add(c.x0);
+        // Judge a section by where it sits, away from the blend zones (+/- 70 m) so each environment is itself.
+        const b = biomeIndexAt(c.x0);
+        const inBlend = BIOMES.some((bi, i) => i > 0 && Math.abs(c.x0 - bi.from) < 90);
+        if (inBlend) continue;
+        dist[b][c.type] = (dist[b][c.type] || 0) + 1;
+        counts[b]++;
+        if (MOVINGSET.has(c.type)) movingShare[b]++;
+      }
+      for (const o of s.obstacles.active) if (o.x + o.extent < d - 12) s.obstacles.release(o);
+      for (const o of s.orbs.active) if (o.x < d - 12) s.orbs.release(o);
+      s.bird.y = 0.4;
+    }
+  }
+  const share = (b, type) => (dist[b][type] || 0) / counts[b];
+  BIOMES.forEach((b, i) => {
+    const top = Object.entries(dist[i]).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, v]) => `${k} ${(100 * v / counts[i]).toFixed(0)}%`).join(', ');
+    console.log(`  ${b.name.padEnd(16)} ${top}   (moving hazards ${(100 * movingShare[i] / counts[i]).toFixed(0)}%)`);
+  });
+  check('Floating Islands: island chains are a staple', share(2, 'islandChain') >= 0.15, share(2, 'islandChain').toFixed(2));
+  check('Burning Forest: groves are a staple', share(3, 'grove') >= 0.15, share(3, 'grove').toFixed(2));
+  check('Burning Forest: lava columns appear regularly', share(3, 'geysers') >= 0.05, share(3, 'geysers').toFixed(2));
+  check('Ash Storm: ashfall volleys are a staple', share(4, 'ashfall') >= 0.08, share(4, 'ashfall').toFixed(2));
+  check('Rocky Canyon: tunnels, passages and boulders dominate', share(1, 'tunnel') + share(1, 'passage') + share(1, 'boulders') >= 0.25, (share(1, 'tunnel') + share(1, 'passage') + share(1, 'boulders')).toFixed(2));
+  check('signature obstacles never appear in the plains', (dist[0].islandChain || 0) + (dist[0].grove || 0) + (dist[0].ashfall || 0) + (dist[0].tunnel || 0) + (dist[0].boulders || 0) === 0);
+  // Adjacent environments must differ in what they ask of you (total variation distance of the mixes).
+  const types = [...new Set(dist.flatMap((d) => Object.keys(d)))];
+  for (let i = 1; i < BIOMES.length; i++) {
+    const tv = types.reduce((a, t) => a + Math.abs(share(i, t) - share(i - 1, t)), 0) / 2;
+    check(`${BIOMES[i - 1].name} and ${BIOMES[i].name} differ clearly in their obstacles`, tv >= 0.28, tv.toFixed(2));
+  }
+  // The run gets harder as it goes: more moving hazards, and tighter gaps, later.
+  const m = movingShare.map((v, i) => v / counts[i]);
+  check('the share of moving hazards rises from the plains onward', m[0] < m[1] && m[0] < m[2] && m[4] > m[0] + 0.1, m.map((v) => v.toFixed(2)).join(','));
+  check('and is highest in the ash storm', m[4] >= Math.max(m[0], m[1], m[2]) - 0.02 && m[4] >= m[3] - 0.05, m.map((v) => v.toFixed(2)).join(','));
+}
+
+section('Journey difficulty keeps rising past the base curve');
+{
+  check('the late-game ramp starts after the base curve and rises monotonically', lateAt(1500) === 0 && lateAt(1600) === 0 && lateAt(2400) > 0 && lateAt(3200) === 1 && lateAt(2000) <= lateAt(2800));
+  const rng = createRng(9);
+  const gate0 = gapFor('gate', 1, rng, 0);
+  const gate1 = gapFor('gate', 1, createRng(9), 1);
+  check('gaps tighten further late in the run', gate1 < gate0 - 0.2, `${gate0.toFixed(2)} -> ${gate1.toFixed(2)}`);
+  check('but never below 2.7 u', gapFor('gate', 1, createRng(2), 1) >= 2.7 && gapFor('tunnel', 1, createRng(2), 1) >= 2.7 && gapFor('grove', 1, createRng(2), 1) >= 2.7);
+  // Ramp is smooth: gap, per metre, never changes abruptly across the whole journey.
+  let worst = 0;
+  let last = null;
+  for (let d = 0; d <= 3600; d += 5) {
+    const g = gapFor('gate', difficultyAt(d), createRng(5), lateAt(d));
+    if (last !== null) worst = Math.max(worst, Math.abs(g - last));
+    last = g;
+  }
+  check('the gap shrinks smoothly across the whole journey', worst < 0.02, `${worst.toFixed(4)} per 5 m`);
+}
+
+section('Scenery is cheap enough for phones');
+{
+  const B = SCENERY_BUDGET;
+  const per = {
+    peaks: B.peakLayers * B.drawCallsPerLayer.peaks,
+    cliffs: B.cliffLayers * B.drawCallsPerLayer.cliffs,
+    islands: B.islandLayers * B.drawCallsPerLayer.islands,
+    trees: B.treeLayers * B.drawCallsPerLayer.trees,
+    clouds: B.cloudLayers * B.drawCallsPerLayer.clouds,
+  };
+  const st = createEnvState();
+  let worst = 0;
+  let at = 0;
+  let neverDrawn = Object.keys(per);
+  for (let d = 0; d <= 3600; d++) {
+    environmentAt(d, st);
+    let calls = 0;
+    for (const k in per) {
+      if (st.scenery[k] >= B.minWeight) {
+        calls += per[k];
+        neverDrawn = neverDrawn.filter((x) => x !== k);
+      }
+    }
+    if (calls > worst) {
+      worst = calls;
+      at = d;
+    }
+  }
+  console.log(`  at most ${worst} backdrop draw calls at once (at ${at} m); the old backdrop alone was ~42`);
+  check(`never more than ${B.maxVisibleDrawCalls} backdrop draw calls at once, even mid-transition`, worst <= B.maxVisibleDrawCalls, `${worst} at ${at}`);
+  check('every kind of scenery is used somewhere', neverDrawn.length === 0, neverDrawn.join());
+  // Each environment on its own draws only its own scenery.
+  const alone = BIOMES.map((b) => Object.keys(per).filter((k) => b.scenery[k] >= B.minWeight).reduce((a, k) => a + per[k], 0));
+  check('each environment on its own is within budget', alone.every((c) => c <= 6), alone.join());
 }
 
 section('Difficulty progression');

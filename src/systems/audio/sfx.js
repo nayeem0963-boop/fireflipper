@@ -68,7 +68,50 @@ function tone({ type = 'sine', from, to, duration, peak, delay = 0 }) {
 
 const ready = () => ctx && ctx.state === 'running';
 
+/** Looping wind bed under the game: filtered noise whose level follows the environment. */
+let wind = null;
+function ensureWind() {
+  if (wind || !ctx) return wind;
+  const len = ctx.sampleRate * 2;
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < len; i++) {
+    // Brown-ish noise: smoother and lower than white, so it reads as air, not hiss.
+    last = (last + (Math.random() * 2 - 1) * 0.08) * 0.985;
+    d[i] = last * 4;
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 420;
+  filter.Q.value = 0.5;
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  src.connect(filter).connect(gain).connect(master);
+  src.start();
+  wind = { gain, filter };
+  return wind;
+}
+
 export const sfx = {
+  /** Wind level 0..1: silent in the plains, a steady rush in the ash storm. */
+  setWind(level) {
+    if (!ready()) return;
+    const w = ensureWind();
+    const t = ctx.currentTime;
+    w.gain.gain.setTargetAtTime(level * 0.16, t, 0.6);
+    w.filter.frequency.setTargetAtTime(380 + level * 520, t, 0.6);
+  },
+  /** Entering a new environment: a soft rising swell, not a jingle. */
+  environment() {
+    if (!ready()) return;
+    tone({ type: 'sine', from: 196, to: 294, duration: 0.9, peak: 0.09 });
+    tone({ type: 'triangle', from: 294, to: 440, duration: 0.8, peak: 0.06, delay: 0.12 });
+    noiseBurst({ duration: 0.8, filter: 'bandpass', from: 500, to: 1400, q: 0.5, peak: 0.07 });
+  },
   flap() {
     if (!ready()) return;
     noiseBurst({ duration: 0.12, filter: 'bandpass', from: 1300, to: 450, q: 0.9, peak: 0.22 });

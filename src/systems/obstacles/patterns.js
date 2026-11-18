@@ -1,5 +1,6 @@
 import { WORLD } from '../physics/constants.js';
 import { RING } from './dynamics.js';
+import { firstAppearance, patternWeightsAt } from '../world/environments.js';
 
 /**
  * Obstacle patterns. Each pattern builds one "section" at track position
@@ -213,12 +214,16 @@ function geysers(b, x, center, gap, rng, ctx) {
   const topMin = WORLD.groundY + 0.45;
   const topMax = lerp(-0.2, 1.5, ctx.t) + rng.range(0, 0.4);
   const period = lerp(2.5, 1.9, ctx.t) + rng.range(-0.1, 0.1);
-  let s = rng();
+  // Half the time the columns arrive roughly in step (all low as you pass, so the low route is
+  // open); otherwise neighbours are out of step with each other and their gaps open at different times.
+  const inStep = rng.chance(0.5);
+  let s = inStep ? rng.range(0, 0.3) : rng();
+  const rising = rng.chance(0.5);
   for (let i = 0; i < n; i++) {
     const gx = x + 0.6 + i * pitch;
-    // Neighbours are out of step with each other, so the gaps open at different times.
-    s = clamp(1 - s + rng.range(-0.2, 0.2), 0, 1);
-    b.geyser(gx, w, topMin, topMax, period, s, rng.chance(0.5), ctx.timeAt(gx));
+    if (inStep) s = clamp(s + rng.range(-0.06, 0.06), 0, 1);
+    else s = clamp(1 - s + rng.range(-0.2, 0.2), 0, 1);
+    b.geyser(gx, w, topMin, topMax, period, s, inStep ? rising : rng.chance(0.5), ctx.timeAt(gx));
   }
   // Low route: orbs just above the vents.
   for (let i = 0; i < n - 1; i++) {
@@ -268,6 +273,72 @@ function boulders(b, x, center, gap, rng, ctx) {
 }
 
 /**
+ * Island chain (Floating Islands): three slabs of floating stone, alternately just above and just
+ * below the straight line through them. The straight line squeezes between them (orbs and the odd
+ * gem sit on it); flying over or under the whole chain is slower but safe.
+ */
+function islandChain(b, x, center, gap, rng, ctx) {
+  const n = 3;
+  const pitch = 5.2;
+  const amp = lerp(1.05, 1.35, ctx.t);
+  let length = 0;
+  for (let i = 0; i < n; i++) {
+    const hw = rng.range(1.2, 1.7);
+    const cx = x + 1.8 + i * pitch;
+    const above = i % 2 === 0;
+    const y = clamp(center + (above ? amp : -amp), WORLD.groundY + 1.2, WORLD.ceilingY - 0.9);
+    // Glow on the face that looks toward the straight line.
+    b.block(cx - hw, cx + hw, y - 0.38, y + 0.38, above ? -1 : 1);
+    b.orb(cx, center, true); // right on the squeeze line
+    length = cx + hw - x;
+  }
+  if (rng.chance(0.3)) b.gem(x + 1.8 + pitch * 1.5, center);
+  return { length: length + 0.4, lo: center - 0.4, hi: center + 0.4, free: [WORLD.groundY + 0.4, WORLD.ceilingY] };
+}
+
+/**
+ * Grove (Burning Forest): narrow trees close together, alternately hanging from above and rising
+ * from below, with the opening between them swinging up and down. A rhythm to settle into.
+ */
+function grove(b, x, center, gap, rng, ctx) {
+  const n = 3;
+  const pitch = lerp(3.9, 3.5, ctx.t);
+  const w = rng.range(1.0, 1.25);
+  const swing = lerp(0.7, 1.1, ctx.t);
+  const g = Math.max(3.0, gap - 0.2);
+  const minC = WORLD.groundY + g / 2 + 0.5;
+  const maxC = WORLD.ceilingY - g / 2 - 0.2;
+  let lo = center;
+  let hi = center;
+  for (let i = 0; i < n; i++) {
+    const ci = clamp(center + (i % 2 ? -swing : swing), minC, maxC);
+    const cx = x + 0.7 + i * pitch;
+    if (i % 2 === 0) b.column(cx, ci + g / 2, ABOVE, w, -1);
+    else b.column(cx, BELOW, ci - g / 2, w, 1);
+    if (rng.chance(0.55)) b.orb(cx, ci);
+    lo = ci - g / 2;
+    hi = ci + g / 2;
+  }
+  return { length: 0.7 * 2 + (n - 1) * pitch + w, lo, hi, free: [WORLD.groundY + 0.4, WORLD.ceilingY] };
+}
+
+/**
+ * Ashfall (Ash Storm): a volley of small boulders dropping through lanes only ~3 u apart, each
+ * reaching a different height as you arrive. Every lane glows before its boulder falls.
+ */
+function ashfall(b, x, center, gap, rng, ctx) {
+  const n = 3;
+  const pitch = 3.1;
+  for (let i = 0; i < n; i++) {
+    const bx = x + 1.0 + i * pitch;
+    const yCross = clamp(center + rng.range(-1.5, 1.5), -0.8, 3.0);
+    b.boulder(bx, rng.range(0.55, 0.68), yCross, ctx.timeAt(bx));
+    if (i === 1) b.orb(bx + 1.5, yCross, true);
+  }
+  return { length: 2.0 + (n - 1) * pitch + 1.4, lo: center - 0.4, hi: center + 0.4, free: [WORLD.groundY + 0.4, WORLD.ceilingY] };
+}
+
+/**
  * Optional fire ring in open space. Flying through the middle pays a bonus;
  * flying around it costs nothing. The route planner keeps a way around open.
  */
@@ -278,62 +349,73 @@ export function fireRing(b, x, yc, rng) {
   return { halfWidth: RING.radius + RING.nodeRadius };
 }
 
-export const PATTERNS = { gate, column, floatingRocks, formation, passage, tunnel, splitGate, geysers, spinner, boulders };
+export const PATTERNS = { gate, column, floatingRocks, formation, passage, tunnel, splitGate, geysers, spinner, boulders, islandChain, grove, ashfall };
 
 /** Patterns with moving parts; they get extra spacing and never follow each other. */
-export const MOVING = new Set(['geysers', 'spinner', 'boulders']);
+export const MOVING = new Set(['geysers', 'spinner', 'boulders', 'ashfall']);
 
-/** Corridor height per pattern, shrinking with difficulty t ∈ [0, 1]. */
-export function gapFor(type, t, rng) {
+/**
+ * Corridor height per pattern, shrinking with difficulty t ∈ [0, 1], and a little further in the
+ * late game (`late` ∈ [0, 1] over 1,600 to 3,200 m) so the later environments keep getting harder.
+ */
+export function gapFor(type, t, rng, late = 0) {
+  let g;
   switch (type) {
     case 'gate':
-      return lerp(4.3, 2.9, t) + rng.range(0, 0.4);
+      g = lerp(4.3, 2.9, t) + rng.range(0, 0.4);
+      break;
     case 'passage':
-      return Math.max(3.2, lerp(4.0, 3.2, t)) + rng.range(0, 0.2);
+      g = Math.max(3.2, lerp(4.0, 3.2, t)) + rng.range(0, 0.2);
+      break;
     case 'tunnel':
-      return lerp(3.9, 3.1, t) + rng.range(0, 0.2);
+      g = lerp(3.9, 3.1, t) + rng.range(0, 0.2);
+      break;
     case 'splitGate':
-      return lerp(4.2, 3.4, t) + rng.range(0, 0.3);
+      g = lerp(4.2, 3.4, t) + rng.range(0, 0.3);
+      break;
+    case 'islandChain':
+    case 'grove':
+      g = lerp(4.0, 3.2, t) + rng.range(0, 0.3);
+      break;
     default:
-      return lerp(4.1, 3.0, t) + rng.range(0, 0.4);
+      g = lerp(4.1, 3.0, t) + rng.range(0, 0.4);
   }
+  return Math.max(2.7, g - 0.25 * late);
 }
 
-/** Distance at which each pattern first appears: new challenges arrive one at a time. */
-export const UNLOCK = Object.freeze({
-  gate: 0,
-  column: 0,
-  floatingRocks: 80,
-  splitGate: 150,
-  formation: 200,
-  geysers: 280,
-  passage: 320,
-  tunnel: 380,
-  spinner: 460,
-  boulders: 560,
-});
+/**
+ * Distance at which each pattern first appears, derived from the environments' tables: the
+ * opening environment introduces things one at a time, later ones introduce their own signature.
+ */
+export const UNLOCK = Object.freeze(Object.fromEntries(Object.keys(PATTERNS).map((type) => [type, firstAppearance(type)])));
 
-/** Weighted pattern choice; new pattern types unlock with distance. */
-export function pickPattern(distance, t, rng, previous) {
-  const open = (type) => distance > UNLOCK[type];
+const weights = {};
+
+/**
+ * Weighted pattern choice from the current environment's table (blended across a transition, so
+ * the mix changes gradually). `late` makes moving hazards a little more common deep into a run.
+ */
+export function pickPattern(distance, t, rng, previous, late = 0) {
+  patternWeightsAt(distance, t, weights);
   const moving = MOVING.has(previous);
-  const weights = [
-    ['gate', 3 - t],
-    ['column', 2 - t * 0.5],
-    ['floatingRocks', open('floatingRocks') ? 1.6 : 0],
-    ['splitGate', open('splitGate') && previous !== 'splitGate' ? 1.0 + t * 0.8 : 0],
-    ['formation', open('formation') ? 1.2 + t : 0],
-    ['geysers', open('geysers') && !moving ? 0.8 + 0.9 * t : 0],
-    ['passage', open('passage') && previous !== 'passage' && previous !== 'tunnel' ? 0.6 + t * 0.8 : 0],
-    ['tunnel', open('tunnel') && previous !== 'passage' && previous !== 'tunnel' ? 0.6 + t : 0],
-    ['spinner', open('spinner') && !moving ? 0.7 + 0.9 * t : 0],
-    ['boulders', open('boulders') && !moving ? 0.6 + 0.9 * t : 0],
-  ];
-  const total = weights.reduce((s, [, w]) => s + w, 0);
+  let total = 0;
+  for (const type in weights) {
+    let w = weights[type];
+    if (w <= 0 || !(type in PATTERNS)) {
+      weights[type] = 0;
+      continue;
+    }
+    if (MOVING.has(type)) w = moving ? 0 : w * (1 + 0.5 * late);
+    if (type === 'splitGate' && previous === 'splitGate') w = 0;
+    if ((type === 'passage' || type === 'tunnel') && (previous === 'passage' || previous === 'tunnel')) w = 0;
+    weights[type] = w;
+    total += w;
+  }
+  if (total <= 0) return 'gate';
   let roll = rng() * total;
-  for (const [type, w] of weights) {
-    roll -= w;
-    if (roll < 0) return type;
+  for (const type in weights) {
+    roll -= weights[type];
+    if (roll < 0 && weights[type] > 0) return type;
   }
   return 'gate';
 }

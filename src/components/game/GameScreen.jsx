@@ -6,6 +6,7 @@ import GameHUD from '../ui/GameHUD.jsx';
 import PauseMenu from '../ui/PauseMenu.jsx';
 import StartPrompt from '../ui/StartPrompt.jsx';
 import GameOverPanel from '../ui/GameOverPanel.jsx';
+import EnvBanner from '../ui/EnvBanner.jsx';
 import { useGameInput } from '../../hooks/useGameInput.js';
 import { usePauseWhenHidden } from '../../hooks/usePauseWhenHidden.js';
 import { useGameAudio } from '../../hooks/useGameAudio.js';
@@ -64,6 +65,7 @@ export default function GameScreen() {
       </div>
 
       <GameHUD />
+      <EnvBanner />
 
       {status === STATUS.READY && <StartPrompt />}
       {status === STATUS.DYING && <div className="game__flash" aria-hidden="true" />}

@@ -24,13 +24,23 @@ const MOVING_MIN_SPACING = 10.5;
 const BREATHER = 1.2;
 /** Fire rings need this much open space around them. */
 const RING_SPACING = 11;
-const MAX_ATTEMPTS = 6;
+/** Re-draws of the planned pattern (new height, new gap) before a roomy gate replaces it. */
+const SAME_TYPE_TRIES = 5;
+const MAX_ATTEMPTS = SAME_TYPE_TRIES + 4;
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 /** Difficulty 0..1 as a function of distance travelled. */
 export function difficultyAt(distance) {
   return clamp((distance - 40) / 1600, 0, 1);
+}
+
+/**
+ * Extra late-game difficulty 0..1 over 1,600 to 3,200 m: slightly tighter gaps and spacing and
+ * more moving hazards, so the later environments keep getting harder after the base curve flattens.
+ */
+export function lateAt(distance) {
+  return clamp((distance - 1600) / 1600, 0, 1);
 }
 
 export function createTrack() {
@@ -49,7 +59,7 @@ export function createTrack() {
     previous: null,
     corridors: [],
     planner: createPlanner(),
-    stats: { sections: 0, rejected: 0, sightRejected: 0, fallbacks: 0, unverified: 0, rings: 0, types: {} },
+    stats: { sections: 0, rejected: 0, sightRejected: 0, fallbacks: 0, unverified: 0, rings: 0, types: {}, tried: {}, rejectedBy: {} },
   };
 }
 
@@ -66,6 +76,8 @@ export function resetTrack(track, startY) {
   const s = track.stats;
   s.sections = s.rejected = s.sightRejected = s.fallbacks = s.unverified = s.rings = 0;
   s.types = {};
+  s.tried = {};
+  s.rejectedBy = {};
 }
 
 /** Generate sections until the track extends `spawnAhead` past `distance`. */
@@ -79,19 +91,20 @@ export function fillTrack(track, builder, distance, rng) {
 
 function generateSection(track, builder, rng) {
   const t = difficultyAt(track.nextX);
+  const late = lateAt(track.nextX);
   const ctx = { t, timeAt: timeAtDistance };
-  const planned = pickPattern(track.nextX, t, rng, track.previous);
+  const planned = pickPattern(track.nextX, t, rng, track.previous, late);
   const afterMoving = MOVING.has(track.previous);
 
   for (let attempt = 0; attempt <= MAX_ATTEMPTS; attempt++) {
     const lastResort = attempt === MAX_ATTEMPTS;
     // Early rejections re-draw the same pattern; later ones fall back to a roomy gate.
-    const type = attempt < 2 ? planned : 'gate';
-    const easier = attempt >= 2 ? attempt - 1 : 0;
-    const gap = gapFor(type, t, rng) + 0.3 * easier;
+    const type = attempt < SAME_TYPE_TRIES ? planned : 'gate';
+    const easier = attempt >= SAME_TYPE_TRIES ? attempt - SAME_TYPE_TRIES + 1 : 0;
+    const gap = gapFor(type, t, rng, late) + 0.3 * easier;
     let wantRing = !lastResort && attempt < 2 && track.nextX > 120 && !MOVING.has(type) && rng.chance(0.2 + 0.1 * t);
 
-    let spacing = 12 + (7.5 - 12) * t + rng.range(0, 2.5);
+    let spacing = 12 + (7.5 - 12) * t - 0.7 * late + rng.range(0, 2.5);
     if (MOVING.has(type)) spacing = Math.max(spacing, MOVING_MIN_SPACING + rng.range(0, 1));
     if (wantRing) spacing = Math.max(spacing, RING_SPACING);
     if (afterMoving) spacing += BREATHER;
@@ -109,6 +122,7 @@ function generateSection(track, builder, rng) {
     if (lo > hi) lo = hi = clamp((lo + hi) / 2, minC, maxC);
     const center = rng.range(lo, hi);
 
+    track.stats.tried[type] = (track.stats.tried[type] || 0) + 1;
     builder.begin();
     // Sometimes leave a trail of orbs through the open space before the section.
     if (rng.chance(0.3)) {
@@ -159,6 +173,7 @@ function generateSection(track, builder, rng) {
     if (!ok) {
       builder.rollback();
       track.stats.rejected++;
+      track.stats.rejectedBy[type] = (track.stats.rejectedBy[type] || 0) + 1;
       continue;
     }
 

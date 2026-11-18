@@ -489,3 +489,55 @@
     animation-duration: 0.01s;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Environment banner: low on the screen, over the lava, never over the flight band
+   -------------------------------------------------------------------------- */
+.env-banner {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 9%);
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 22px 9px;
+  border-radius: 14px;
+  background: rgba(11, 9, 7, 0.5);
+  border: 1px solid var(--line);
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: banner-in-out 3.6s ease-in-out forwards;
+}
+.env-banner__name {
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1.1rem, 4vw, 1.6rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fire-200);
+  text-shadow: 0 0 16px rgba(255, 130, 40, 0.6);
+}
+.env-banner__tagline {
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+@keyframes banner-in-out {
+  0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  12% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .env-banner {
+    animation-duration: 3.6s;
+    animation-name: banner-fade;
+  }
+  @keyframes banner-fade {
+    0%, 100% { opacity: 0; transform: translateX(-50%); }
+    15%, 80% { opacity: 1; transform: translateX(-50%); }
+  }
+}

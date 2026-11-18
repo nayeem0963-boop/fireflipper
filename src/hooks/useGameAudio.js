@@ -16,6 +16,7 @@ export function useGameAudio() {
       gameEvents.on(GAME_EVENTS.STREAK_BREAK, (e) => e.count >= 3 && play(sfx.streakBreak)()),
       gameEvents.on(GAME_EVENTS.POWERUP, (e) => play(e.kind === 'shield' ? sfx.shieldGet : sfx.magnetGet)()),
       gameEvents.on(GAME_EVENTS.SHIELD_BREAK, play(sfx.shieldBreak)),
+      gameEvents.on(GAME_EVENTS.ENVIRONMENT, play(sfx.environment)),
       gameEvents.on(GAME_EVENTS.RING, play(sfx.ring)),
       gameEvents.on(GAME_EVENTS.LANDING, play(sfx.landing)),
       gameEvents.on(GAME_EVENTS.CRASH, play(sfx.crash, (e) => e.cause)),

@@ -169,21 +169,21 @@ export default function HazardField({ sim }) {
       </instancedMesh>
       <instancedMesh ref={boulderGlow} args={[undefined, undefined, MAX.boulder]} frustumCulled={false} renderOrder={2}>
         <icosahedronGeometry args={[1, 1]} />
-        <meshBasicMaterial color="#ff3a14" transparent opacity={0.28} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+        <meshBasicMaterial color="#ff3a14" transparent opacity={0.28} depthWrite={false} blending={AdditiveBlending} fog={false} toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={lanes} args={[undefined, undefined, MAX.boulder]} frustumCulled={false} renderOrder={1}>
         <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial map={laneTexture} transparent depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+        <meshBasicMaterial map={laneTexture} transparent depthWrite={false} blending={AdditiveBlending} fog={false} toneMapped={false} />
       </instancedMesh>
 
       {/* Lava columns */}
       <instancedMesh ref={geysers} args={[undefined, undefined, MAX.geyser]} frustumCulled={false}>
         <cylinderGeometry args={[0.5, 0.5, 1, 14]} />
-        <meshBasicMaterial color="#ffae2b" toneMapped={false} />
+        <meshBasicMaterial color="#ffae2b" fog={false} toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={geyserTips} args={[undefined, undefined, MAX.geyser]} frustumCulled={false}>
         <cylinderGeometry args={[0.5, 0.5, 1, 14]} />
-        <meshBasicMaterial color="#fff4c2" toneMapped={false} />
+        <meshBasicMaterial color="#fff4c2" fog={false} toneMapped={false} />
       </instancedMesh>
 
       {/* Spinners */}
@@ -199,11 +199,11 @@ export default function HazardField({ sim }) {
       {/* Fire rings */}
       <instancedMesh ref={rings} args={[undefined, undefined, MAX.ring]} frustumCulled={false}>
         <torusGeometry args={[RING.radius, RING.nodeRadius * 1.08, 10, 32]} />
-        <meshBasicMaterial color="#ffc43a" toneMapped={false} />
+        <meshBasicMaterial color="#ffc43a" fog={false} toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={ringHalos} args={[undefined, undefined, MAX.ring]} frustumCulled={false} renderOrder={2}>
         <torusGeometry args={[RING.radius, RING.nodeRadius * 2.1, 8, 32]} />
-        <meshBasicMaterial color="#ff8a1c" transparent opacity={0.3} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+        <meshBasicMaterial color="#ff8a1c" transparent opacity={0.3} depthWrite={false} blending={AdditiveBlending} fog={false} toneMapped={false} />
       </instancedMesh>
     </group>
   );

@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Object3D } from 'three';
 import { RENDER_CAPS } from '../../systems/obstacles/renderCaps.js';
+import { envState, environmentAt } from '../../systems/world/environments.js';
 
 /**
  * Renders every pooled obstacle with a handful of InstancedMeshes, so
@@ -22,11 +23,30 @@ export default function ObstacleField({ sim }) {
   const blocks = useRef();
   const blockCaps = useRef();
   const rocks = useRef();
+  const mats = { column: useRef(), block: useRef(), rock: useRef(), columnCap: useRef(), blockCap: useRef() };
   const dummy = useMemo(() => new Object3D(), []);
 
-  useFrame(() => {
+  useFrame((state) => {
     if (!columns.current) return;
     const dist = sim.renderDistance();
+
+    // Tint for the current environment (blended, so it never jumps). The glowing caps are the
+    // readable edge of every gap, so they are drawn without fog and stay visible even in the storm.
+    const e = environmentAt(dist, envState);
+    const o = e.obstacle;
+    const t0 = state.clock.elapsedTime;
+    const flick = 1 + e.effects.flicker * (0.16 * Math.sin(t0 * 10) + 0.08 * Math.sin(t0 * 23.1));
+    const tint = (ref, k, em = 1) => {
+      ref.current.color.setRGB(o.color[0] * k, o.color[1] * k, o.color[2] * k);
+      ref.current.emissive.setRGB(o.emissive[0], o.emissive[1], o.emissive[2]);
+      ref.current.emissiveIntensity = o.emissiveIntensity * flick * em;
+    };
+    tint(mats.column, 1);
+    tint(mats.block, 0.88, 0.92);
+    tint(mats.rock, 1.1, 1.0);
+    mats.columnCap.current.color.setRGB(o.cap[0], o.cap[1], o.cap[2]);
+    mats.blockCap.current.color.setRGB(o.cap[0] * 0.93, o.cap[1] * 0.9, o.cap[2] * 0.85);
+
     const t = sim.time;
     let nCol = 0;
     let nColCap = 0;
@@ -80,25 +100,25 @@ export default function ObstacleField({ sim }) {
     <group>
       <instancedMesh ref={columns} args={[undefined, undefined, MAX.column]} frustumCulled={false}>
         <cylinderGeometry args={[0.5, 0.5, 1, 6]} />
-        <meshStandardMaterial color="#6b4433" emissive="#3a1004" emissiveIntensity={0.6} roughness={0.85} flatShading />
+        <meshStandardMaterial ref={mats.column} color="#6b4433" emissive="#3a1004" emissiveIntensity={0.6} roughness={0.85} flatShading />
       </instancedMesh>
       <instancedMesh ref={columnCaps} args={[undefined, undefined, MAX.column]} frustumCulled={false}>
         <cylinderGeometry args={[0.5, 0.5, 1, 6]} />
-        <meshBasicMaterial color="#ff8a2a" toneMapped={false} />
+        <meshBasicMaterial ref={mats.columnCap} color="#ff8a2a" fog={false} toneMapped={false} />
       </instancedMesh>
 
       <instancedMesh ref={blocks} args={[undefined, undefined, MAX.block]} frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#5e3b2c" emissive="#3a1004" emissiveIntensity={0.55} roughness={0.9} flatShading />
+        <meshStandardMaterial ref={mats.block} color="#5e3b2c" emissive="#3a1004" emissiveIntensity={0.55} roughness={0.9} flatShading />
       </instancedMesh>
       <instancedMesh ref={blockCaps} args={[undefined, undefined, MAX.block]} frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial color="#ff7a1f" toneMapped={false} />
+        <meshBasicMaterial ref={mats.blockCap} color="#ff7a1f" fog={false} toneMapped={false} />
       </instancedMesh>
 
       <instancedMesh ref={rocks} args={[undefined, undefined, MAX.rock]} frustumCulled={false}>
         <icosahedronGeometry args={[1, 1]} />
-        <meshStandardMaterial color="#7a4b36" emissive="#4a1405" emissiveIntensity={0.55} roughness={0.8} flatShading />
+        <meshStandardMaterial ref={mats.rock} color="#7a4b36" emissive="#4a1405" emissiveIntensity={0.55} roughness={0.8} flatShading />
       </instancedMesh>
     </group>
   );
