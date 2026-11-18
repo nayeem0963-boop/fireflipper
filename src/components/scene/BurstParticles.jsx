@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending } from 'three';
-import { getGlowTexture } from '../../utils/textures.js';
+import { getGlowTexture, getNeutralGlowTexture } from '../../utils/textures.js';
+import { useTheme } from '../../hooks/useTheme.js';
 import { GAME_EVENTS, gameEvents } from '../../systems/events/gameEvents.js';
 import { useSkin } from '../../hooks/useSkin.js';
 import { Color } from 'three';
@@ -16,11 +17,11 @@ import { Color } from 'three';
 const CAPACITY = 160;
 /** Every this many orbs in a streak, the pickup bursts bigger (a collectible flourish, cosmetic only). */
 const STREAK_FLOURISH = 5;
-const CRASH_COLOR = [1.0, 0.42, 0.1];
 
 export default function BurstParticles({ sim }) {
   const points = useRef();
-  const glowMap = useMemo(getGlowTexture, []);
+  const theme = useTheme();
+  const glowMap = useMemo(() => (theme.neutralGlow ? getNeutralGlowTexture() : getGlowTexture()), [theme]);
   const { trail } = useSkin();
   // The pickup effect is tinted with the chosen bird's trail colours.
   const orbColors = useMemo(() => {
@@ -73,12 +74,12 @@ export default function BurstParticles({ sim }) {
         emit(e.x, e.y, 12, 3.6, orbColors.main, 0.9);
       }
     });
-    const offCrash = gameEvents.on(GAME_EVENTS.CRASH, (e) => emit(e.x, e.y, 42, 5.5, CRASH_COLOR, 0.9));
+    const offCrash = gameEvents.on(GAME_EVENTS.CRASH, (e) => emit(e.x, e.y, 42, 5.5, theme.scene.crash, 0.9));
     return () => {
       offOrb();
       offCrash();
     };
-  }, [state, orbColors]);
+  }, [state, orbColors, theme]);
 
   useFrame((_, delta) => {
     const geom = points.current?.geometry;

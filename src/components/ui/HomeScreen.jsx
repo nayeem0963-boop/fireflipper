@@ -2,9 +2,11 @@ import { lazy, Suspense } from 'react';
 import { useGameStore } from '../../store/useGameStore.js';
 import IconButton from './IconButton.jsx';
 import SoundToggle from './SoundToggle.jsx';
+import ThemeSwitch from './ThemeSwitch.jsx';
 import { FlameIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
 import { useSkin } from '../../hooks/useSkin.js';
 import { ACHIEVEMENTS, achievementProgress, dailyGoalFor } from '../../systems/progression/progression.js';
+import { useTheme } from '../../hooks/useTheme.js';
 import { AVATAR_SPECIES, avatarFor, collectionProgress, isAvatarUnlocked } from '../../systems/avatars/avatars.js';
 import { formatScore } from '../../systems/scoring/scoring.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
@@ -22,19 +24,21 @@ export default function HomeScreen() {
   const openAvatars = useGameStore((s) => s.openAvatars);
   const flown = useGameStore((s) => s.flown);
   const skin = useSkin();
+  const theme = useTheme();
   const selectSkin = useGameStore((s) => s.selectSkin);
   const stats = useGameStore((s) => s.stats);
   const daily = useGameStore((s) => s.daily);
   const openAchievements = useGameStore((s) => s.openAchievements);
   const achievementsOpen = useGameStore((s) => s.achievementsOpen);
   const doneCount = ACHIEVEMENTS.filter((a) => achievementProgress(a, stats, bestScore).done).length;
-  const progress = collectionProgress(bestScore, flown);
+  const progress = collectionProgress(bestScore, flown, theme.id);
 
   return (
     <main className="home">
       <header className="home__topbar">
         <span className="home__domain">fireflipper.com</span>
         <div className="home__topbar-actions">
+          <ThemeSwitch compact />
           <SoundToggle />
           <IconButton label="Settings" onClick={openSettings}>
             <SettingsIcon />
@@ -53,7 +57,7 @@ export default function HomeScreen() {
         <div className="home__birds" role="radiogroup" aria-label="Choose your bird">
           {AVATAR_SPECIES.map((sp) => {
             const shown = avatarFor(sp.id, skin.color);
-            const pick = isAvatarUnlocked(shown, bestScore) ? shown : avatarFor(sp.id, 'fire');
+            const pick = isAvatarUnlocked(shown, bestScore, theme.id) ? shown : avatarFor(sp.id, theme.freeSkin);
             const active = skin.species === sp.id;
             const p = pick.kind === 'firebird' ? [pick.palette.wing ?? '#ff6a1a', pick.palette.belly ?? '#ffb347'] : [pick.palette.mid, pick.palette.high];
             return (

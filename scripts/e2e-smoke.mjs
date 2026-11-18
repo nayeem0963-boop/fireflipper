@@ -28,23 +28,32 @@ const check = (name, cond, detail = '') => {
 };
 
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'] });
+// Desktop runs the red theme, the phones the blue one, so both themes get the full flow.
 const CASES = [
-  ['desktop 1534x630', { viewport: { width: 1534, height: 630 } }],
-  ['phone portrait', { ...devices['iPhone 13'] }],
-  ['phone landscape', { ...devices['iPhone 13 landscape'] }],
+  ['desktop 1534x630', { viewport: { width: 1534, height: 630 } }, 'red'],
+  ['phone portrait', { ...devices['iPhone 13'] }, 'blue'],
+  ['phone landscape', { ...devices['iPhone 13 landscape'] }, 'blue'],
 ];
 
-for (const [name, opts] of CASES) {
+for (const [name, opts, themeId] of CASES) {
   const ctx = await browser.newContext(opts);
   const p = await ctx.newPage();
   const errors = [];
   p.on('pageerror', (e) => errors.push(e.message));
   await p.goto(`http://localhost:${PORT}`);
   await p.waitForSelector('.birdchip', { timeout: 20000 });
+  // Switch with the theme switch and check the page restyles (and that its choice sticks).
+  const other = themeId === 'red' ? 'blue' : 'red';
+  await p.getByRole('radio', { name: new RegExp(`^${other} theme`, 'i') }).click();
+  check(`${name}: theme switch restyles the page`, (await p.evaluate(() => document.documentElement.dataset.theme)) === other);
+  await p.getByRole('radio', { name: new RegExp(`^${themeId} theme`, 'i') }).click();
+  check(`${name}: switching back works`, (await p.evaluate(() => document.documentElement.dataset.theme)) === themeId);
+  await p.getByRole('radio', { name: new RegExp(`^${other} theme`, 'i') }).click();
+  await p.getByRole('radio', { name: new RegExp(`^${themeId} theme`, 'i') }).click();
   // The welcome page must never be wider than the screen (a wide child once stretched the grid and clipped it).
   const clipped = await p.evaluate(() => {
     const vw = innerWidth;
-    return ['.home__topbar', '.logo', '.play-btn', '.home__cards', '.home__links'].filter((q) => {
+    return ['.home__topbar', '.home__topbar-actions', '.theme-switch', '.logo', '.play-btn', '.home__cards', '.home__links'].filter((q) => {
       const e = document.querySelector(q);
       return e && e.getBoundingClientRect().right > vw + 1;
     });

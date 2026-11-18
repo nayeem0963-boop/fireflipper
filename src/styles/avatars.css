@@ -50,7 +50,7 @@
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: radial-gradient(ellipse at 50% 55%, rgba(255, 90, 20, 0.16), transparent 70%), #0b0907;
+  background: radial-gradient(ellipse at 50% 55%, rgba(var(--accent-rgb), 0.16), transparent 70%), var(--bg);
 }
 .birds__preview canvas {
   display: block;
@@ -146,7 +146,7 @@
   padding: 8px 6px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: rgba(11, 9, 7, 0.5);
+  background: rgba(var(--bg-rgb), 0.5);
   color: var(--text);
   font: inherit;
   text-align: center;
@@ -163,7 +163,7 @@
 }
 .skin.is-active {
   border-color: var(--fire-300);
-  background: rgba(255, 150, 50, 0.14);
+  background: rgba(var(--accent-rgb), 0.14);
   box-shadow: var(--glow-sm);
 }
 .skin__swatch {
@@ -232,7 +232,7 @@
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(11, 9, 7, 0.7);
+  background: rgba(var(--bg-rgb), 0.7);
   border: 1px solid var(--line);
 }
 .birds__bar i {

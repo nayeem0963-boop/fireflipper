@@ -4,12 +4,14 @@ import {
   AVATAR_SPECIES,
   avatarFor,
   collectionProgress,
+  avatarUnlockScore,
   isAvatarUnlocked,
   speciesProgress,
 } from '../../systems/avatars/avatars.js';
 import { LICENCE, getCredit } from '../../systems/avatars/credits.js';
 import { formatScore } from '../../systems/scoring/scoring.js';
 import { useSkin } from '../../hooks/useSkin.js';
+import { useTheme } from '../../hooks/useTheme.js';
 import IconButton from './IconButton.jsx';
 import { CloseIcon } from './Icons.jsx';
 import '../../styles/panel.css';
@@ -36,10 +38,15 @@ export default function AvatarPicker() {
   const flown = useGameStore((s) => s.flown);
   const selectSkin = useGameStore((s) => s.selectSkin);
   const current = useSkin();
+  const theme = useTheme();
   const dialogRef = useRef(null);
   const credit = current.kind === 'model' ? getCredit(current.species) : null;
-  const progress = collectionProgress(bestScore, flown);
-  const colours = AVATAR_SPECIES.find((sp) => sp.id === current.species).variants;
+  const progress = collectionProgress(bestScore, flown, theme.id);
+  // The theme's own colour first, then the other warm/cool one, then White.
+  const order = { [theme.freeSkin]: 0, fire: 1, blue: 1, white: 2 };
+  const colours = [...AVATAR_SPECIES.find((sp) => sp.id === current.species).variants].sort(
+    (a, b) => order[a.color] - order[b.color],
+  );
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -51,7 +58,7 @@ export default function AvatarPicker() {
   // Choosing a bird keeps the colour you are on when it is unlocked for that bird, else its Fire colour.
   const pickSpecies = (species) => {
     const same = avatarFor(species.id, current.color);
-    selectSkin(isAvatarUnlocked(same, bestScore) ? same.id : avatarFor(species.id, 'fire').id);
+    selectSkin(isAvatarUnlocked(same, bestScore, theme.id) ? same.id : avatarFor(species.id, theme.freeSkin).id);
   };
 
   return (
@@ -92,7 +99,8 @@ export default function AvatarPicker() {
             <h3 className="birds__heading">Skin</h3>
             <div className="birds__skins" role="radiogroup" aria-label="Skin">
               {colours.map((v) => {
-                const unlocked = isAvatarUnlocked(v, bestScore);
+                const unlocked = isAvatarUnlocked(v, bestScore, theme.id);
+                const need = avatarUnlockScore(v, theme.id);
                 return (
                   <button
                     key={v.id}
@@ -108,9 +116,9 @@ export default function AvatarPicker() {
                     <span className="skin__name">{v.colorName}</span>
                     {!unlocked && (
                       <span className="skin__lock">
-                        Best score {formatScore(v.unlockScore)}
+                        Best score {formatScore(need)}
                         <br />
-                        {formatScore(v.unlockScore - bestScore)} to go
+                        {formatScore(need - bestScore)} to go
                       </span>
                     )}
                   </button>
@@ -127,7 +135,7 @@ export default function AvatarPicker() {
               {AVATAR_SPECIES.map((sp) => {
                 const shown = avatarFor(sp.id, current.color);
                 const active = current.species === sp.id;
-                const have = speciesProgress(sp.id, bestScore);
+                const have = speciesProgress(sp.id, bestScore, theme.id);
                 const flownRuns = flown[sp.id] ?? 0;
                 return (
                   <button
@@ -136,7 +144,7 @@ export default function AvatarPicker() {
                     role="radio"
                     aria-checked={active}
                     className={`skin skin--bird ${active ? 'is-active' : ''}`}
-                    style={swatch(isAvatarUnlocked(shown, bestScore) ? shown : avatarFor(sp.id, 'fire'))}
+                    style={swatch(isAvatarUnlocked(shown, bestScore, theme.id) ? shown : avatarFor(sp.id, theme.freeSkin))}
                     onClick={() => pickSpecies(sp)}
                   >
                     <span className="skin__swatch" aria-hidden="true" />

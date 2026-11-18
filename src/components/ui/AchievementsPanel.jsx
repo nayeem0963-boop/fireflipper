@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useGameStore } from '../../store/useGameStore.js';
 import { ACHIEVEMENTS, CATEGORIES, achievementProgress, dailyGoalFor } from '../../systems/progression/progression.js';
-import { SKINS } from '../../systems/skins/skins.js';
+import { SKINS, colorUnlockScore } from '../../systems/skins/skins.js';
+import { useTheme } from '../../hooks/useTheme.js';
 import { formatScore } from '../../systems/scoring/scoring.js';
 import IconButton from './IconButton.jsx';
 import { CloseIcon } from './Icons.jsx';
@@ -19,6 +20,7 @@ export default function AchievementsPanel() {
   const earned = useGameStore((s) => s.earned);
   const daily = useGameStore((s) => s.daily);
   const dialogRef = useRef(null);
+  const theme = useTheme();
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -91,21 +93,24 @@ export default function AchievementsPanel() {
           <section aria-label="Cosmetic unlocks" className="prog__group">
             <h3 className="birds__heading">Cosmetic unlocks</h3>
             <ul className="prog__items">
-              {SKINS.filter((k) => k.unlockScore > 0).map((k) => (
-                <li key={k.id} className={`ach${bestScore >= k.unlockScore ? ' is-done' : ''}`}>
+              {SKINS.map((k) => ({ ...k, at: colorUnlockScore(k.color, theme.id) }))
+                .filter((k) => k.at > 0)
+                .sort((a, b) => a.at - b.at)
+                .map((k) => (
+                <li key={k.id} className={`ach${bestScore >= k.at ? ' is-done' : ''}`}>
                   <span className="ach__mark" aria-hidden="true">
-                    {bestScore >= k.unlockScore ? '★' : '🔒'}
+                    {bestScore >= k.at ? '★' : '🔒'}
                   </span>
                   <div className="ach__text">
                     <p className="ach__name">{k.name} skin for every bird</p>
-                    <p className="ach__desc">Reach a best score of {formatScore(k.unlockScore)}</p>
+                    <p className="ach__desc">Reach a best score of {formatScore(k.at)}</p>
                   </div>
                   <div className="ach__prog">
                     <span>
-                      {formatScore(Math.min(bestScore, k.unlockScore))}/{formatScore(k.unlockScore)}
+                      {formatScore(Math.min(bestScore, k.at))}/{formatScore(k.at)}
                     </span>
                     <i aria-hidden="true">
-                      <b style={{ width: `${Math.round(Math.min(1, bestScore / k.unlockScore) * 100)}%` }} />
+                      <b style={{ width: `${Math.round(Math.min(1, bestScore / k.at) * 100)}%` }} />
                     </i>
                   </div>
                 </li>

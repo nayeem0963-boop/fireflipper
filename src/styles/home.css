@@ -19,8 +19,8 @@
   padding: calc(var(--safe-top) + 12px) calc(var(--safe-right) + var(--gutter)) calc(var(--safe-bottom) + 20px)
     calc(var(--safe-left) + var(--gutter));
   background:
-    radial-gradient(ellipse 80% 55% at 50% 58%, rgba(255, 90, 20, 0.14), transparent 70%),
-    radial-gradient(ellipse 120% 60% at 50% 110%, rgba(143, 31, 6, 0.35), transparent 70%),
+    radial-gradient(ellipse 80% 55% at 50% 58%, rgba(var(--accent-rgb), 0.14), transparent 70%),
+    radial-gradient(ellipse 120% 60% at 50% 110%, rgba(var(--deep-rgb), 0.35), transparent 70%),
     var(--bg);
   overflow-x: hidden;
 }
@@ -40,6 +40,7 @@
 }
 .home__topbar-actions {
   display: flex;
+  align-items: center;
   gap: 10px;
 }
 
@@ -86,14 +87,14 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 0 18px rgba(255, 110, 30, 0.55));
+  filter: drop-shadow(0 0 18px rgba(var(--accent-rgb), 0.55));
 }
 .logo__flipper {
   font-size: clamp(1.5rem, 6.4vw, 3.4rem);
   letter-spacing: 0.28em;
   margin-right: -0.28em; /* optically recentre the tracked word */
   color: var(--text);
-  text-shadow: 0 0 22px rgba(255, 120, 40, 0.35);
+  text-shadow: 0 0 22px rgba(var(--accent-rgb), 0.35);
 }
 
 .tagline {
@@ -129,7 +130,7 @@
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: linear-gradient(180deg, rgba(30, 22, 16, 0.85), rgba(21, 16, 12, 0.85));
+  background: linear-gradient(180deg, rgba(var(--raised-rgb), 0.85), rgba(var(--raised-rgb), 0.85));
 }
 .card__icon {
   flex: none;
@@ -138,7 +139,7 @@
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: rgba(255, 138, 31, 0.12);
+  background: rgba(var(--accent-rgb), 0.12);
   color: var(--fire-300);
 }
 .card__label {
@@ -282,7 +283,7 @@
   padding: 0 12px 0 8px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(11, 9, 7, 0.6);
+  background: rgba(var(--bg-rgb), 0.6);
   color: var(--text-muted);
   font: inherit;
   font-size: 0.8rem;
@@ -296,7 +297,7 @@
 }
 .birdchip.is-active {
   border-color: var(--fire-300);
-  background: rgba(255, 150, 50, 0.16);
+  background: rgba(var(--accent-rgb), 0.16);
   color: var(--fire-100);
   box-shadow: var(--glow-sm);
 }
@@ -369,5 +370,14 @@
   }
   .logo__fire {
     font-size: 2.6rem;
+  }
+}
+@media (max-width: 420px) {
+  /* Make room for the theme switch next to the sound and settings buttons */
+  .home__domain {
+    display: none;
+  }
+  .home__topbar {
+    justify-content: flex-end;
   }
 }

@@ -9,6 +9,7 @@ import { useRenderSettings } from '../../hooks/useRenderSettings.js';
 import { useGameLoop } from '../../systems/game/useGameLoop.js';
 import { game } from '../../systems/game/gameInstance.js';
 import { PHASE } from '../../systems/game/createGameSim.js';
+import { useTheme } from '../../hooks/useTheme.js';
 import CameraRig from './CameraRig.jsx';
 import Backdrop from './Backdrop.jsx';
 
@@ -20,16 +21,17 @@ const emberScroll = () => (game.phase === PHASE.RUNNING || game.phase === PHASE.
 
 export default function EmberValleyScene() {
   const { emberCount } = useRenderSettings();
+  const { scene } = useTheme();
   const portrait = useThree((s) => s.size.width < s.size.height);
   useGameLoop(game);
 
   return (
     <>
-      <fog attach="fog" args={['#120806', 22, 75]} />
-      <ambientLight intensity={0.3} color="#ffb27a" />
-      <hemisphereLight args={['#ff9a4a', '#0a0503', 0.7]} />
+      <fog attach="fog" args={[scene.fog, 22, 75]} />
+      <ambientLight intensity={0.3} color={scene.ambient} />
+      <hemisphereLight args={[scene.hemiSky, scene.hemiGround, 0.7]} />
       {/* Key light from the front so obstacle faces read clearly */}
-      <directionalLight position={[-3, 6, 10]} intensity={1.6} color="#ffd8b0" />
+      <directionalLight position={[-3, 6, 10]} intensity={1.6} color={scene.key} />
 
       <CameraRig sim={game} />
       <Backdrop sim={game} />
@@ -39,7 +41,7 @@ export default function EmberValleyScene() {
       <BurstParticles sim={game} />
       {/* Narrow screens see less track ahead, so warn about obstacles just off-screen */}
       <EdgeWarning sim={game} enabled={portrait} />
-      <EmberParticles count={emberCount} area={[34, 14, 10]} position={[4, 0, -3]} scroll={emberScroll} />
+      <EmberParticles count={emberCount} color={scene.ember} area={[34, 14, 10]} position={[4, 0, -3]} scroll={emberScroll} />
     </>
   );
 }

@@ -1,3 +1,4 @@
+import { useTheme } from '../../hooks/useTheme.js';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, CanvasTexture, Color, Object3D, SRGBColorSpace } from 'three';
@@ -18,7 +19,6 @@ import { WORLD } from '../../systems/physics/constants.js';
 const WARN_TIME = 0.45; // seconds of extra warning
 const MAX_BARS = 24;
 const BAR_WIDTH = 0.6;
-const BAR_COLOR = new Color('#ff7a24');
 
 function createEdgeGradient() {
   const c = document.createElement('canvas');
@@ -36,6 +36,8 @@ function createEdgeGradient() {
 }
 
 export default function EdgeWarning({ sim, enabled }) {
+  const { scene } = useTheme();
+  const BAR_COLOR = useMemo(() => new Color(scene.edgeWarn), [scene]);
   const bars = useRef();
   const dummy = useMemo(() => new Object3D(), []);
   const tint = useMemo(() => new Color(), []);
@@ -48,7 +50,7 @@ export default function EdgeWarning({ sim, enabled }) {
     const mesh = bars.current;
     for (let i = 0; i < MAX_BARS; i++) mesh.setColorAt(i, BAR_COLOR);
     mesh.count = 0;
-  }, []);
+  }, [BAR_COLOR]);
 
   useFrame(({ camera }) => {
     const mesh = bars.current;

@@ -9,13 +9,13 @@
   place-items: center;
   padding: calc(var(--safe-top) + 16px) calc(var(--safe-right) + 16px) calc(var(--safe-bottom) + 16px)
     calc(var(--safe-left) + 16px);
-  background: rgba(6, 4, 3, 0.72);
+  background: rgba(var(--bg-rgb), 0.72);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   animation: overlay-in 0.18s ease-out;
 }
 .overlay--soft {
-  background: rgba(6, 4, 3, 0.5);
+  background: rgba(var(--bg-rgb), 0.5);
 }
 @keyframes overlay-in {
   from {
@@ -31,7 +31,7 @@
   border: 1px solid var(--line-strong);
   border-radius: calc(var(--radius) + 4px);
   background: linear-gradient(180deg, var(--bg-elevated), var(--bg-raised));
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 90, 20, 0.12);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 40px rgba(var(--accent-rgb), 0.12);
 }
 .panel:focus {
   outline: none;
@@ -58,7 +58,7 @@
 .panel__title--big {
   font-size: 2rem;
   color: var(--fire-200);
-  text-shadow: 0 0 18px rgba(255, 120, 30, 0.5);
+  text-shadow: 0 0 18px rgba(var(--accent-rgb), 0.5);
 }
 .panel__row {
   display: flex;
@@ -87,7 +87,7 @@
 }
 .gameover--record {
   border-color: var(--fire-300);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255, 170, 50, 0.35);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(var(--accent-rgb), 0.35);
 }
 .gameover__body {
   flex: 1 1 auto;
@@ -138,13 +138,13 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 0 16px rgba(255, 110, 30, 0.5));
+  filter: drop-shadow(0 0 16px rgba(var(--accent-rgb), 0.5));
 }
 .gameover__score.is-done {
   animation: score-pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 .gameover--record .gameover__score.is-done {
-  filter: drop-shadow(0 0 26px rgba(255, 200, 80, 0.85));
+  filter: drop-shadow(0 0 26px rgba(var(--accent-rgb), 0.85));
 }
 @keyframes score-pop {
   40% {
@@ -157,7 +157,7 @@
   padding: 4px 12px;
   border: 1px solid var(--fire-300);
   border-radius: 999px;
-  background: rgba(255, 150, 50, 0.14);
+  background: rgba(var(--accent-rgb), 0.14);
   font-size: 0.74rem;
   font-weight: 600;
   color: var(--fire-200);
@@ -172,7 +172,7 @@
   height: 8px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(11, 9, 7, 0.7);
+  background: rgba(var(--bg-rgb), 0.7);
   border: 1px solid var(--line);
 }
 .pb__fill {
@@ -202,13 +202,13 @@
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: rgba(11, 9, 7, 0.5);
+  background: rgba(var(--bg-rgb), 0.5);
   animation: stat-in 0.4s ease-out both;
   animation-delay: calc(0.12s * var(--i, 0) + 0.15s);
 }
 .stat--hot {
   border-color: var(--fire-300);
-  background: rgba(255, 150, 50, 0.14);
+  background: rgba(var(--accent-rgb), 0.14);
   box-shadow: var(--glow-sm);
 }
 .stat dt {
@@ -250,7 +250,7 @@
   padding: 4px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(11, 9, 7, 0.5);
+  background: rgba(var(--bg-rgb), 0.5);
   font-size: 0.76rem;
   color: var(--text-muted);
 }
@@ -259,7 +259,7 @@
 }
 .reward--earned {
   border-color: var(--fire-300);
-  background: rgba(255, 150, 50, 0.14);
+  background: rgba(var(--accent-rgb), 0.14);
   color: var(--fire-200);
   animation: stat-in 0.4s ease-out both 0.9s;
 }
@@ -374,7 +374,7 @@
   padding: 4px 12px;
   border-radius: 999px;
   background: linear-gradient(180deg, var(--fire-300), var(--fire-500));
-  color: #1a0904;
+  color: var(--on-accent);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -422,7 +422,7 @@
   transition: transform 0.15s, background 0.15s;
 }
 .switch.is-on {
-  background: rgba(255, 110, 30, 0.25);
+  background: rgba(var(--accent-rgb), 0.25);
 }
 .switch.is-on .switch__thumb {
   transform: translateX(22px);
@@ -450,7 +450,7 @@
 }
 .segmented button.is-active {
   background: linear-gradient(180deg, var(--fire-400), var(--fire-600));
-  color: #1a0904;
+  color: var(--on-accent);
 }
 
 /* Phone held sideways (about 340-400px tall): compact results so the stats fit without scrolling */

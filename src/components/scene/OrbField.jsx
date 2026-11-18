@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, Object3D } from 'three';
+import { useTheme } from '../../hooks/useTheme.js';
 
 /**
  * Fire orbs: a bright core and an additive halo, each a single
@@ -9,6 +10,7 @@ import { AdditiveBlending, Object3D } from 'three';
 const MAX_ORBS = 64;
 
 export default function OrbField({ sim }) {
+  const { scene } = useTheme();
   const cores = useRef();
   const halos = useRef();
   const dummy = useMemo(() => new Object3D(), []);
@@ -43,11 +45,11 @@ export default function OrbField({ sim }) {
     <group>
       <instancedMesh ref={cores} args={[undefined, undefined, MAX_ORBS]} frustumCulled={false}>
         <icosahedronGeometry args={[0.2, 2]} />
-        <meshBasicMaterial color="#fff0b8" toneMapped={false} />
+        <meshBasicMaterial color={scene.orbCore} toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={halos} args={[undefined, undefined, MAX_ORBS]} frustumCulled={false} renderOrder={2}>
         <icosahedronGeometry args={[0.46, 2]} />
-        <meshBasicMaterial color="#ff8a24" transparent opacity={0.35} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+        <meshBasicMaterial color={scene.orbHalo} transparent opacity={0.35} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
       </instancedMesh>
     </group>
   );

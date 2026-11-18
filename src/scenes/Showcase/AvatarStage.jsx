@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import AvatarBird from '../../components/scene/AvatarBird.jsx';
+import { useTheme } from '../../hooks/useTheme.js';
 import { damp } from '../../utils/math.js';
 
 const FOV_DEG = 40;
@@ -38,6 +39,7 @@ function useFitCamera(length) {
  */
 export default function AvatarStage({ avatar }) {
   const group = useRef();
+  const { scene } = useTheme();
   const state = useRef({ n: 0, start: -1 });
   useFitCamera(avatar.length ?? 2.0);
 
@@ -68,9 +70,9 @@ export default function AvatarStage({ avatar }) {
 
   return (
     <>
-      <ambientLight intensity={0.35} color="#ffb27a" />
-      <hemisphereLight args={['#ff9a4a', '#120805', 0.6]} />
-      <directionalLight position={[-4, 5, 3]} intensity={1.1} color="#ffd2a0" />
+      <ambientLight intensity={0.35} color={scene.ambient} />
+      <hemisphereLight args={[scene.hemiSky, scene.hemiGround, 0.6]} />
+      <directionalLight position={[-4, 5, 3]} intensity={1.1} color={scene.key} />
       <group ref={group}>
         <AvatarBird avatar={avatar} float={0.12} wingSpeed={5.5} />
       </group>

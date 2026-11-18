@@ -5,5 +5,6 @@ import { resolveAvatar } from '../systems/avatars/avatars.js';
 export function useSkin() {
   const skinId = useGameStore((s) => s.skinId);
   const bestScore = useGameStore((s) => s.bestScore);
-  return resolveAvatar(skinId, bestScore);
+  const theme = useGameStore((s) => s.theme);
+  return resolveAvatar(skinId, bestScore, theme);
 }

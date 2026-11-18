@@ -1,4 +1,4 @@
-import { SKINS } from '../skins/skins.js';
+import { newlyUnlocked } from '../skins/skins.js';
 
 /**
  * Progression: lifetime stats, achievements, a daily goal and the "next goal" shown between runs.
@@ -91,8 +91,8 @@ export function newlyEarned(before, bestBefore, after, bestAfter) {
 }
 
 /** Skins that a best score newly unlocks (the cosmetic milestones). */
-export function newlyUnlockedSkinNames(previousBest, newBest) {
-  return SKINS.filter((s) => s.unlockScore > previousBest && s.unlockScore <= newBest).map((s) => s.name);
+export function newlyUnlockedSkinNames(previousBest, newBest, themeId) {
+  return newlyUnlocked(previousBest, newBest, themeId).map((s) => s.name);
 }
 
 /**

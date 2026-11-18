@@ -1,4 +1,5 @@
-import { SKINS, isUnlocked } from '../skins/skins.js';
+import { SKINS, colorUnlockScore, isUnlocked } from '../skins/skins.js';
+import { DEFAULT_THEME, getTheme } from '../theme/themes.js';
 
 /**
  * Every bird the player can fly as: seven species, each in three colours (Fire, Blue and White), so 21 avatars.
@@ -313,7 +314,8 @@ function make(species, color, extra) {
   return {
     ...rest,
     ...extra,
-    // Skins are visual only and unlock with the best score (Fire is always free); never a gameplay perk.
+    // Skins are visual only and unlock with the best score (the theme's own colour is always free); never a gameplay perk.
+    // `unlockScore` is the red-theme value; use colorUnlockScore(color, theme) for the active theme.
     unlockScore: skin.unlockScore,
     trail: trailFor(species.id, color.id),
     species: species.id,
@@ -375,23 +377,28 @@ export function avatarFor(speciesId, colorId) {
   return all.find((a) => a.color === colorId) ?? all[0];
 }
 
-/** Every species is free in its Fire colour; the Blue and White skins unlock with the best score. */
-export function isAvatarUnlocked(avatar, bestScore) {
-  return isUnlocked(avatar, bestScore);
+/** Each species is free in the theme's colour; the other warm/cool skin and White unlock with the best score. */
+export function isAvatarUnlocked(avatar, bestScore, themeId = DEFAULT_THEME) {
+  return isUnlocked(avatar, bestScore, themeId);
 }
 
-/** The avatar to actually show: the selected one if unlocked, otherwise that bird in its free Fire colour. */
-export function resolveAvatar(id, bestScore) {
+/** Best score needed for this avatar in a theme (0 when free). */
+export function avatarUnlockScore(avatar, themeId = DEFAULT_THEME) {
+  return colorUnlockScore(avatar.color, themeId);
+}
+
+/** The avatar to actually show: the selected one if unlocked, otherwise that bird in the theme's free colour. */
+export function resolveAvatar(id, bestScore, themeId = DEFAULT_THEME) {
   const avatar = getAvatar(id);
-  return isAvatarUnlocked(avatar, bestScore) ? avatar : avatarFor(avatar.species, 'fire');
+  return isAvatarUnlocked(avatar, bestScore, themeId) ? avatar : avatarFor(avatar.species, getTheme(themeId).freeSkin);
 }
 
 /**
  * Collection progress: skins unlocked out of all skins (a skin is one bird in one colour), and how many of the
  * species have been flown at least once. `flown` maps species id to completed runs.
  */
-export function collectionProgress(bestScore, flown = {}) {
-  const unlocked = AVATARS.filter((a) => isAvatarUnlocked(a, bestScore)).length;
+export function collectionProgress(bestScore, flown = {}, themeId = DEFAULT_THEME) {
+  const unlocked = AVATARS.filter((a) => isAvatarUnlocked(a, bestScore, themeId)).length;
   const flownSpecies = AVATAR_SPECIES.filter((sp) => (flown[sp.id] ?? 0) > 0).length;
   return {
     unlocked,
@@ -399,16 +406,17 @@ export function collectionProgress(bestScore, flown = {}) {
     species: AVATAR_SPECIES.length,
     flownSpecies,
     /** The next skin score to reach, or null when every skin is unlocked. */
-    nextUnlock: AVATARS.map((a) => a.unlockScore)
-      .filter((u) => u > bestScore)
-      .sort((a, b) => a - b)[0] ?? null,
+    nextUnlock:
+      AVATARS.map((a) => avatarUnlockScore(a, themeId))
+        .filter((u) => u > bestScore)
+        .sort((x, y) => x - y)[0] ?? null,
   };
 }
 
-/** Skins in one species: [{ unlocked, avatar }]. */
-export function speciesProgress(speciesId, bestScore) {
+/** Skins unlocked in one species. */
+export function speciesProgress(speciesId, bestScore, themeId = DEFAULT_THEME) {
   const all = AVATARS.filter((a) => a.species === speciesId);
-  return { unlocked: all.filter((a) => isAvatarUnlocked(a, bestScore)).length, total: all.length };
+  return { unlocked: all.filter((a) => isAvatarUnlocked(a, bestScore, themeId)).length, total: all.length };
 }
 
 /** URL of a model bird's GLB (respects Vite's base path). */

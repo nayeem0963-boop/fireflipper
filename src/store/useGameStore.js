@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { loadValue, saveValue } from '../utils/storage.js';
 import { newlyUnlocked } from '../systems/skins/skins.js';
+import { DEFAULT_THEME, applyTheme, getTheme } from '../systems/theme/themes.js';
 import {
   EMPTY_STATS,
   applyRun,
@@ -12,7 +13,7 @@ import {
   nextGoal,
   rollDaily,
 } from '../systems/progression/progression.js';
-import { DEFAULT_AVATAR_ID, getAvatar, isAvatarUnlocked, resolveAvatar } from '../systems/avatars/avatars.js';
+import { avatarFor, getAvatar, isAvatarUnlocked, resolveAvatar } from '../systems/avatars/avatars.js';
 
 export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
 
@@ -67,7 +68,9 @@ export const useGameStore = create((set, get) => ({
   runsThisSession: 0,
 
   /** Selected bird skin id (species + colour). Cosmetic only: no effect on physics or collisions. */
-  skinId: loadValue('skinId', DEFAULT_AVATAR_ID),
+  skinId: initialSkins().active,
+  /** Each theme remembers its own bird choice: { red: 'flipper-fire', blue: 'toco-toucan-blue', ... }. */
+  skinsByTheme: initialSkins().byTheme,
   /** Completed runs per bird species, for collection progress: { species: runs }. */
   flown: loadValue('flown', {}),
 
@@ -77,6 +80,9 @@ export const useGameStore = create((set, get) => ({
   earned: loadValue('achievements', {}),
   /** Today's goal state: { key, done, streakDays, lastDoneKey }. */
   daily: rollDaily(loadValue('daily', null), dayKey()),
+
+  /** Visual theme id ('red' | 'blue'): looks only, no effect on gameplay. */
+  theme: initialTheme(),
 
   // --- settings ---
   soundEnabled: loadValue('soundEnabled', true),
@@ -120,10 +126,10 @@ export const useGameStore = create((set, get) => ({
     const previousBest = s.bestScore;
     const isNewBest = score > previousBest;
     if (isNewBest) saveValue('bestScore', score);
-    const species = resolveAvatar(s.skinId, s.bestScore).species;
+    const species = resolveAvatar(s.skinId, s.bestScore, s.theme).species;
     const flown = { ...s.flown, [species]: (s.flown[species] ?? 0) + 1 };
     saveValue('flown', flown);
-    const unlockedSkins = newlyUnlocked(previousBest, score).map((k) => k.name);
+    const unlockedSkins = newlyUnlocked(previousBest, score, s.theme).map((k) => k.name);
 
     // Progression: lifetime stats, achievements and the daily goal.
     const run = { score, distance, orbs, bestStreak, nearMisses };
@@ -185,11 +191,22 @@ export const useGameStore = create((set, get) => ({
   },
 
   // --- settings ---
+  setTheme: (id) => {
+    const s = get();
+    const theme = getTheme(id).id;
+    // Each theme remembers its own bird; the first time, keep the same species in the new theme's own colour.
+    const species = getAvatar(s.skinsByTheme[s.theme] ?? s.skinId).species;
+    const skinId = s.skinsByTheme[theme] ?? avatarFor(species, getTheme(theme).freeSkin).id;
+    saveValue('theme', theme);
+    applyTheme(theme);
+    set({ theme, skinId });
+  },
   selectSkin: (id) => {
     const s = get();
-    if (!isAvatarUnlocked(getAvatar(id), s.bestScore)) return;
-    saveValue('skinId', id);
-    set({ skinId: id });
+    if (!isAvatarUnlocked(getAvatar(id), s.bestScore, s.theme)) return;
+    const skinsByTheme = { ...s.skinsByTheme, [s.theme]: id };
+    saveValue('skinsByTheme', skinsByTheme);
+    set({ skinId: id, skinsByTheme });
   },
   toggleSound: () =>
     set((s) => {
@@ -201,6 +218,22 @@ export const useGameStore = create((set, get) => ({
     set({ quality });
   },
 }));
+
+/** Load the saved theme and apply it right away, so the first paint already has the right colours. */
+function initialTheme() {
+  const theme = getTheme(loadValue('theme', DEFAULT_THEME)).id;
+  applyTheme(theme);
+  return theme;
+}
+
+/** Saved bird choice per theme (the old single `skinId` becomes the red theme's), and the active theme's choice. */
+function initialSkins() {
+  const theme = getTheme(loadValue('theme', DEFAULT_THEME)).id;
+  const saved = loadValue('skinsByTheme', null);
+  const byTheme = saved ?? { red: loadValue('skinId', 'flipper-fire') };
+  const active = byTheme[theme] ?? avatarFor(getAvatar(byTheme.red ?? 'flipper-fire').species, getTheme(theme).freeSkin).id;
+  return { byTheme, active };
+}
 
 function freshRun(s) {
   return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, lastResult: null, runId: s.runId + 1 };

@@ -13,8 +13,9 @@
     "test:progression": "node scripts/progression-test.mjs",
     "test:autoplay": "node scripts/autoplay-test.mjs",
     "test:store": "node scripts/store-test.mjs",
+    "test:theme": "node scripts/theme-test.mjs",
     "test:e2e": "node scripts/e2e-smoke.mjs",
-    "test:all": "npm run test:sim && npm run test:avatars && npm run test:progression && npm run test:autoplay && npm run test:store"
+    "test:all": "npm run test:sim && npm run test:avatars && npm run test:progression && npm run test:autoplay && npm run test:store && npm run test:theme"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

@@ -2,12 +2,17 @@
    Fire Flipper: design tokens + base styles
    ========================================================================== */
 :root {
-  /* Palette */
+  /* Palette (red theme, the default). The blue theme overrides these below. RGB triplets let CSS tint with alpha. */
+  --accent-rgb: 255, 110, 30;
+  --bg-rgb: 11, 9, 7;
+  --raised-rgb: 21, 16, 12;
+  --deep-rgb: 143, 31, 6;
+  --on-accent: #1a0904;
   --bg: #0b0907;
   --bg-raised: #15100c;
   --bg-elevated: #1e1610;
-  --line: rgba(255, 150, 70, 0.16);
-  --line-strong: rgba(255, 150, 70, 0.35);
+  --line: rgba(var(--accent-rgb), 0.16);
+  --line-strong: rgba(var(--accent-rgb), 0.35);
 
   --text: #fbefe2;
   --text-muted: #b79f8a;
@@ -21,8 +26,8 @@
   --fire-600: #d9370b;
   --fire-700: #8f1f06;
 
-  --glow-sm: 0 0 12px rgba(255, 122, 36, 0.45);
-  --glow-md: 0 0 24px rgba(255, 110, 30, 0.45), 0 0 60px rgba(255, 80, 10, 0.2);
+  --glow-sm: 0 0 12px rgba(var(--accent-rgb), 0.45);
+  --glow-md: 0 0 24px rgba(var(--accent-rgb), 0.45), 0 0 60px rgba(var(--accent-rgb), 0.2);
 
   /* Type */
   --font-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
@@ -41,6 +46,31 @@
   --safe-left: env(safe-area-inset-left, 0px);
 
   color-scheme: dark;
+}
+
+/* Blue theme (Frost): same tokens, cool palette. Selected with <html data-theme="blue">. */
+:root[data-theme='blue'] {
+  --accent-rgb: 60, 160, 255;
+  --bg-rgb: 6, 11, 18;
+  --raised-rgb: 14, 21, 29;
+  --deep-rgb: 6, 42, 133;
+  --on-accent: #04101f;
+
+  --bg: #060b12;
+  --bg-raised: #0e151d;
+  --bg-elevated: #131d29;
+
+  --text: #e8f2ff;
+  --text-muted: #93a9c0;
+  --text-dim: #647a90;
+
+  --fire-100: #e6f7ff;
+  --fire-200: #a8e2ff;
+  --fire-300: #5cc4ff;
+  --fire-400: #2ea6ff;
+  --fire-500: #1a7bff;
+  --fire-600: #0b4fd1;
+  --fire-700: #062a85;
 }
 
 *,
@@ -103,7 +133,7 @@ kbd {
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 50%;
-  background: rgba(21, 16, 12, 0.72);
+  background: rgba(var(--raised-rgb), 0.72);
   color: var(--text);
   cursor: pointer;
   backdrop-filter: blur(8px);
@@ -140,7 +170,7 @@ kbd {
   border: 0;
   border-radius: 999px;
   background: linear-gradient(180deg, var(--fire-300) 0%, var(--fire-500) 55%, var(--fire-600) 100%);
-  color: #1a0904;
+  color: var(--on-accent);
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 1.35rem;
@@ -171,7 +201,7 @@ kbd {
     box-shadow: var(--glow-md), inset 0 1px 0 rgba(255, 255, 255, 0.45);
   }
   50% {
-    box-shadow: 0 0 34px rgba(255, 120, 30, 0.65), 0 0 90px rgba(255, 80, 10, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    box-shadow: 0 0 34px rgba(var(--accent-rgb), 0.65), 0 0 90px rgba(var(--accent-rgb), 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.45);
   }
 }
 
@@ -187,7 +217,7 @@ kbd {
   transition: background 0.15s, color 0.15s;
 }
 .ghost-btn:hover {
-  background: rgba(255, 138, 31, 0.1);
+  background: rgba(var(--accent-rgb), 0.1);
   color: var(--fire-200);
 }
 
@@ -207,4 +237,54 @@ kbd {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Theme switch (red / blue). The dots keep their own colours in every theme. */
+.theme-switch {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(var(--raised-rgb), 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.theme-switch__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.theme-switch--compact .theme-switch__btn {
+  padding: 0;
+  width: 40px;
+}
+.theme-switch__btn:hover {
+  color: var(--text);
+}
+.theme-switch__btn.is-active {
+  background: rgba(var(--accent-rgb), 0.2);
+  color: var(--text);
+}
+.theme-switch__dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: 0 0 10px var(--swatch);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+}
+.theme-switch__btn.is-active .theme-switch__dot {
+  border-color: #fff;
 }

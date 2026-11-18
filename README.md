@@ -160,3 +160,13 @@ game over). `npm run test:e2e` drives the production build in a browser on deskt
 landscape (needs Playwright). The 3D scenes are lazy-loaded so the menu paints first (initial JS about 284 kB);
 obstacles, orbs and the mountain layers are instanced meshes, so a gameplay frame is about 47 draw calls, and
 particle systems use fixed buffers (no per-frame allocation).
+
+## Themes (red / blue)
+
+A Red | Blue switch on the home top bar (and in Settings) restyles the whole game. **Red** is the original Ember
+Valley; **Blue** is a Frost Cavern. A theme changes the interface colours (CSS variables, `styles/global.css`), the
+scenery (sky, ground, mountains, obstacles, orbs, embers, lights, `systems/theme/themes.js`), the game-over wording, and
+which bird colour is free: every bird starts in the theme's own colour (Fire in red, Blue in blue), the other warm/cool
+colour unlocks at a best score of 600 and White at 1,500. Each theme remembers its own bird choice. Themes are looks
+only: the simulation has no theme input, and `npm run test:theme` checks both themes define every colour, that
+obstacles and orbs keep strong contrast against the background, and that a run is identical in both.

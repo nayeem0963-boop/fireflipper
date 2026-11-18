@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Object3D } from 'three';
+import { useTheme } from '../../hooks/useTheme.js';
 
 /**
  * Renders every pooled obstacle with a handful of InstancedMeshes, so
@@ -15,6 +16,7 @@ const MAX = { column: 48, block: 12, rock: 112 };
 const CAP_THICKNESS = 0.14;
 
 export default function ObstacleField({ sim }) {
+  const { scene } = useTheme();
   const columns = useRef();
   const columnCaps = useRef();
   const blocks = useRef();
@@ -77,25 +79,25 @@ export default function ObstacleField({ sim }) {
     <group>
       <instancedMesh ref={columns} args={[undefined, undefined, MAX.column]} frustumCulled={false}>
         <cylinderGeometry args={[0.5, 0.5, 1, 6]} />
-        <meshStandardMaterial color="#6b4433" emissive="#3a1004" emissiveIntensity={0.6} roughness={0.85} flatShading />
+        <meshStandardMaterial color={scene.column.color} emissive={scene.column.emissive} emissiveIntensity={0.6} roughness={0.85} flatShading />
       </instancedMesh>
       <instancedMesh ref={columnCaps} args={[undefined, undefined, MAX.column]} frustumCulled={false}>
         <cylinderGeometry args={[0.5, 0.5, 1, 6]} />
-        <meshBasicMaterial color="#ff8a2a" toneMapped={false} />
+        <meshBasicMaterial color={scene.column.cap} toneMapped={false} />
       </instancedMesh>
 
       <instancedMesh ref={blocks} args={[undefined, undefined, MAX.block]} frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#5e3b2c" emissive="#3a1004" emissiveIntensity={0.55} roughness={0.9} flatShading />
+        <meshStandardMaterial color={scene.block.color} emissive={scene.block.emissive} emissiveIntensity={0.55} roughness={0.9} flatShading />
       </instancedMesh>
       <instancedMesh ref={blockCaps} args={[undefined, undefined, MAX.block]} frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial color="#ff7a1f" toneMapped={false} />
+        <meshBasicMaterial color={scene.block.cap} toneMapped={false} />
       </instancedMesh>
 
       <instancedMesh ref={rocks} args={[undefined, undefined, MAX.rock]} frustumCulled={false}>
         <icosahedronGeometry args={[1, 1]} />
-        <meshStandardMaterial color="#7a4b36" emissive="#4a1405" emissiveIntensity={0.55} roughness={0.8} flatShading />
+        <meshStandardMaterial color={scene.rock.color} emissive={scene.rock.emissive} emissiveIntensity={0.55} roughness={0.8} flatShading />
       </instancedMesh>
     </group>
   );
