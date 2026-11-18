@@ -145,3 +145,125 @@ export function createAmazonGroundTexture(s) {
   tex.anisotropy = 4;
   return tex;
 }
+
+/* -------------------------------------------------------------- Volcanic Coast floors */
+
+/** Colours as [r, g, b] from a hex string, and back, for shading triangles. */
+const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const shade = ([r, g, b], k) => `rgb(${Math.round(Math.min(255, r * k))},${Math.round(Math.min(255, g * k))},${Math.round(Math.min(255, b * k))})`;
+
+/**
+ * Fills a rectangle of the canvas with flat-shaded low-poly facets: a grid of cells, each split into two triangles whose
+ * brightness differs a little, so it reads as a faceted surface like the paintings' sea and dunes.
+ */
+function facets(ctx, x0, y0, x1, y1, base, { cell = 40, jitter = 0.06, rnd }) {
+  const c = rgb(base);
+  ctx.fillStyle = shade(c, 1);
+  ctx.fillRect(x0, y0, x1 - x0, y1 - y0); // under-paint, so the anti-aliased seams between triangles never show through
+  for (let y = y0; y < y1; y += cell) {
+    for (let x = x0; x < x1; x += cell) {
+      const x2 = Math.min(x + cell, x1);
+      const y2 = Math.min(y + cell, y1);
+      const flip = rnd() > 0.5;
+      const tris = flip
+        ? [[[x, y], [x2, y], [x, y2]], [[x2, y], [x2, y2], [x, y2]]]
+        : [[[x, y], [x2, y], [x2, y2]], [[x, y], [x2, y2], [x, y2]]];
+      for (const tri of tris) {
+        const col = shade(c, 1 + (rnd() - 0.5) * 2 * jitter);
+        ctx.fillStyle = col;
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(tri[0][0], tri[0][1]);
+        ctx.lineTo(tri[1][0], tri[1][1]);
+        ctx.lineTo(tri[2][0], tri[2][1]);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke(); // a hairline in the same colour closes the gap between neighbouring triangles
+      }
+    }
+  }
+}
+const seededRnd = (seed) => {
+  let v = seed;
+  return () => ((v = (v * 9301 + 49297) % 233280) / 233280);
+};
+
+/** The sea: a muted-jade low-poly surface with faint lighter streaks. Tiles in both directions (one tile = 4 world units). */
+export function createCoastWaterTexture(s) {
+  const size = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const rnd = seededRnd(5);
+  facets(ctx, 0, 0, size, size, s.water, { cell: 64, jitter: 0.032, rnd });
+  ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 6; i++) {
+    const y = rnd() * size;
+    const x = rnd() * size;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 40 + rnd() * 50, y + (rnd() - 0.5) * 3);
+    ctx.stroke();
+  }
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = tex.wrapT = RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+/**
+ * The shore: warm faceted sand on the far side of the floor with a jagged, darker wet edge, and the sea in front. Tiles along x;
+ * one tile spans the whole depth of the floor, with the top of the image the far side.
+ */
+export function createCoastShoreTexture(s) {
+  const w = 256;
+  const h = 256;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  const rnd = seededRnd(21);
+  ctx.clearRect(0, 0, w, h);
+  // the beach covers the far ~70% of the floor; the shoreline wanders gently (whole periods per tile, so it tiles)
+  const shore = (x) => h * 0.7 + Math.sin((x / w) * Math.PI * 2) * 2 + Math.sin((x / w) * Math.PI * 6 + 1) * 1;
+  // sand over the far side: facets clipped to the shoreline
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  for (let x = 0; x <= w; x += 4) ctx.lineTo(x, shore(x));
+  ctx.lineTo(w, 0);
+  ctx.closePath();
+  ctx.clip();
+  facets(ctx, 0, 0, w, h, s.sand, { cell: 32, jitter: 0.09, rnd });
+  // a few darker dune shadows
+  ctx.fillStyle = s.sandDark;
+  ctx.globalAlpha = 0.35;
+  for (let i = 0; i < 7; i++) {
+    const x = rnd() * w;
+    const y = rnd() * h * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 40 + rnd() * 40, y + 6);
+    ctx.lineTo(x + 20, y + 16 + rnd() * 10);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+  // wet edge
+  ctx.strokeStyle = s.sandDark;
+  ctx.globalAlpha = 0.6;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  for (let x = 0; x <= w; x += 4) (x === 0 ? ctx.moveTo(x, shore(x)) : ctx.lineTo(x, shore(x)));
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}

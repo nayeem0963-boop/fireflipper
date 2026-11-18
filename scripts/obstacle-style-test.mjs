@@ -127,7 +127,7 @@ check('Amazon: the morpho does not spin (it always faces the viewer)', styles.am
 
 
 // The look is chosen by the obstacle's own track position; colliders and the simulation never see any of it.
-check('look follows position', biomeAt(250)?.id === 'sundarbans' && biomeAt(750) === null && biomeAt(1250)?.id === 'amazon');
+check('look follows position', biomeAt(250)?.id === 'sundarbans' && biomeAt(750)?.id === 'volcano' && biomeAt(1250)?.id === 'amazon');
 const field = read('src/components/scene/ObstacleField.jsx');
 check('renderer picks the look from the obstacle position', /obstacleStyleAt\(o\.x\)/.test(field));
 check('between the zones only poles are rock (slabs and rocks keep the original look)', /style === 'rock' && o\.kind !== 'column'/.test(field));

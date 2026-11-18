@@ -196,7 +196,7 @@ checks both zones' ranges and fades, that they never overlap, obstacle contrast 
 
 ## Zone obstacles
 
-In the two scenery zones the obstacles are animals and plants of the region, drawn in place of the plain columns, slabs and rocks
+In the Sundarbans and Amazon zones the obstacles are animals and plants of the region, drawn in place of the plain columns, slabs and rocks
 (chosen from the obstacle's own track position: `ObstacleField.jsx`, layout in `obstacleStyles.js`, models in `animalModels.js`,
 all built from primitives with vertex colours, so no model files):
 
@@ -231,3 +231,19 @@ Poles (the tall columns) now have a look per stretch of the track:
 Between the zones only the poles change; slabs and floating rocks keep the original look. `obstacleStyleAt(x)` (in `systems/world/biomes.js`) picks the look from the
 obstacle's own position. Ridges and facets only ever push outwards (or barely in), the narrowest face of every pole is wider than the 0.4 collider half-width, and
 `npm run test:obstacles` checks that for all three looks.
+
+## Volcanic Coast (500 to 1000 m)
+
+The stretch between the Sundarbans and the Amazon is a pale-teal sea under a peach horizon, built from three coast paintings you supplied
+(`public/images/backdrop/`): an erupting volcano on a boulder island, the same volcano beside a snow-capped range, and sandstone buttes on a sandy shore.
+Each is cropped to its sky-and-horizon band, scaled from the camera so it always fills the view (and stays in frame on a tall phone screen),
+drifts slowly sideways as you fly, and dissolves into the next at about 660 m and 820 m. The sea, the beach (from about 760 m) and the rock islands
+are drawn in 3D, matched to the paintings' colours, so the horizon joins up and the scenery keeps depth and parallax. The paintings load only once
+you pass 380 m (about 30 kB each). If one fails to load, the sky and 3D sea still show.
+
+The three zones **cross-fade** over 80 m centred on each border (500 m and 1000 m), so their weights always add up to 1 and the original
+Ember Valley / Frost Cavern scenery never flashes in between; it only returns after 1500 m. Lights, fog and the sky blend with the same weights, and the
+mountains sink while a zone is showing. Poles in this stretch are the rock pillars described above; slabs and floating rocks keep the original look, coloured
+by the theme. Daytime orbs (Sundarbans and here) use a deeper, saturated halo in each theme so they stay unmistakable on the pale scenery. All looks only:
+`npm run test:biome` checks the borders, the handover, the contrast of obstacles and orbs against the coast in both themes, the paintings' files, and that no
+simulation code reads the zones.

@@ -18,7 +18,7 @@ export default function OrbField({ sim }) {
   const coreMat = useRef();
   const haloMat = useRef();
   const day = useRef(null);
-  const colors = useMemo(() => ({ coreNight: new Color(scene.orbCore), haloNight: new Color(scene.orbHalo), coreDay: new Color('#ffb21a'), haloDay: new Color('#ff6a10') }), [scene]);
+  const colors = useMemo(() => ({ coreNight: new Color(scene.orbCore), haloNight: new Color(scene.orbHalo), coreDay: new Color(scene.orbCoreDay), haloDay: new Color(scene.orbHaloDay) }), [scene]);
   useEffect(() => {
     day.current = null; // re-apply after a theme change
   }, [colors]);
@@ -28,7 +28,8 @@ export default function OrbField({ sim }) {
     const dist = sim.renderDistance();
     // In the bright Sundarbans daylight an additive glow washes out on the pale sky and water, so the orbs switch to
     // a saturated, normally blended halo there (still the same orb, same size and hitbox: looks only).
-    const isDay = biomeWeights(dist).sundarbans > 0.5; // the Amazon is dark enough for the additive glow
+    const w = biomeWeights(dist);
+    const isDay = w.sundarbans + w.volcano > 0.5; // the Amazon is dark enough for the additive glow
     if (isDay !== day.current && coreMat.current && haloMat.current) {
       day.current = isDay;
       coreMat.current.color.copy(isDay ? colors.coreDay : colors.coreNight);

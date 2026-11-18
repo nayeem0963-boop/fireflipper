@@ -7,14 +7,20 @@
  *    sky, faceted mangrove canopies on stilt roots, brown mud banks, tidal water, pneumatophore (breathing-root) spikes.
  *  - Amazon (1000 to 1500 m): the Amazon rainforest, after the Amazon scene in the Bulbuli project: tall slender
  *    trunks with buttress roots, dense leafy crowns, a leaf-litter floor, ferns, hanging vines and light shafts.
- *  - Everywhere else the original scenery (Ember Valley / Frost Cavern, per theme) shows.
+ *  - Volcanic Coast (500 to 1000 m): a pale teal sea under a peach horizon, with an erupting volcano and its boulder island,
+ *    a snow-capped range and sandstone buttes on a sandy shore. The far scenery is the three coast paintings (public/images/backdrop,
+ *    cropped to their horizon band and blended along the track); the water, shore and rock islands are drawn in 3D.
+ *  - After 1500 m the original scenery (Ember Valley / Frost Cavern, per theme) shows. (It also shows briefly nowhere else:
+ *    the three zones join up, so there is no gap between them.)
  *
- * Changes are gradual: a zone is full strength inside it and fades over the last/first FADE metres at its edges (the
- * first zone has no fade-in because the run starts in it), so scenery sinks away while the mountains rise instead of popping.
+ * Changes are gradual. Where two zones meet (500 m and 1000 m) they cross-fade over CROSSFADE metres centred on the border,
+ * so the weights always add up to 1 and the original scenery never flashes in between. The outer edges (the start of the run
+ * and 1500 m) fade over FADE metres, so scenery sinks away while the mountains rise instead of popping.
  */
 export const SUNDARBANS_END = 500;
 export const FADE = 80;
-export const FADE_START = SUNDARBANS_END - FADE;
+export const CROSSFADE = 80;
+export const FADE_START = SUNDARBANS_END - CROSSFADE / 2;
 
 export const BIOMES = Object.freeze({
   sundarbans: Object.freeze({
@@ -22,6 +28,7 @@ export const BIOMES = Object.freeze({
     name: 'Sundarbans',
     start: 0,
     end: SUNDARBANS_END,
+    joinsNext: true,
     /** Game-over wording for falling into the floor here (the simulation's cause code stays 'lava'). */
     lavaCopy: 'Fell into the tidal creek',
     /** Orb halo style: 'day' uses a saturated normal-blended halo (an additive glow washes out on a pale background). */
@@ -48,11 +55,45 @@ export const BIOMES = Object.freeze({
       rock: Object.freeze({ color: '#9a7a52', emissive: '#2a2014' }),
     }),
   }),
+  volcano: Object.freeze({
+    id: 'volcano',
+    name: 'Volcanic Coast',
+    start: 500,
+    end: 1000,
+    joinsPrev: true,
+    joinsNext: true,
+    lavaCopy: 'Splashed into the sea',
+    orbStyle: 'day',
+    scene: Object.freeze({
+      // Taken from the paintings: the sky runs from pale teal to a peach horizon; the sea is a muted jade; the shore is warm sand.
+      skyTop: '#afdad9',
+      skyMid: '#d8e0d4',
+      skyBottom: '#f0dccd',
+      fog: '#c9dccf',
+      bg: '#c9dccf',
+      ambient: '#f3efe4',
+      hemiSky: '#b4dcd8',
+      hemiGround: '#7a6a58',
+      key: '#fff0d6',
+      water: '#8db4a2',
+      waterDeep: '#7a9f8e',
+      sand: '#d6a56f',
+      sandDark: '#bf8f5c',
+      rock: ['#c69a84', '#bd9a85', '#8d8a82'],
+      volcano: '#8a6a58',
+      lava: '#ff5a3c',
+      snow: '#e9eff0',
+      butte: ['#d19a64', '#bd8750'],
+      /** What the obstacles are tested against (see biome-test.mjs): the colours the player sees behind them. */
+      backdrops: Object.freeze(['#afdad9', '#d8e0d4', '#f0dccd', '#8db4a2', '#d6a56f', '#bd9a85', '#8a6a58', '#e9eff0']),
+    }),
+  }),
   amazon: Object.freeze({
     id: 'amazon',
     name: 'Amazon',
     start: 1000,
     end: 1500,
+    joinsPrev: true,
     lavaCopy: 'Fell to the forest floor',
     orbStyle: 'night',
     scene: Object.freeze({
@@ -80,7 +121,7 @@ export const BIOMES = Object.freeze({
   }),
 });
 
-const ZONES = Object.freeze([BIOMES.sundarbans, BIOMES.amazon]);
+const ZONES = Object.freeze([BIOMES.sundarbans, BIOMES.volcano, BIOMES.amazon]);
 
 const smoothstep = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -88,41 +129,48 @@ const smoothstep = (a, b, x) => {
 };
 
 /**
- * How strongly a zone's look applies at a distance (metres): 0 outside the zone, 1 inside, easing over FADE metres at
- * the edges. The first zone (start 0) has no fade-in.
+ * How strongly a zone's look applies at a distance (metres), from 0 to 1.
+ *  - Where a zone meets its neighbour (`joinsPrev` / `joinsNext`) the two cross-fade over CROSSFADE metres centred on the border,
+ *    so their weights add up to exactly 1 through the handover.
+ *  - At an outer edge it eases over FADE metres, inside the zone (the first zone has no fade-in: the run starts in it).
  */
 export function zoneWeight(zone, distance) {
-  const fadeIn = zone.start > 0 ? smoothstep(zone.start, zone.start + FADE, distance) : 1;
-  const fadeOut = 1 - smoothstep(zone.end - FADE, zone.end, distance);
-  return distance < zone.start || distance >= zone.end ? 0 : Math.min(fadeIn, fadeOut);
+  const h = CROSSFADE / 2;
+  const fadeIn = zone.start === 0 ? 1 : zone.joinsPrev ? smoothstep(zone.start - h, zone.start + h, distance) : smoothstep(zone.start, zone.start + FADE, distance);
+  const fadeOut = zone.joinsNext ? 1 - smoothstep(zone.end - h, zone.end + h, distance) : 1 - smoothstep(zone.end - FADE, zone.end, distance);
+  return Math.min(fadeIn, fadeOut);
 }
 
-/** Sundarbans weight (kept for the original callers): 1 up to 420 m, 0 from 500 m on. */
+/** Sundarbans weight (kept for the original callers). */
 export function biomeWeight(distance) {
-  return distance >= SUNDARBANS_END ? 0 : zoneWeight(BIOMES.sundarbans, distance);
+  return zoneWeight(BIOMES.sundarbans, distance);
 }
 
-/** { sundarbans, amazon } weights at a distance. At most one is non-zero (the zones do not overlap). */
+/** { sundarbans, volcano, amazon } weights at a distance. They add up to 1 from the start to 1420 m, then fade to 0 by 1500 m. */
 export function biomeWeights(distance) {
-  return { sundarbans: zoneWeight(BIOMES.sundarbans, distance), amazon: zoneWeight(BIOMES.amazon, distance) };
+  return {
+    sundarbans: zoneWeight(BIOMES.sundarbans, distance),
+    volcano: zoneWeight(BIOMES.volcano, distance),
+    amazon: zoneWeight(BIOMES.amazon, distance),
+  };
 }
 
 /** Combined strength of every zone at a distance: how far the original scenery has been replaced (0 to 1). */
 export function zoneStrength(distance) {
   const w = biomeWeights(distance);
-  return Math.max(w.sundarbans, w.amazon);
+  return Math.min(1, w.sundarbans + w.volcano + w.amazon);
 }
 
-/** The zone a distance belongs to, or null for the original scenery. */
+/** The zone a distance belongs to (by its border, not its fade), or null for the original scenery. */
 export function biomeAt(distance) {
   return ZONES.find((z) => distance >= z.start && distance < z.end) ?? null;
 }
 
 /**
- * The stretch between the two scenery zones (500 to 1000 m). The scenery there is the original Ember Valley / Frost Cavern,
- * but its poles are drawn as rock pillars (an obstacle look only: see obstacleStyleAt).
+ * The Volcanic Coast stretch (500 to 1000 m). Its poles are drawn as rock pillars (an obstacle look only: see obstacleStyleAt);
+ * its slabs and floating rocks keep the original look.
  */
-export const ROCK_RANGE = Object.freeze({ id: 'rock', start: SUNDARBANS_END, end: BIOMES.amazon.start });
+export const ROCK_RANGE = Object.freeze({ id: 'rock', start: BIOMES.volcano.start, end: BIOMES.volcano.end });
 
 /**
  * Which obstacle look applies at a track position: 'sundarbans', 'amazon', 'rock' (poles only, 500 to 1000 m) or null
@@ -130,6 +178,6 @@ export const ROCK_RANGE = Object.freeze({ id: 'rock', start: SUNDARBANS_END, end
  */
 export function obstacleStyleAt(x) {
   const zone = biomeAt(x);
-  if (zone) return zone.id;
-  return x >= ROCK_RANGE.start && x < ROCK_RANGE.end ? ROCK_RANGE.id : null;
+  if (!zone) return null;
+  return zone.id === 'volcano' ? ROCK_RANGE.id : zone.id;
 }

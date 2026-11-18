@@ -16,6 +16,7 @@ import CameraRig from './CameraRig.jsx';
 import Backdrop from './Backdrop.jsx';
 import SundarbansBackdrop from './SundarbansBackdrop.jsx';
 import AmazonBackdrop from './AmazonBackdrop.jsx';
+import VolcanoBackdrop from './VolcanoBackdrop.jsx';
 import { BIOMES, biomeWeights } from '../../systems/world/biomes.js';
 
 /**
@@ -30,42 +31,45 @@ export default function EmberValleyScene() {
   const portrait = useThree((s) => s.size.width < s.size.height);
   useGameLoop(game);
 
-  // Lights, fog and background blend from the theme's colours to each zone's daylight colours (Sundarbans 0-500 m,
-  // Amazon 1000-1500 m). The zones never overlap, so at most one weight is non-zero.
+  // Lights, fog and background blend from the theme's colours to each zone's daylight colours (Sundarbans 0-500 m, Volcanic
+  // Coast 500-1000 m, Amazon 1000-1500 m): a weighted mix, base * (1 - total) + zone * weight, so a cross-fade between two zones is exact.
   const fog = useRef();
   const ambient = useRef();
   const hemi = useRef();
   const key = useRef();
   const colors = useMemo(() => {
     const c = (hex) => new Color(hex);
-    const S = BIOMES.sundarbans.scene;
-    const A = BIOMES.amazon.scene;
-    const trio = (theme, k) => [c(theme), c(S[k]), c(A[k])];
+    const Z = [BIOMES.sundarbans.scene, BIOMES.volcano.scene, BIOMES.amazon.scene];
+    const set = (theme, k) => ({ base: c(theme), zones: Z.map((z) => c(z[k])) });
     return {
-      fog: trio(scene.fog, 'fog'), bg: trio(scene.bg, 'bg'), amb: trio(scene.ambient, 'ambient'),
-      sky: trio(scene.hemiSky, 'hemiSky'), gnd: trio(scene.hemiGround, 'hemiGround'), key: trio(scene.key, 'key'),
+      fog: set(scene.fog, 'fog'), bg: set(scene.bg, 'bg'), amb: set(scene.ambient, 'ambient'),
+      sky: set(scene.hemiSky, 'hemiSky'), gnd: set(scene.hemiGround, 'hemiGround'), key: set(scene.key, 'key'),
     };
   }, [scene]);
   const tmp = useMemo(() => new Color(), []);
-  const blend = (target, [base, sund, amaz], ws, wa) => target.copy(base).lerp(sund, ws).lerp(amaz, wa);
+  const mix = (target, { base, zones }, w) => {
+    const total = Math.min(1, w[0] + w[1] + w[2]);
+    target.copy(base).multiplyScalar(1 - total);
+    for (let i = 0; i < 3; i++) if (w[i] > 0) target.add(tmp.copy(zones[i]).multiplyScalar(w[i]));
+  };
   const lastKey = useRef(-1);
   useEffect(() => {
     lastKey.current = -1; // re-apply the blend after a theme change
   }, [colors]);
   useFrame((state) => {
-    const w = biomeWeights(game.renderDistance());
-    const k = w.sundarbans * 1000 + w.amazon * 1000 + (w.amazon > 0 ? 5000 : 0);
+    const bw = biomeWeights(game.renderDistance());
+    const w = [bw.sundarbans, bw.volcano, bw.amazon];
+    const k = w[0] * 1000 + w[1] * 3000 + w[2] * 9000 + 1;
     if (Math.abs(k - lastKey.current) < 2 && lastKey.current !== -1) return;
     lastKey.current = k;
-    if (fog.current) blend(fog.current.color, colors.fog, w.sundarbans, w.amazon);
-    if (state.scene.background?.isColor) blend(state.scene.background, colors.bg, w.sundarbans, w.amazon);
-    if (ambient.current) blend(ambient.current.color, colors.amb, w.sundarbans, w.amazon);
+    if (fog.current) mix(fog.current.color, colors.fog, w);
+    if (state.scene.background?.isColor) mix(state.scene.background, colors.bg, w);
+    if (ambient.current) mix(ambient.current.color, colors.amb, w);
     if (hemi.current) {
-      blend(hemi.current.color, colors.sky, w.sundarbans, w.amazon);
-      blend(hemi.current.groundColor, colors.gnd, w.sundarbans, w.amazon);
+      mix(hemi.current.color, colors.sky, w);
+      mix(hemi.current.groundColor, colors.gnd, w);
     }
-    if (key.current) blend(key.current.color, colors.key, w.sundarbans, w.amazon);
-    void tmp;
+    if (key.current) mix(key.current.color, colors.key, w);
   });
 
   return (
@@ -79,6 +83,7 @@ export default function EmberValleyScene() {
       <CameraRig sim={game} />
       <Backdrop sim={game} />
       <SundarbansBackdrop sim={game} />
+      <VolcanoBackdrop sim={game} />
       <AmazonBackdrop sim={game} />
       <ObstacleField sim={game} />
       <OrbField sim={game} />

@@ -105,3 +105,23 @@ export function createTuftGeometry() {
   }
   return mergeGeometries(blades, false);
 }
+
+/** A cluster of faceted boulders standing in the water (the Volcanic Coast's rock islands): about 3 units wide and 1.6 tall, base on y = 0. */
+export function createCoastRocks(colors) {
+  const parts = [];
+  [
+    [0, 0.55, 0, 0.8, 0],
+    [-0.95, 0.35, 0.1, 0.55, 1],
+    [0.9, 0.3, -0.1, 0.5, 2],
+    [0.3, 0.95, 0.05, 0.42, 0],
+    [-0.4, 0.22, 0.35, 0.38, 2],
+  ].forEach(([x, y, z, r, k], i) => {
+    parts.push(
+      paint(
+        place(new DodecahedronGeometry(r, 0), { position: [x, y, z], rotation: [0.3 * i, 0.9 * i, 0.2 * i], scale: [1.1, 0.85 + (i % 2) * 0.2, 1] }),
+        colors[k % colors.length],
+      ),
+    );
+  });
+  return mergeGeometries(parts, false);
+}

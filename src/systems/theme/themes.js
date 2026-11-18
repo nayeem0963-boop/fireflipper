@@ -39,6 +39,9 @@ export const THEMES = Object.freeze({
       rock: { color: '#7a4b36', emissive: '#4a1405' },
       orbCore: '#fff0b8',
       orbHalo: '#ff8a24',
+      // On a pale daytime backdrop (Sundarbans, Volcanic Coast) an additive glow washes out, so orbs use these saturated colours instead.
+      orbCoreDay: '#ffb21a',
+      orbHaloDay: '#cf3208',
       ember: '#ffae4a',
       edgeWarn: '#ff7a24',
       crash: [1.0, 0.42, 0.1],
@@ -72,6 +75,8 @@ export const THEMES = Object.freeze({
       rock: { color: '#56789d', emissive: '#0e3166' },
       orbCore: '#e8fbff',
       orbHalo: '#4aa8ff',
+      orbCoreDay: '#4db8ff',
+      orbHaloDay: '#0a5fd9',
       ember: '#8fd8ff',
       edgeWarn: '#4aa8ff',
       crash: [0.35, 0.75, 1.0],
