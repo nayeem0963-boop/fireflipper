@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGameStore, STATUS } from '../../store/useGameStore.js';
-import { PHYSICS } from '../physics/constants.js';
+import { createStepper } from './fixedStep.js';
 import { GAME_EVENTS, gameEvents } from '../events/gameEvents.js';
 
 const HUD_INTERVAL = 0.1; // seconds; the HUD only needs ~10 updates/s
@@ -16,26 +16,30 @@ const HUD_INTERVAL = 0.1; // seconds; the HUD only needs ~10 updates/s
  */
 export function useGameLoop(sim) {
   const runId = useGameStore((s) => s.runId);
-  const acc = useRef(0);
+  const stepper = useMemo(() => createStepper(sim), [sim]);
   const hudTimer = useRef(0);
+  const wasPaused = useRef(false);
 
   useEffect(() => {
     sim.reset();
-    acc.current = 0;
+    stepper.reset();
     hudTimer.current = 0;
-  }, [runId, sim]);
+  }, [runId, sim, stepper]);
 
   useFrame((_, rawDelta) => {
     const store = useGameStore.getState();
-    if (store.status === STATUS.PAUSED || store.status === STATUS.IDLE) return;
-
-    const step = PHYSICS.fixedStep;
-    acc.current += Math.min(rawDelta, PHYSICS.maxFrameDelta);
-    while (acc.current >= step) {
-      sim.step(step);
-      acc.current -= step;
+    if (store.status === STATUS.PAUSED || store.status === STATUS.IDLE) {
+      wasPaused.current = true;
+      return;
     }
-    sim.alpha = acc.current / step;
+    // The first frame after a pause reports the whole time spent paused;
+    // dropping it keeps resume from lurching the simulation forward.
+    if (wasPaused.current) {
+      wasPaused.current = false;
+      return;
+    }
+
+    stepper.advance(rawDelta);
 
     if (sim.events.length) {
       for (const e of sim.events) {

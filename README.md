@@ -43,7 +43,7 @@ src/
     useGameStore.js     Zustand store: screens, run status, HUD values, settings
   components/
     scene/              3D building blocks: Firebird, PlayerBird, ObstacleField, OrbField,
-                        BurstParticles, EmberParticles, SceneCanvas
+                        BurstParticles, FlightFx (near-miss streaks, impact ring), EmberParticles, SceneCanvas
     game/               gameplay screen composition (GameScreen)
     ui/                 2D interface: HomeScreen, GameHUD, StartPrompt, PauseMenu,
                         GameOverPanel, SettingsPanel, icons
@@ -52,7 +52,8 @@ src/
     EmberValley/        first level: composition, camera rig, parallax backdrop
   systems/              game logic, independent of React rendering
     game/               createGameSim (the whole simulation, pure JS), the live instance,
-                        useGameLoop (fixed-timestep bridge into R3F)
+                        fixedStep (the fixed-timestep driver, shared with the tests),
+                        useGameLoop (bridge into R3F)
     physics/            constants, flight model, 2D collision tests
     obstacles/          patterns, procedural spawner (fairness rules), ObjectPool
     scoring/            pure scoring helpers
@@ -71,8 +72,10 @@ scripts/
 - **Rendering** lives in `components/scene` and `scenes/`. It reads simulation state each frame and
   never owns game rules.
 - **Simulation** (`systems/game/createGameSim.js`) is plain JavaScript with no React or Three.js.
-  It runs at a fixed 120 Hz timestep, and rendering interpolates between steps, so physics is
-  frame-rate independent. The same code runs in the browser and in the headless tests.
+  It runs at a fixed 120 Hz timestep through `fixedStep.js`, and rendering interpolates between
+  steps, so physics is frame-rate independent. The same driver runs in the browser and in the
+  headless tests, which compare 30/60/120/240 fps runs and check 75/144 fps and jittery frames. The
+  first frame after a pause is dropped so resuming never lurches the simulation forward.
 - **Game state** that the UI reacts to lives in the Zustand store. Per-frame data (positions,
   velocities, pooled obstacles) stays in the simulation. The store only receives discrete events
   (start, crash, game over) and HUD snapshots at 10 Hz, only when values change.
@@ -85,9 +88,23 @@ scripts/
 
 ### Gameplay rules
 
-- **Flight:** a flap sets upward speed. Holding softens gravity while rising (a higher climb), and
-  releasing lets gravity take over. Down/S dives faster, with a smooth recovery afterwards. The ground
-  is lava, and the ceiling is a soft limit.
+- **Flight:** a flap sets upward speed (reach is unchanged: ~1.3 u per tap, ~1.85 u held, which the
+  track generator's fairness model depends on). Gravity eases off near the top of a climb for a brief
+  hang, and builds as the bird falls, so releasing feels weighted. Holding softens gravity while
+  rising. Down/S dives: the dive ramps in over ~0.16 s and relaxes over ~0.22 s instead of snapping.
+  The ground is lava, and the ceiling is a soft limit.
+- **Body language (visual only):** pitch and bank are damped springs in the simulation, wings beat
+  faster while climbing, spread into a glide when falling and tuck in a dive, and the tail and crest
+  lag the body. A short squash-and-stretch follows each flap. None of this touches the collider.
+- **Near misses:** passing an obstacle with under 0.3 u of clearance (one cue per 0.35 s) emits a
+  `nearMiss` event: light streaks along the bird's edge, a few sparks, a whoosh that is louder the
+  closer the shave, and a tiny FOV pulse. No score effect yet.
+- **Impacts:** a crash freezes the world for ~75 ms (hit-stop), then sparks and rock chips fly back
+  along the flight line, an expanding ring flashes, and the camera wobbles briefly. Lava has its own
+  version (embers thrown up, a flattened splash ring, a hiss). The crash event carries its `cause`.
+- **Camera:** the view widens slightly with speed and dives and leads a little toward the direction
+  of travel, all capped (total FOV change <= 4.5 deg, framing shift <= 0.25 u). With
+  `prefers-reduced-motion` the shake and FOV effects are cut to a fraction.
 - **Sections:** gates, single columns, floating rocks, rock formations and narrow passages. Gaps
   shrink, spacing tightens, speed rises (6.5 → 10.5 u/s) and new section types unlock with distance.
 - **Fairness:** each corridor's centre is constrained to be reachable from anywhere the bird could

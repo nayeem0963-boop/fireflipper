@@ -78,8 +78,22 @@ export const sfx = {
     tone({ type: 'triangle', from: 880, to: 1760, duration: 0.16, peak: 0.16 });
     tone({ type: 'sine', from: 1320, to: 2640, duration: 0.2, peak: 0.08, delay: 0.05 });
   },
-  crash() {
+  /** Air rushing past a rock. `tight` is 0..1: the closer the shave, the brighter and louder. */
+  nearMiss(tight = 0.5) {
     if (!ready()) return;
+    noiseBurst({ duration: 0.26, filter: 'bandpass', from: 2600 + tight * 1800, to: 900, q: 1.4, peak: 0.1 + tight * 0.1 });
+    tone({ type: 'sine', from: 1900 + tight * 500, to: 1100, duration: 0.14, peak: 0.035 + tight * 0.03 });
+  },
+  /** Rock impact: a sharp crack over a low thump. Lava: a long sizzling hiss and a dull plunge. */
+  crash(cause = 'obstacle') {
+    if (!ready()) return;
+    if (cause === 'lava') {
+      noiseBurst({ duration: 0.9, filter: 'highpass', from: 2400, to: 5200, q: 0.6, peak: 0.28 });
+      noiseBurst({ duration: 0.5, filter: 'lowpass', from: 900, to: 90, q: 0.7, peak: 0.45 });
+      tone({ from: 110, to: 34, duration: 0.5, peak: 0.4 });
+      return;
+    }
+    noiseBurst({ duration: 0.07, filter: 'highpass', from: 2200, to: 1500, q: 0.8, peak: 0.4 });
     noiseBurst({ duration: 0.55, filter: 'lowpass', from: 1800, to: 120, q: 0.7, peak: 0.55 });
     tone({ from: 140, to: 38, duration: 0.45, peak: 0.45 });
   },

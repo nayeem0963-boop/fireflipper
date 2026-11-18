@@ -3,7 +3,9 @@
  * Exercises the pure simulation (no browser, no WebGL).
  */
 import { createGameSim, PHASE } from '../src/systems/game/createGameSim.js';
-import { circleIntersectsBox, circleIntersectsCircle, circleHitsObstacle } from '../src/systems/physics/collision.js';
+import { circleIntersectsBox, circleIntersectsCircle, circleHitsObstacle, clearanceToObstacle } from '../src/systems/physics/collision.js';
+import { createStepper } from '../src/systems/game/fixedStep.js';
+import { createRng } from '../src/utils/random.js';
 import { PHYSICS, WORLD, SCORING } from '../src/systems/physics/constants.js';
 import { computeScore } from '../src/systems/scoring/scoring.js';
 
@@ -206,6 +208,220 @@ section('Fairness: autopilot over generated tracks');
   console.log(`  autopilot survived ${survived}/${SEEDS} runs to ${TARGET} m (avg ${(totalOrbs / SEEDS).toFixed(0)} orbs)`);
   crashes.forEach((c) => console.log(`    crash: ${c}`));
   check('every generated track navigable', survived === SEEDS);
+}
+
+
+// ---------------------------------------------------------------- flight feel (phase 1)
+const freeSim = (seed = 3) => {
+  const s = createGameSim();
+  s.reset(seed);
+  s.obstacles.releaseAll();
+  s.orbs.releaseAll();
+  s.track.nextX = 1e9;
+  return s;
+};
+
+section('Flight feel');
+{
+  // Reach must stay put: the track generator's fairness model assumes it.
+  const peak = (hold) => {
+    const s = freeSim();
+    s.setHolding(hold);
+    s.flap();
+    let max = -Infinity;
+    for (let i = 0; i < 240; i++) {
+      s.step(DT);
+      max = Math.max(max, s.bird.y);
+    }
+    return max - WORLD.birdStartY;
+  };
+  const tap = peak(false);
+  const hold = peak(true);
+  check('tap reach preserved (~1.28 u)', tap > 1.18 && tap < 1.4, `${tap.toFixed(2)}`);
+  check('hold reach preserved (~1.84 u)', hold > 1.7 && hold < 2.0, `${hold.toFixed(2)}`);
+
+  // Release feels weighted: a free fall is faster than plain gravity would give.
+  const s = freeSim();
+  s.flap();
+  s.step(DT); // applies the queued flap
+  while (s.bird.vy > 0) s.step(DT);
+  for (let i = 0; i < 36; i++) s.step(DT); // 0.3 s of free fall after the apex
+  check('release falls with weight', s.bird.vy < -0.3 * 22 - 0.2, `${s.bird.vy.toFixed(2)}`);
+  check('fall stays under terminal speed', s.bird.vy >= PHYSICS.maxFallSpeed - 1e-9);
+}
+{
+  // Dive ramps in: no velocity jump bigger than the strongest gravity allows.
+  const s = freeSim();
+  s.flap();
+  s.step(DT);
+  s.setDive(true);
+  let maxJump = 0;
+  let minVy = 0;
+  let prev = s.bird.vy;
+  for (let i = 0; i < 70 && s.phase === PHASE.RUNNING; i++) {
+    s.step(DT);
+    maxJump = Math.max(maxJump, Math.abs(s.bird.vy - prev));
+    prev = s.bird.vy;
+    minVy = Math.min(minVy, s.bird.vy);
+  }
+  check('dive builds without snapping', maxJump < Math.abs(PHYSICS.gravity) * PHYSICS.diveGravityScale * DT * 1.05, `${maxJump.toFixed(3)}`);
+  check('dive reaches full dive speed', minVy <= PHYSICS.maxDiveSpeed + 0.5, `${minVy.toFixed(2)}`);
+  check('dive ramps its strength', s.bird.diveAmt > 0.99);
+  s.setDive(false);
+  const vAtRelease = s.bird.vy;
+  s.step(DT);
+  check('dive release does not snap speed', Math.abs(s.bird.vy - vAtRelease) < 0.5);
+}
+{
+  // Body springs: bounded, and they settle (visual only).
+  const s = freeSim();
+  s.flap();
+  let maxPitch = 0;
+  let minPitch = 0;
+  let maxRoll = 0;
+  for (let i = 0; i < 90; i++) {
+    s.step(DT);
+    maxPitch = Math.max(maxPitch, s.bird.pitch);
+    minPitch = Math.min(minPitch, s.bird.pitch);
+    maxRoll = Math.max(maxRoll, Math.abs(s.bird.roll));
+  }
+  check('pitch within visual limits', maxPitch < 0.6 && minPitch > -1.15, `${minPitch.toFixed(2)}..${maxPitch.toFixed(2)}`);
+  check('bank is bounded', maxRoll > 0.01 && maxRoll < 0.45, `${maxRoll.toFixed(3)}`);
+}
+
+// ---------------------------------------------------------------- frame-rate independence
+section('Frame-rate independence (real fixed-step driver)');
+{
+  // Same inputs at the same simulated times, driven at different display refresh rates.
+  const FLAP_TIMES = [0, 0.4, 0.8, 1.2, 1.6];
+  const run = (fps, holdTill = 0.3) => {
+    const s = freeSim(21);
+    const stepper = createStepper(s);
+    const frame = 1 / fps;
+    let simTime = 0;
+    let next = 0;
+    s.setHolding(true);
+    const total = Math.round(2.4 * fps);
+    for (let f = 0; f < total; f++) {
+      if (next < FLAP_TIMES.length && simTime >= FLAP_TIMES[next] - 1e-9) {
+        s.flap();
+        next++;
+      }
+      if (simTime >= holdTill) s.setHolding(false);
+      stepper.advance(frame);
+      simTime += frame;
+    }
+    return { y: s.bird.y, vy: s.bird.vy, pitch: s.bird.pitch, roll: s.bird.roll, d: s.distance, phase: s.phase };
+  };
+  const ref = run(120);
+  for (const fps of [30, 60, 240]) {
+    const r = run(fps);
+    const err = Math.max(Math.abs(r.y - ref.y), Math.abs(r.vy - ref.vy), Math.abs(r.pitch - ref.pitch), Math.abs(r.roll - ref.roll), Math.abs(r.d - ref.d));
+    check(`${fps} fps matches 120 fps`, err < 1e-6 && r.phase === ref.phase, `err ${err}`);
+  }
+  // Frame times that don't divide the step (75, 144 fps) can only differ by input-timing quantisation.
+  for (const fps of [75, 144]) {
+    const r = run(fps);
+    check(`${fps} fps stays close to 120 fps`, Math.abs(r.y - ref.y) < 0.25 && Math.abs(r.d - ref.d) < 0.12, `dy ${(r.y - ref.y).toFixed(3)} dd ${(r.d - ref.d).toFixed(3)}`);
+  }
+  // Irregular frame times: distance travelled depends only on elapsed time.
+  const s = freeSim(22);
+  const stepper = createStepper(s);
+  const rng = createRng(5);
+  s.flap();
+  let elapsed = 0;
+  while (elapsed < 0.7) {
+    const dt = rng.range(0.004, 0.04);
+    stepper.advance(dt);
+    elapsed += dt;
+  }
+  const expected = s.time;
+  check('jittery frames: sim time tracks real time', Math.abs(expected - elapsed) < PHYSICS.fixedStep + 1e-9, `${expected} vs ${elapsed}`);
+  // A huge hitch is clamped, never a giant leap.
+  const h = freeSim(23);
+  const hs = createStepper(h);
+  h.flap();
+  hs.advance(5);
+  check('long hitch is clamped', h.time <= PHYSICS.maxFrameDelta + PHYSICS.fixedStep);
+}
+
+// ---------------------------------------------------------------- collision accuracy
+section('Collision accuracy preserved');
+{
+  const rng = createRng(77);
+  let agree = 0;
+  const N = 4000;
+  for (let i = 0; i < N; i++) {
+    const o =
+      i % 2
+        ? { shape: 'box', x: rng.range(-2, 2), y: rng.range(-2, 2), hw: rng.range(0.2, 1), hh: rng.range(0.3, 2) }
+        : { shape: 'circle', x: rng.range(-2, 2), y: rng.range(-2, 2), cr: rng.range(0.3, 1.2) };
+    const cx = rng.range(-3, 3);
+    const cy = rng.range(-3, 3);
+    const hit = circleHitsObstacle(cx, cy, PHYSICS.birdRadius, o);
+    const clear = clearanceToObstacle(cx, cy, PHYSICS.birdRadius, o);
+    if (hit === clear < 0) agree++;
+  }
+  check('clearance < 0 exactly when the collider is hit', agree === N, `${agree}/${N}`);
+}
+
+// ---------------------------------------------------------------- near miss & impact
+section('Near-miss feedback');
+{
+  // Fly level past a box whose underside leaves `gap` of clearance above the bird's edge.
+  const pass = (gap, extra) => {
+    const s = freeSim(31);
+    s.phase = PHASE.RUNNING;
+    const y = 1.0;
+    const R = PHYSICS.birdRadius;
+    const mk = (x, bottom) => {
+      const o = s.obstacles.acquire();
+      Object.assign(o, { kind: 'column', shape: 'box', x, y: bottom + 3, hw: 0.5, hh: 3, extent: 0.625, minClear: Infinity, nearDone: false });
+    };
+    mk(6, y + R + gap);
+    if (extra) mk(6.9, y + R + gap + 0.02); // a gate's second column right behind
+    for (let i = 0; i < 120 * 3 && s.phase === PHASE.RUNNING; i++) {
+      s.bird.y = y;
+      s.bird.vy = 0;
+      s.step(DT);
+    }
+    return { events: s.events.filter((e) => e.type === 'nearMiss'), phase: s.phase };
+  };
+  const close = pass(0.12);
+  check('close pass raises one near-miss', close.events.length === 1 && close.phase === PHASE.RUNNING);
+  check('near-miss reports clearance and side', Math.abs(close.events[0].clearance - 0.12) < 0.03 && close.events[0].side === 1, JSON.stringify(close.events[0]));
+  check('wide pass raises none', pass(0.6).events.length === 0);
+  check('two columns in a row give one cue', pass(0.1, true).events.length === 1);
+}
+section('Impact feedback');
+{
+  const sim = createGameSim();
+  sim.reset(41);
+  sim.flap();
+  for (let i = 0; i < 120 * 4 && sim.phase === PHASE.RUNNING; i++) sim.step(DT);
+  const crash = sim.events.find((e) => e.type === 'crash');
+  check('lava crash reports its cause', crash && crash.cause === 'lava');
+
+  const o = freeSim(42);
+  const ob = o.obstacles.acquire();
+  Object.assign(ob, { kind: 'column', shape: 'box', x: 3, y: 0.4, hw: 0.5, hh: 3, extent: 0.75, minClear: Infinity, nearDone: false });
+  o.flap();
+  for (let i = 0; i < 240 && o.phase === PHASE.RUNNING; i++) {
+    if (o.bird.vy < 0) o.flap();
+    o.step(DT);
+  }
+  const hit = o.events.find((e) => e.type === 'crash');
+  check('obstacle crash reports its cause', hit && hit.cause === 'obstacle');
+  check('no near-miss alongside a hit', !o.events.some((e) => e.type === 'nearMiss'));
+
+  // Hit-stop: the world is near-frozen for the first instant, then carries on.
+  const d0 = o.distance;
+  const nominal = o.speed;
+  for (let i = 0; i < 6; i++) o.step(DT); // 0.05 s
+  check('hit-stop freezes the impact moment', o.distance - d0 < nominal * 0.05 * 0.3, `${(o.distance - d0).toFixed(3)} of ${(nominal * 0.05).toFixed(3)}`);
+  for (let i = 0; i < 120 * 3; i++) o.step(DT);
+  check('game over still arrives after hit-stop', o.phase === PHASE.OVER);
+  check('over event exactly once', countEvents(o, 'over') === 1);
 }
 
 console.log(`\n${passes} passed, ${failures} failed`);

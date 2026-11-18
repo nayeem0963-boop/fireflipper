@@ -1,6 +1,6 @@
 import { DYING_DURATION, PHYSICS, WORLD } from '../physics/constants.js';
 import { applyFlap, stepFlight } from '../physics/flight.js';
-import { circleHitsObstacle } from '../physics/collision.js';
+import { circleHitsObstacle, clearanceToObstacle } from '../physics/collision.js';
 import { ObjectPool } from '../obstacles/ObjectPool.js';
 import { createTrack, fillTrack, resetTrack, speedAt } from '../obstacles/spawner.js';
 import { computeScore, toMetres } from '../scoring/scoring.js';
@@ -22,11 +22,34 @@ const ORB_RADIUS = 0.35;
 const FLAP_EVENT = Object.freeze({ type: GAME_EVENTS.FLAP });
 const START_EVENT = Object.freeze({ type: GAME_EVENTS.START });
 
+/** A pass counts as a near miss when the gap between bird and rock is under this (units). */
+const NEAR_CLEARANCE = 0.3;
+/** Clearance is tracked while the bird is within this distance of an obstacle's x-range. */
+const NEAR_WINDOW = 0.3;
+/** Minimum seconds between near-miss events, so a gate's two columns give one cue. */
+const NEAR_COOLDOWN = 0.35;
+/** Impact hit-stop: the world slows to this fraction for this many seconds after a crash. */
+const HIT_STOP_TIME = 0.075;
+const HIT_STOP_SCALE = 0.1;
+
 function createObstacle() {
-  return { kind: 'column', shape: 'box', x: 0, y: 0, z: 0, w: 1, h: 1, d: 1, hw: 0, hh: 0, cr: 0, r: 0, sx: 1, sy: 1, sz: 1, rot: 0, spin: 0, cap: 0, extent: 0 };
+  return { kind: 'column', shape: 'box', x: 0, y: 0, z: 0, w: 1, h: 1, d: 1, hw: 0, hh: 0, cr: 0, r: 0, sx: 1, sy: 1, sz: 1, rot: 0, spin: 0, cap: 0, extent: 0, minClear: Infinity, nearDone: false, nearX: 0, nearY: 0, nearSide: 0 };
+}
+/** Fresh near-miss tracking for a (re)used obstacle record. */
+function resetNear(o) {
+  o.minClear = Infinity;
+  o.nearDone = false;
 }
 function createOrb() {
   return { x: 0, y: 0, phase: 0 };
+}
+
+function createBird() {
+  return {
+    y: WORLD.birdStartY, prevY: WORLD.birdStartY, vy: 0, lastVy: 0,
+    pitch: 0, pitchVel: 0, roll: 0, rollVel: 0, accel: 0, diveAmt: 0, holding: false,
+    spin: 0, sinceFlap: 99, dead: false,
+  };
 }
 
 export function createGameSim() {
@@ -39,6 +62,7 @@ export function createGameSim() {
   const builder = {
     column(cx, yBottom, yTop, w, cap) {
       const o = obstacles.acquire();
+      resetNear(o);
       o.kind = 'column';
       o.shape = 'box';
       o.x = cx;
@@ -56,6 +80,7 @@ export function createGameSim() {
     },
     block(x0, x1, yBottom, yTop, cap) {
       const o = obstacles.acquire();
+      resetNear(o);
       o.kind = 'block';
       o.shape = 'box';
       o.x = (x0 + x1) / 2;
@@ -73,6 +98,7 @@ export function createGameSim() {
     },
     rock(x, y, r) {
       const o = obstacles.acquire();
+      resetNear(o);
       o.kind = 'rock';
       o.shape = 'circle';
       o.x = x;
@@ -109,7 +135,8 @@ export function createGameSim() {
     deathTime: 0,
     /** Interpolation factor between the last two fixed steps (set by the loop). */
     alpha: 1,
-    bird: { y: WORLD.birdStartY, prevY: WORLD.birdStartY, vy: 0, pitch: 0, spin: 0, sinceFlap: 99, dead: false },
+    bird: createBird(),
+    lastNearTime: -99,
     input: { holding: false, dive: false, flapQueued: false },
     /** Camera/feedback impulses, decayed every step. */
     fx: { fovKick: 0, shake: 0, lift: 0 },
@@ -142,10 +169,8 @@ export function createGameSim() {
       sim.deathTime = 0;
       sim.alpha = 1;
       const b = sim.bird;
-      b.y = b.prevY = WORLD.birdStartY;
-      b.vy = b.pitch = b.spin = 0;
-      b.sinceFlap = 99;
-      b.dead = false;
+      Object.assign(b, createBird());
+      sim.lastNearTime = -99;
       sim.input.holding = sim.input.dive = sim.input.flapQueued = false;
       sim.fx.fovKick = sim.fx.shake = sim.fx.lift = 0;
       sim.events.length = 0;
@@ -182,6 +207,8 @@ export function createGameSim() {
         b.y = WORLD.birdStartY + Math.sin(sim.time * 2.4) * 0.15;
         b.vy = Math.cos(sim.time * 2.4) * 0.36;
         b.pitch *= 0.9;
+        b.pitchVel = b.roll = b.rollVel = b.accel = b.diveAmt = 0;
+        b.lastVy = b.vy;
         b.sinceFlap += dt;
         return;
       }
@@ -219,7 +246,7 @@ export function createGameSim() {
 
     // Ground is lava: touching it ends the run.
     if (b.y - R <= WORLD.groundY) {
-      die();
+      die('lava');
       return;
     }
 
@@ -228,10 +255,24 @@ export function createGameSim() {
         obstacles.release(o);
         continue;
       }
-      if (Math.abs(o.x - bx) > o.extent + R) continue; // broad phase
-      if (circleHitsObstacle(bx, b.y, R, o)) {
-        die();
+      const dx = o.x - bx;
+      const reachX = o.extent + R;
+      if (Math.abs(dx) > reachX + NEAR_WINDOW) {
+        // Just passed it: report a near miss once, then stop looking at it.
+        if (dx < 0 && !o.nearDone) finishPass(o);
+        continue;
+      }
+      // Hit decisions use only the exact collider test, as before.
+      if (Math.abs(dx) <= reachX && circleHitsObstacle(bx, b.y, R, o)) {
+        die('obstacle');
         return;
+      }
+      const clear = clearanceToObstacle(bx, b.y, R, o);
+      if (clear < o.minClear) {
+        o.minClear = clear;
+        o.nearX = bx;
+        o.nearY = b.y;
+        o.nearSide = o.y >= b.y ? 1 : -1;
       }
     }
 
@@ -254,7 +295,15 @@ export function createGameSim() {
     }
   }
 
-  function die() {
+  function finishPass(o) {
+    o.nearDone = true;
+    if (o.minClear >= NEAR_CLEARANCE || sim.time - sim.lastNearTime < NEAR_COOLDOWN) return;
+    sim.lastNearTime = sim.time;
+    sim.fx.fovKick += 0.5;
+    sim.events.push({ type: GAME_EVENTS.NEAR_MISS, x: o.nearX, y: o.nearY, clearance: o.minClear, side: o.nearSide });
+  }
+
+  function die(cause) {
     const b = sim.bird;
     sim.phase = PHASE.DYING;
     sim.scoredDistance = sim.distance;
@@ -263,11 +312,14 @@ export function createGameSim() {
     b.vy = Math.max(b.vy, 0) * 0.3 + 4; // knocked upward before falling
     sim.input.holding = sim.input.dive = sim.input.flapQueued = false;
     sim.fx.shake = 0.35;
-    sim.events.push({ type: GAME_EVENTS.CRASH, x: sim.distance, y: b.y });
+    sim.events.push({ type: GAME_EVENTS.CRASH, x: sim.distance, y: b.y, cause, speed: sim.speed });
   }
 
-  function stepDying(dt) {
+  function stepDying(realDt) {
     const b = sim.bird;
+    // Hit-stop: the first instant after impact plays in near-freeze, which is
+    // what makes a crash feel like it connected. Timers keep real time.
+    const dt = sim.phase === PHASE.DYING && sim.deathTime < HIT_STOP_TIME ? realDt * HIT_STOP_SCALE : realDt;
     // World decelerates to a stop; the bird tumbles to the ground.
     sim.speed *= Math.exp(-3.5 * dt);
     sim.distance += sim.speed * dt;
@@ -283,7 +335,7 @@ export function createGameSim() {
     b.sinceFlap += dt;
 
     if (sim.phase === PHASE.DYING) {
-      sim.deathTime += dt;
+      sim.deathTime += realDt;
       if (sim.deathTime >= DYING_DURATION) {
         sim.phase = PHASE.OVER;
         sim.events.push({ type: GAME_EVENTS.OVER, ...sim.results() });

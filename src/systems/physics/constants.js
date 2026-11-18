@@ -18,6 +18,25 @@ export const PHYSICS = Object.freeze({
   maxDiveSpeed: -17,
   /** How quickly fall speed eases back to normal after a dive is released (units/s²). */
   diveRecovery: 30,
+  /** Gravity drops by this fraction at the apex of a climb (a brief, natural hang). */
+  apexGravityDrop: 0.16,
+  /** |vy| below which the apex hang applies (u/s). */
+  apexSpeed: 2.4,
+  /** Extra gravity (fraction) once falling freely: release feels weighty, not floaty. */
+  fallGravityBoost: 0.12,
+  /** Fall speed (u/s) at which the full boost applies. */
+  fallBoostSpeed: 4,
+  /** Seconds for a dive to build to full strength / to relax after release. */
+  diveAttack: 0.16,
+  diveRelease: 0.22,
+  /** Visual-only spring response of the bird's body (pitch and bank). */
+  pitchStiffness: 150,
+  pitchDamping: 0.6, // damping ratio; <1 gives a small natural overshoot
+  rollStiffness: 90,
+  rollDamping: 0.75,
+  maxRoll: 0.26,
+  rollPerAccel: 0.004,
+  accelSmoothing: 8,
   /** Collision radius of the bird. Slightly smaller than the visual for fairness. */
   birdRadius: 0.36,
   /** Fixed simulation timestep (s). Rendering interpolates between steps. */
