@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Color, Object3D } from 'three';
-import { BIOMES, biomeWeight } from '../../systems/world/biomes.js';
+import { BIOMES, biomeWeights } from '../../systems/world/biomes.js';
 import { useTheme } from '../../hooks/useTheme.js';
 
 /**
@@ -25,36 +25,42 @@ export default function ObstacleField({ sim }) {
   const rocks = useRef();
   const dummy = useMemo(() => new Object3D(), []);
 
-  // Obstacle colours blend from the theme's to the Sundarbans' bark / plank / driftwood tones over the first 500 m
-  // (still bright against the green, so they read at a glance). Visual only: the colliders never change.
+  // Obstacle colours blend from the theme's to each zone's tones (Sundarbans bark / planks, Amazon sunlit wood). They stay
+  // bright against the backdrop so they read at a glance. Visual only: the colliders never change.
   const mats = useRef({});
-  const lastW = useRef(-1);
+  const lastKey = useRef(-1);
   const pairs = useMemo(() => {
-    const B = BIOMES.sundarbans.scene;
-    const pair = (a, b) => [new Color(a), new Color(b)];
+    const S = BIOMES.sundarbans.scene;
+    const A = BIOMES.amazon.scene;
+    const trio = (a, b, c) => [new Color(a), new Color(b), new Color(c)];
     return {
-      column: pair(scene.column.color, B.column.color), columnE: pair(scene.column.emissive, B.column.emissive),
-      columnCap: pair(scene.column.cap, B.column.cap),
-      block: pair(scene.block.color, B.block.color), blockE: pair(scene.block.emissive, B.block.emissive),
-      blockCap: pair(scene.block.cap, B.block.cap),
-      rock: pair(scene.rock.color, B.rock.color), rockE: pair(scene.rock.emissive, B.rock.emissive),
+      column: trio(scene.column.color, S.column.color, A.column.color), columnE: trio(scene.column.emissive, S.column.emissive, A.column.emissive),
+      columnCap: trio(scene.column.cap, S.column.cap, A.column.cap),
+      block: trio(scene.block.color, S.block.color, A.block.color), blockE: trio(scene.block.emissive, S.block.emissive, A.block.emissive),
+      blockCap: trio(scene.block.cap, S.block.cap, A.block.cap),
+      rock: trio(scene.rock.color, S.rock.color, A.rock.color), rockE: trio(scene.rock.emissive, S.rock.emissive, A.rock.emissive),
     };
   }, [scene]);
   useEffect(() => {
-    lastW.current = -1; // re-apply after a theme change
+    lastKey.current = -1; // re-apply after a theme change
   }, [pairs]);
 
   useFrame(() => {
     if (!columns.current) return;
     const dist = sim.renderDistance();
-    const w = biomeWeight(dist);
-    if (Math.abs(w - lastW.current) > 0.002 || lastW.current === -1) {
-      lastW.current = w;
+    const w = biomeWeights(dist);
+    const k = w.sundarbans * 1000 + w.amazon * 1000 + (w.amazon > 0 ? 5000 : 0);
+    if (Math.abs(k - lastKey.current) > 2 || lastKey.current === -1) {
+      lastKey.current = k;
       const m = mats.current;
       const set = (mat, key, emissiveKey) => {
         if (!mat) return;
-        mat.color.lerpColors(pairs[key][1], pairs[key][0], 1 - w);
-        if (emissiveKey) mat.emissive.lerpColors(pairs[emissiveKey][1], pairs[emissiveKey][0], 1 - w);
+        const [base, sund, amaz] = pairs[key];
+        mat.color.copy(base).lerp(sund, w.sundarbans).lerp(amaz, w.amazon);
+        if (emissiveKey) {
+          const [eb, es, ea] = pairs[emissiveKey];
+          mat.emissive.copy(eb).lerp(es, w.sundarbans).lerp(ea, w.amazon);
+        }
       };
       set(m.column, 'column', 'columnE');
       set(m.columnCap, 'columnCap');

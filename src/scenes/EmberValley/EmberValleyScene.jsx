@@ -15,7 +15,8 @@ import { useTheme } from '../../hooks/useTheme.js';
 import CameraRig from './CameraRig.jsx';
 import Backdrop from './Backdrop.jsx';
 import SundarbansBackdrop from './SundarbansBackdrop.jsx';
-import { BIOMES, biomeWeight } from '../../systems/world/biomes.js';
+import AmazonBackdrop from './AmazonBackdrop.jsx';
+import { BIOMES, biomeWeights } from '../../systems/world/biomes.js';
 
 /**
  * Ember Valley: the first level. Composition only. Gameplay lives in the
@@ -29,36 +30,42 @@ export default function EmberValleyScene() {
   const portrait = useThree((s) => s.size.width < s.size.height);
   useGameLoop(game);
 
-  // Lights, fog and background blend from the theme's colours to daylight Sundarbans colours over the first 500 m.
+  // Lights, fog and background blend from the theme's colours to each zone's daylight colours (Sundarbans 0-500 m,
+  // Amazon 1000-1500 m). The zones never overlap, so at most one weight is non-zero.
   const fog = useRef();
   const ambient = useRef();
   const hemi = useRef();
   const key = useRef();
-  const S = BIOMES.sundarbans.scene;
   const colors = useMemo(() => {
     const c = (hex) => new Color(hex);
+    const S = BIOMES.sundarbans.scene;
+    const A = BIOMES.amazon.scene;
+    const trio = (theme, k) => [c(theme), c(S[k]), c(A[k])];
     return {
-      fogA: c(scene.fog), fogB: c(S.fog), bgA: c(scene.bg), bgB: c(S.bg),
-      ambA: c(scene.ambient), ambB: c(S.ambient), skyA: c(scene.hemiSky), skyB: c(S.hemiSky),
-      gndA: c(scene.hemiGround), gndB: c(S.hemiGround), keyA: c(scene.key), keyB: c(S.key),
+      fog: trio(scene.fog, 'fog'), bg: trio(scene.bg, 'bg'), amb: trio(scene.ambient, 'ambient'),
+      sky: trio(scene.hemiSky, 'hemiSky'), gnd: trio(scene.hemiGround, 'hemiGround'), key: trio(scene.key, 'key'),
     };
-  }, [scene, S]);
-  const lastW = useRef(-1);
+  }, [scene]);
+  const tmp = useMemo(() => new Color(), []);
+  const blend = (target, [base, sund, amaz], ws, wa) => target.copy(base).lerp(sund, ws).lerp(amaz, wa);
+  const lastKey = useRef(-1);
   useEffect(() => {
-    lastW.current = -1; // re-apply the blend after a theme change
+    lastKey.current = -1; // re-apply the blend after a theme change
   }, [colors]);
   useFrame((state) => {
-    const w = biomeWeight(game.renderDistance());
-    if (Math.abs(w - lastW.current) < 0.002 && lastW.current !== -1) return;
-    lastW.current = w;
-    if (fog.current) fog.current.color.lerpColors(colors.fogA, colors.fogB, w);
-    if (state.scene.background?.isColor) state.scene.background.lerpColors(colors.bgA, colors.bgB, w);
-    if (ambient.current) ambient.current.color.lerpColors(colors.ambA, colors.ambB, w);
+    const w = biomeWeights(game.renderDistance());
+    const k = w.sundarbans * 1000 + w.amazon * 1000 + (w.amazon > 0 ? 5000 : 0);
+    if (Math.abs(k - lastKey.current) < 2 && lastKey.current !== -1) return;
+    lastKey.current = k;
+    if (fog.current) blend(fog.current.color, colors.fog, w.sundarbans, w.amazon);
+    if (state.scene.background?.isColor) blend(state.scene.background, colors.bg, w.sundarbans, w.amazon);
+    if (ambient.current) blend(ambient.current.color, colors.amb, w.sundarbans, w.amazon);
     if (hemi.current) {
-      hemi.current.color.lerpColors(colors.skyA, colors.skyB, w);
-      hemi.current.groundColor.lerpColors(colors.gndA, colors.gndB, w);
+      blend(hemi.current.color, colors.sky, w.sundarbans, w.amazon);
+      blend(hemi.current.groundColor, colors.gnd, w.sundarbans, w.amazon);
     }
-    if (key.current) key.current.color.lerpColors(colors.keyA, colors.keyB, w);
+    if (key.current) blend(key.current.color, colors.key, w.sundarbans, w.amazon);
+    void tmp;
   });
 
   return (
@@ -72,6 +79,7 @@ export default function EmberValleyScene() {
       <CameraRig sim={game} />
       <Backdrop sim={game} />
       <SundarbansBackdrop sim={game} />
+      <AmazonBackdrop sim={game} />
       <ObstacleField sim={game} />
       <OrbField sim={game} />
       <PlayerBird sim={game} />

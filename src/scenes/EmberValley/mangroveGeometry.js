@@ -19,7 +19,7 @@ import { BIOMES } from '../../systems/world/biomes.js';
  */
 const S = BIOMES.sundarbans.scene;
 
-function paint(geometry, hex) {
+export function paint(geometry, hex) {
   const g = geometry.index ? geometry.toNonIndexed() : geometry;
   const c = new Color(hex);
   const colors = new Float32Array(g.attributes.position.count * 3);
@@ -33,7 +33,7 @@ function paint(geometry, hex) {
   return g;
 }
 
-function place(geometry, { position = [0, 0, 0], rotation = [0, 0, 0], scale = [1, 1, 1] }) {
+export function place(geometry, { position = [0, 0, 0], rotation = [0, 0, 0], scale = [1, 1, 1] }) {
   const m = new Matrix4().compose(
     new Vector3(...position),
     new Quaternion().setFromEuler(new Euler(...rotation)),

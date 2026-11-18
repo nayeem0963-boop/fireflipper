@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, Color, NormalBlending, Object3D } from 'three';
-import { biomeWeight } from '../../systems/world/biomes.js';
+import { biomeWeights } from '../../systems/world/biomes.js';
 import { useTheme } from '../../hooks/useTheme.js';
 
 /**
@@ -28,7 +28,7 @@ export default function OrbField({ sim }) {
     const dist = sim.renderDistance();
     // In the bright Sundarbans daylight an additive glow washes out on the pale sky and water, so the orbs switch to
     // a saturated, normally blended halo there (still the same orb, same size and hitbox: looks only).
-    const isDay = biomeWeight(dist) > 0.5;
+    const isDay = biomeWeights(dist).sundarbans > 0.5; // the Amazon is dark enough for the additive glow
     if (isDay !== day.current && coreMat.current && haloMat.current) {
       day.current = isDay;
       coreMat.current.color.copy(isDay ? colors.coreDay : colors.coreNight);

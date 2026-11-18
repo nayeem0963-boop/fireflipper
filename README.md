@@ -182,3 +182,14 @@ on the bright background. Between 420 and 500 m the mangroves sink while the mou
 draws it (about 8 instanced draw calls). It is looks only: obstacles, collisions, speed and scoring depend on distance alone, and
 `npm run test:biome` checks the fade, the contrast of obstacles against the Sundarbans backdrop, and that no simulation code reads the zone.
 In dev builds `window.__fireflipper.game` lets you jump along the track for screenshots.
+
+## Amazon (1000 to 1500 m)
+
+A second scenery zone, recreated in the style of the Bulbuli project's Amazon scene (built from primitives; no assets copied):
+tall slender rainforest trunks with buttress roots, boughs and dense faceted crowns in three parallax layers, an overhead leaf
+canopy, a leaf-litter forest floor, ferns, swaying hanging vines, soft light shafts and a teal-green haze. Obstacles turn sunlit
+wood with bright caps so they stand out against the dark trunks and leaves, and a fall reads "Fell to the forest floor". It grows in over
+1000 to 1080 m and fades out over 1420 to 1500 m (scenery sinks while the mountains rise), the group is hidden outside the zone so it
+costs nothing elsewhere, and it is about 9 instanced draw calls inside it. Zone data and the blend maths are in
+`systems/world/biomes.js` (`BIOMES`, `zoneWeight`, `biomeWeights`); `AmazonBackdrop.jsx` draws it. Looks only: `npm run test:biome`
+checks both zones' ranges and fades, that they never overlap, obstacle contrast against each backdrop, and that no simulation code reads them.

@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber';
 import { WORLD } from '../../systems/physics/constants.js';
 import { createGroundTexture, createSkyTexture } from './valleyTextures.js';
 import { useTheme } from '../../hooks/useTheme.js';
-import { biomeWeight } from '../../systems/world/biomes.js';
+import { zoneStrength } from '../../systems/world/biomes.js';
 
 /**
  * Ember Valley scenery. Everything scrolls from the simulation's distance,
@@ -96,8 +96,8 @@ function PeakLayer({ sim, depth, scale, count, span, speedFactor, color, emissiv
     if (!m) return;
     const camX = state.camera.position.x;
     const offset = (sim.renderDistance() * speedFactor) % span;
-    // The mountains rise out of the ground as the Sundarbans (first 500 m) fades away.
-    const rise = Math.max(0.0001, 1 - biomeWeight(sim.renderDistance()));
+    // The mountains rise out of the ground as a scenery zone (Sundarbans, Amazon) fades away, and sink while one grows in.
+    const rise = Math.max(0.0001, 1 - zoneStrength(sim.renderDistance()));
     m.visible = rise > 0.001;
     for (let i = 0; i < peaks.length; i++) {
       const p = peaks[i];

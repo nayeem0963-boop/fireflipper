@@ -99,3 +99,49 @@ export function createSundarbansGroundTexture(s) {
   tex.anisotropy = 4;
   return tex;
 }
+
+/** Amazon forest floor: dark brown earth with scattered leaf litter and a few root lines. Tiles along x. */
+export function createAmazonGroundTexture(s) {
+  const w = 256;
+  const h = 256;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = s.floor;
+  ctx.fillRect(0, 0, w, h);
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+  // leaf litter: small angular flecks, seamless across x
+  for (let i = 0; i < 240; i++) {
+    const x = rnd() * w;
+    const y = rnd() * h;
+    const size = 2 + rnd() * 5;
+    ctx.fillStyle = s.leafLitter[Math.floor(rnd() * s.leafLitter.length)];
+    ctx.globalAlpha = 0.35 + rnd() * 0.4;
+    for (const dx of [0, -w, w]) {
+      ctx.save();
+      ctx.translate(x + dx, y);
+      ctx.rotate(rnd() * Math.PI);
+      ctx.fillRect(-size, -size * 0.4, size * 2, size * 0.8);
+      ctx.restore();
+    }
+  }
+  // root lines running along the flight direction
+  ctx.strokeStyle = s.floorDark;
+  ctx.globalAlpha = 0.3;
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    const y = rnd() * h;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.bezierCurveTo(w * 0.3, y + (rnd() - 0.5) * 18, w * 0.7, y + (rnd() - 0.5) * 18, w, y);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
