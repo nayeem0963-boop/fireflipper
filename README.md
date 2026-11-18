@@ -247,3 +247,15 @@ mountains sink while a zone is showing. Poles in this stretch are the rock pilla
 by the theme. Daytime orbs (Sundarbans and here) use a deeper, saturated halo in each theme so they stay unmistakable on the pale scenery. All looks only:
 `npm run test:biome` checks the borders, the handover, the contrast of obstacles and orbs against the coast in both themes, the paintings' files, and that no
 simulation code reads the zones.
+
+## Arctic Ice Shelf (1500 to 2000 m)
+
+The fourth scenery zone, built the same way as the Volcanic Coast from three arctic paintings (`public/images/backdrop/arctic-*.jpg`): an ice shelf under an aurora
+with a peach horizon. Each painting is cropped at its horizon, sized from the camera so it fills the view, and dissolves into the next at about 1720 m and 1860 m
+(the last two are near-identical renders, so that handover is subtle). The snowfield, the slate outcrops and a research camp (orange dome tents, snowmobile, radio
+mast, flagged cairn) are 3D, so there is depth and parallax. The paintings only load from 1380 m on. The Amazon cross-fades into it around 1500 m, and it fades back
+to the original Ember Valley / Frost Cavern scenery by 2000 m, so the four zones hand over with no gap. Obstacles keep the original themed look here. The painted
+zones share `ZoneParts.jsx` (the painting blend, the gradient sky and the parallax layers).
+
+**Edge warning on pale scenery.** In portrait the screen-edge warning for approaching obstacles used additive glow, which washes out to white on the pale
+Sundarbans, Volcanic Coast and Arctic scenery and hides the gaps. There it now draws normal-blended bars in the theme's deep daytime colour, pale for far and saturated for near.

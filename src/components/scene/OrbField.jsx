@@ -29,7 +29,7 @@ export default function OrbField({ sim }) {
     // In the bright Sundarbans daylight an additive glow washes out on the pale sky and water, so the orbs switch to
     // a saturated, normally blended halo there (still the same orb, same size and hitbox: looks only).
     const w = biomeWeights(dist);
-    const isDay = w.sundarbans + w.volcano > 0.5; // the Amazon is dark enough for the additive glow
+    const isDay = w.sundarbans + w.volcano + w.arctic > 0.5; // the Amazon is dark enough for the additive glow
     if (isDay !== day.current && coreMat.current && haloMat.current) {
       day.current = isDay;
       coreMat.current.color.copy(isDay ? colors.coreDay : colors.coreNight);

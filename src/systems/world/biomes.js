@@ -10,12 +10,13 @@
  *  - Volcanic Coast (500 to 1000 m): a pale teal sea under a peach horizon, with an erupting volcano and its boulder island,
  *    a snow-capped range and sandstone buttes on a sandy shore. The far scenery is the three coast paintings (public/images/backdrop,
  *    cropped to their horizon band and blended along the track); the water, shore and rock islands are drawn in 3D.
- *  - After 1500 m the original scenery (Ember Valley / Frost Cavern, per theme) shows. (It also shows briefly nowhere else:
- *    the three zones join up, so there is no gap between them.)
+ *  - Arctic Ice Shelf (1500 to 2000 m): a pale ice shelf and snowfield under an aurora and a peach horizon, from three more paintings.
+ *  - After 2000 m the original scenery (Ember Valley / Frost Cavern, per theme) shows. (It shows nowhere before that:
+ *    the four zones join up, so there is no gap between them.)
  *
- * Changes are gradual. Where two zones meet (500 m and 1000 m) they cross-fade over CROSSFADE metres centred on the border,
+ * Changes are gradual. Where two zones meet (500, 1000 and 1500 m) they cross-fade over CROSSFADE metres centred on the border,
  * so the weights always add up to 1 and the original scenery never flashes in between. The outer edges (the start of the run
- * and 1500 m) fade over FADE metres, so scenery sinks away while the mountains rise instead of popping.
+ * and 2000 m) fade over FADE metres, so scenery sinks away while the mountains rise instead of popping.
  */
 export const SUNDARBANS_END = 500;
 export const FADE = 80;
@@ -94,6 +95,7 @@ export const BIOMES = Object.freeze({
     start: 1000,
     end: 1500,
     joinsPrev: true,
+    joinsNext: true,
     lavaCopy: 'Fell to the forest floor',
     orbStyle: 'night',
     scene: Object.freeze({
@@ -119,9 +121,39 @@ export const BIOMES = Object.freeze({
       rock: Object.freeze({ color: '#b8a67c', emissive: '#2a2414' }),
     }),
   }),
+  arctic: Object.freeze({
+    id: 'arctic',
+    name: 'Arctic Ice Shelf',
+    start: 1500,
+    end: 2000,
+    joinsPrev: true,
+    lavaCopy: 'Fell through the ice',
+    orbStyle: 'day',
+    scene: Object.freeze({
+      // Taken from the paintings: cyan sky with aurora curtains, a peach glow at the horizon, white-blue ice and snow.
+      skyTop: '#bbecf2',
+      skyMid: '#cfd9da',
+      skyBottom: '#ecdccf',
+      fog: '#d3e3ea',
+      bg: '#bbecf2',
+      ambient: '#eef6fa',
+      hemiSky: '#bfe4ee',
+      hemiGround: '#9ab4c0',
+      key: '#fff4e6',
+      snow: '#d2e4ed',
+      snowMid: '#c0d6e0',
+      snowShadow: '#9ebdcb',
+      ice: '#b6c3c9',
+      rock: ['#7d8d96', '#6f7f88', '#93a3ab'],
+      tent: ['#e8742a', '#c8452a'],
+      flag: '#d8452a',
+      /** What the obstacles are tested against (see biome-test.mjs): the colours the player sees behind them. */
+      backdrops: Object.freeze(['#bbecf2', '#cfd9da', '#ecdccf', '#d2e4ed', '#9ebdcb', '#b6c3c9', '#6f7f88']),
+    }),
+  }),
 });
 
-const ZONES = Object.freeze([BIOMES.sundarbans, BIOMES.volcano, BIOMES.amazon]);
+const ZONES = Object.freeze([BIOMES.sundarbans, BIOMES.volcano, BIOMES.amazon, BIOMES.arctic]);
 
 const smoothstep = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -146,19 +178,20 @@ export function biomeWeight(distance) {
   return zoneWeight(BIOMES.sundarbans, distance);
 }
 
-/** { sundarbans, volcano, amazon } weights at a distance. They add up to 1 from the start to 1420 m, then fade to 0 by 1500 m. */
+/** { sundarbans, volcano, amazon, arctic } weights at a distance. They add up to 1 from the start to 1920 m, then fade to 0 by 2000 m. */
 export function biomeWeights(distance) {
   return {
     sundarbans: zoneWeight(BIOMES.sundarbans, distance),
     volcano: zoneWeight(BIOMES.volcano, distance),
     amazon: zoneWeight(BIOMES.amazon, distance),
+    arctic: zoneWeight(BIOMES.arctic, distance),
   };
 }
 
 /** Combined strength of every zone at a distance: how far the original scenery has been replaced (0 to 1). */
 export function zoneStrength(distance) {
   const w = biomeWeights(distance);
-  return Math.min(1, w.sundarbans + w.volcano + w.amazon);
+  return Math.min(1, w.sundarbans + w.volcano + w.amazon + w.arctic);
 }
 
 /** The zone a distance belongs to (by its border, not its fade), or null for the original scenery. */
@@ -174,10 +207,11 @@ export const ROCK_RANGE = Object.freeze({ id: 'rock', start: BIOMES.volcano.star
 
 /**
  * Which obstacle look applies at a track position: 'sundarbans', 'amazon', 'rock' (poles only, 500 to 1000 m) or null
- * (the original look). Decided by the obstacle's own position, so it is the same however the camera sees it.
+ * (the original look, including the whole Arctic stretch). Decided by the obstacle's own position, so it is the same however the camera sees it.
  */
 export function obstacleStyleAt(x) {
   const zone = biomeAt(x);
   if (!zone) return null;
-  return zone.id === 'volcano' ? ROCK_RANGE.id : zone.id;
+  if (zone.id === 'volcano') return ROCK_RANGE.id;
+  return zone.id === 'arctic' ? null : zone.id; // the Arctic keeps the original obstacles
 }

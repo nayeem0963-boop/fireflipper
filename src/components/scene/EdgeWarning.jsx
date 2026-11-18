@@ -1,7 +1,8 @@
 import { useTheme } from '../../hooks/useTheme.js';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, CanvasTexture, Color, Object3D, SRGBColorSpace } from 'three';
+import { AdditiveBlending, CanvasTexture, Color, NormalBlending, Object3D, SRGBColorSpace } from 'three';
+import { biomeWeights } from '../../systems/world/biomes.js';
 import { WORLD } from '../../systems/physics/constants.js';
 
 /**
@@ -15,6 +16,10 @@ import { WORLD } from '../../systems/physics/constants.js';
  *
  * One InstancedMesh, per-instance colour for intensity; nothing allocated
  * per frame. Purely visual: it never affects gameplay.
+ *
+ * On a dark scene the bars glow (additive blending). On a pale daytime scene (Sundarbans, Volcanic Coast, Arctic) an additive glow
+ * would just wash out to white and hide the gaps, so there the bars are drawn with normal blending in the theme's deep daytime colour,
+ * fading from pale (far) to saturated (near).
  */
 const WARN_TIME = 0.45; // seconds of extra warning
 const MAX_BARS = 24;
@@ -38,6 +43,10 @@ function createEdgeGradient() {
 export default function EdgeWarning({ sim, enabled }) {
   const { scene } = useTheme();
   const BAR_COLOR = useMemo(() => new Color(scene.edgeWarn), [scene]);
+  const DAY_COLOR = useMemo(() => new Color(scene.orbHaloDay), [scene]);
+  const mat = useRef();
+  const isDay = useRef(null);
+  const white = useMemo(() => new Color('#ffffff'), []);
   const bars = useRef();
   const dummy = useMemo(() => new Object3D(), []);
   const tint = useMemo(() => new Color(), []);
@@ -55,6 +64,13 @@ export default function EdgeWarning({ sim, enabled }) {
   useFrame(({ camera }) => {
     const mesh = bars.current;
     if (!mesh) return;
+    const w = biomeWeights(sim.renderDistance());
+    const day = w.sundarbans + w.volcano + w.arctic > 0.5;
+    if (day !== isDay.current && mat.current) {
+      isDay.current = day;
+      mat.current.blending = day ? NormalBlending : AdditiveBlending;
+      mat.current.needsUpdate = true;
+    }
     let n = 0;
     if (enabled && sim.phase === 'running') {
       const halfWidth = Math.tan((camera.fov * Math.PI) / 360) * camera.position.z * camera.aspect;
@@ -76,7 +92,8 @@ export default function EdgeWarning({ sim, enabled }) {
         dummy.scale.set(BAR_WIDTH, hi - lo, 1);
         dummy.updateMatrix();
         mesh.setMatrixAt(n, dummy.matrix);
-        mesh.setColorAt(n, tint.copy(BAR_COLOR).multiplyScalar(intensity));
+        if (day) mesh.setColorAt(n, tint.copy(DAY_COLOR).lerp(white, (1 - intensity) * 0.65));
+        else mesh.setColorAt(n, tint.copy(BAR_COLOR).multiplyScalar(intensity));
         n++;
       }
     }
@@ -88,7 +105,7 @@ export default function EdgeWarning({ sim, enabled }) {
   return (
     <instancedMesh ref={bars} args={[undefined, undefined, MAX_BARS]} frustumCulled={false} renderOrder={5}>
       <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial map={gradient} transparent depthWrite={false} depthTest={false} blending={AdditiveBlending} toneMapped={false} />
+      <meshBasicMaterial ref={mat} map={gradient} transparent depthWrite={false} depthTest={false} blending={AdditiveBlending} toneMapped={false} />
     </instancedMesh>
   );
 }

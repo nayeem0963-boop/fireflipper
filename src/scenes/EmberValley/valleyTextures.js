@@ -267,3 +267,47 @@ export function createCoastShoreTexture(s) {
   tex.anisotropy = 4;
   return tex;
 }
+
+/**
+ * The Arctic snowfield: faceted white-blue snow with soft pale-blue shadow facets and a few lighter ridges, like the paintings' low-poly
+ * drifts. Tiles in both directions (one tile = 4 world units).
+ */
+export function createSnowTexture(s) {
+  const size = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const rnd = seededRnd(33);
+  facets(ctx, 0, 0, size, size, s.snow, { cell: 64, jitter: 0.035, rnd });
+  // long soft shadow facets in the drift blue
+  ctx.globalAlpha = 0.28;
+  ctx.fillStyle = s.snowShadow;
+  for (let i = 0; i < 5; i++) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 60 + rnd() * 50, y + 10 + rnd() * 20);
+    ctx.lineTo(x + 20 + rnd() * 30, y + 40 + rnd() * 30);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < 4; i++) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 50 + rnd() * 40, y + 6);
+    ctx.lineTo(x + 30, y + 22 + rnd() * 14);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = tex.wrapT = RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}

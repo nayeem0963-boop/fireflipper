@@ -17,6 +17,7 @@ import Backdrop from './Backdrop.jsx';
 import SundarbansBackdrop from './SundarbansBackdrop.jsx';
 import AmazonBackdrop from './AmazonBackdrop.jsx';
 import VolcanoBackdrop from './VolcanoBackdrop.jsx';
+import ArcticBackdrop from './ArcticBackdrop.jsx';
 import { BIOMES, biomeWeights } from '../../systems/world/biomes.js';
 
 /**
@@ -32,14 +33,14 @@ export default function EmberValleyScene() {
   useGameLoop(game);
 
   // Lights, fog and background blend from the theme's colours to each zone's daylight colours (Sundarbans 0-500 m, Volcanic
-  // Coast 500-1000 m, Amazon 1000-1500 m): a weighted mix, base * (1 - total) + zone * weight, so a cross-fade between two zones is exact.
+  // Coast 500-1000 m, Amazon 1000-1500 m, Arctic 1500-2000 m): a weighted mix, base * (1 - total) + zone * weight, so a cross-fade between two zones is exact.
   const fog = useRef();
   const ambient = useRef();
   const hemi = useRef();
   const key = useRef();
   const colors = useMemo(() => {
     const c = (hex) => new Color(hex);
-    const Z = [BIOMES.sundarbans.scene, BIOMES.volcano.scene, BIOMES.amazon.scene];
+    const Z = [BIOMES.sundarbans.scene, BIOMES.volcano.scene, BIOMES.amazon.scene, BIOMES.arctic.scene];
     const set = (theme, k) => ({ base: c(theme), zones: Z.map((z) => c(z[k])) });
     return {
       fog: set(scene.fog, 'fog'), bg: set(scene.bg, 'bg'), amb: set(scene.ambient, 'ambient'),
@@ -48,9 +49,9 @@ export default function EmberValleyScene() {
   }, [scene]);
   const tmp = useMemo(() => new Color(), []);
   const mix = (target, { base, zones }, w) => {
-    const total = Math.min(1, w[0] + w[1] + w[2]);
+    const total = Math.min(1, w[0] + w[1] + w[2] + w[3]);
     target.copy(base).multiplyScalar(1 - total);
-    for (let i = 0; i < 3; i++) if (w[i] > 0) target.add(tmp.copy(zones[i]).multiplyScalar(w[i]));
+    for (let i = 0; i < 4; i++) if (w[i] > 0) target.add(tmp.copy(zones[i]).multiplyScalar(w[i]));
   };
   const lastKey = useRef(-1);
   useEffect(() => {
@@ -58,8 +59,8 @@ export default function EmberValleyScene() {
   }, [colors]);
   useFrame((state) => {
     const bw = biomeWeights(game.renderDistance());
-    const w = [bw.sundarbans, bw.volcano, bw.amazon];
-    const k = w[0] * 1000 + w[1] * 3000 + w[2] * 9000 + 1;
+    const w = [bw.sundarbans, bw.volcano, bw.amazon, bw.arctic];
+    const k = w[0] * 1000 + w[1] * 3000 + w[2] * 9000 + w[3] * 27000 + 1;
     if (Math.abs(k - lastKey.current) < 2 && lastKey.current !== -1) return;
     lastKey.current = k;
     if (fog.current) mix(fog.current.color, colors.fog, w);
@@ -85,6 +86,7 @@ export default function EmberValleyScene() {
       <SundarbansBackdrop sim={game} />
       <VolcanoBackdrop sim={game} />
       <AmazonBackdrop sim={game} />
+      <ArcticBackdrop sim={game} />
       <ObstacleField sim={game} />
       <OrbField sim={game} />
       <PlayerBird sim={game} />
