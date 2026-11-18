@@ -70,6 +70,10 @@ export const SCORING = Object.freeze({
   pointsPerMetre: 1,
   /** Tuned so orbs are ~35-40% of a skilled player's score: a bonus, not the main source. */
   orbPoints: 5,
+  /** Gems are rare and only sit on difficult routes. */
+  gemPoints: 25,
+  /** Flying through the middle of an optional fire ring. */
+  ringPoints: 15,
 });
 
 export const DYING_DURATION = 1.1; // seconds of crash animation before the game-over screen

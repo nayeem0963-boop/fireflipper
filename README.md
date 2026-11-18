@@ -25,7 +25,8 @@ npm install
 npm run dev       # http://localhost:5173
 npm run build     # production build to dist/
 npm run preview   # serve the production build
-npm run test:sim  # headless gameplay tests (physics, collisions, scoring, track fairness)
+npm run test:sim  # headless gameplay tests (physics, collisions, scoring, track generation), ~10 s
+npm run test:route # real-flight-physics proof that generated tracks are survivable, ~2 min
 ```
 
 To test on a phone or tablet on the same Wi-Fi network: `npm run dev -- --host`, then open the
@@ -43,7 +44,8 @@ src/
     useGameStore.js     Zustand store: screens, run status, HUD values, settings
   components/
     scene/              3D building blocks: Firebird, PlayerBird, ObstacleField, OrbField,
-                        BurstParticles, FlightFx (near-miss streaks, impact ring), EmberParticles, SceneCanvas
+                        BurstParticles, FlightFx (near-miss streaks, impact ring), HazardField (boulders,
+                        lava columns, spinners, fire rings), EmberParticles, SceneCanvas
     game/               gameplay screen composition (GameScreen)
     ui/                 2D interface: HomeScreen, GameHUD, StartPrompt, PauseMenu,
                         GameOverPanel, SettingsPanel, icons
@@ -55,7 +57,8 @@ src/
                         fixedStep (the fixed-timestep driver, shared with the tests),
                         useGameLoop (bridge into R3F)
     physics/            constants, flight model, 2D collision tests
-    obstacles/          patterns, procedural spawner (fairness rules), ObjectPool
+    obstacles/          patterns, procedural spawner, route planner (fairness proof), moving-hazard
+                        timeline (dynamics), renderer capacities, ObjectPool
     scoring/            pure scoring helpers
     input/              input action bus (flap press/release, dive, pause)
     events/             gameplay event bus (start, flap, orb, crash, over)
@@ -63,6 +66,8 @@ src/
   hooks/                React hooks: input binding, audio, render quality, auto-pause
 scripts/
   sim-test.mjs          headless tests (npm run test:sim)
+  route-test.mjs        survivability search over the real flap physics (npm run test:route;
+                        --sight and --sabotage modes, see the file header)
   styles/               global tokens + per-screen CSS
   utils/                storage, device detection, fullscreen, math, procedural textures
 ```
@@ -105,16 +110,43 @@ scripts/
 - **Camera:** the view widens slightly with speed and dives and leads a little toward the direction
   of travel, all capped (total FOV change <= 4.5 deg, framing shift <= 0.25 u). With
   `prefers-reduced-motion` the shake and FOV effects are cut to a fraction.
-- **Sections:** gates, single columns, floating rocks, rock formations and narrow passages. Gaps
-  shrink, spacing tightens, speed rises (6.5 → 10.5 u/s) and new section types unlock with distance.
-- **Fairness:** each corridor's centre is constrained to be reachable from anywhere the bird could
-  have left the previous section, using conservative climb (3.2 u/s) and drop (4.5 u/s) rates. An
-  autopilot in `npm run test:sim` survives 40 of 40 random tracks to 3,000 m.
-- **Scoring:** 1 point per metre plus 5 per fire orb. Orb supply (passage lines every 3 units, a
-  trail before 30% of sections) is tuned so orbs make up about 39% of a skilled 3,000 m run (~1,950
-  orb points against 3,000 distance points): a bonus, not the main source of points. Best score is
-  saved locally; session best is kept until the page closes. Crashes and pickups can only register
-  once (orbs leave the pool immediately, and both the simulation and the store guard the end of a run).
+- **Obstacles** (each has its own colour and silhouette; static pillars and rocks stay brown):
+
+  | Type | What it asks of you | Unlocks |
+  | --- | --- | --- |
+  | Gate, single column | pass through a gap | start |
+  | Floating rocks | pass above or below | 80 m |
+  | Split gate | a wide safe opening, or a narrow risky one just above/below it | 150 m |
+  | Rock formation | a wall of stacked rocks with one gap | 200 m |
+  | Lava columns | geysers on a steady beat: fly high above them, or time the low route | 280 m |
+  | Narrow passage | a long tunnel | 320 m |
+  | Winding tunnel | a tunnel whose corridor steps up and down: precision flying | 380 m |
+  | Spinner | a red-hot bar turning at a steady rate: go over, under, or time it | 460 m |
+  | Falling boulders | a red lane glows, then a boulder drops through it and reaches a set height as you arrive | 560 m |
+  | Fire ring (bonus) | an optional hoop in open space: fly through its middle for +15 | 120 m |
+
+  Gaps shrink, spacing tightens and speed rises (6.5 → 10.5 u/s) over the first ~1,600 m. Moving
+  hazards get faster and taller with distance, always get at least 10.5 m of run-up and never follow
+  each other, so every hard moment is followed by a breather. No more than 4 sections start within
+  any 30 m.
+- **Risk and reward:** every section has a safe route. Harder routes pay more: the narrow opening
+  of a split gate carries a line of four to five orbs (the safe one at most one) and sometimes a
+  **gem** (25 points, cyan, only ever on a risky route); spinners and boulders place orbs at the
+  height of the danger; lava columns have orbs low between the vents. Fire rings pay 15.
+- **Fairness: unavoidable combinations cannot ship.** Horizontal speed depends only on distance, so
+  the instant the bird reaches any position is known in advance, and moving hazards are authored
+  by what they are doing at that instant (and are pure functions of run time). Every section the
+  generator proposes is checked by a route planner (`systems/obstacles/planner.js`): from every
+  height the bird could be at when entering it, some route must exist at the conservative climb
+  (3.2 u/s) and drop (4.5 u/s) rates, with the bird inflated by a margin (0.1 u static, 0.28 u
+  for moving hazards) and a ±0.12 s timing tolerance on moving ones. Moving hazards must also be
+  avoidable from *any* height with only 11 u of warning, about what a narrow phone at top speed
+  shows (6.7 u of view plus the edge glow). A rejected section is rolled back and re-drawn, and after
+  repeated rejections a roomy plain gate replaces it. About 15% of proposals are rejected.
+- **Scoring:** 1 point per metre, 5 per fire orb, 25 per gem, 15 per fire ring. Orb supply is
+  tuned so orbs are a bonus, not the main source of points. Best score is saved locally; session
+  best is kept until the page closes. Crashes and pickups can only register once (orbs leave the
+  pool immediately, and both the simulation and the store guard the end of a run).
 - **Portrait screens:** the camera pulls back further and leads the bird more (it sits about 16%
   from the left edge), giving about 1.0 s of visible track at starting speed. Obstacles just beyond
   the right edge also glow along that edge up to 0.45 s before they appear, and the dark gaps between

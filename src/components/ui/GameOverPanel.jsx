@@ -37,6 +37,22 @@ export default function GameOverPanel() {
               {result.orbs} <span className="gameover__sub">(+{result.orbs * SCORING.orbPoints})</span>
             </dd>
           </div>
+          {result.gems > 0 && (
+            <div>
+              <dt>Gems</dt>
+              <dd>
+                {result.gems} <span className="gameover__sub">(+{result.gems * SCORING.gemPoints})</span>
+              </dd>
+            </div>
+          )}
+          {result.rings > 0 && (
+            <div>
+              <dt>Fire rings</dt>
+              <dd>
+                {result.rings} <span className="gameover__sub">(+{result.rings * SCORING.ringPoints})</span>
+              </dd>
+            </div>
+          )}
           <div>
             <dt>Session best</dt>
             <dd>{formatScore(sessionBest)}</dd>

@@ -11,6 +11,7 @@ export default function GameHUD() {
   const score = useGameStore((s) => s.score);
   const distance = useGameStore((s) => s.distance);
   const orbs = useGameStore((s) => s.orbs);
+  const gems = useGameStore((s) => s.gems);
   const status = useGameStore((s) => s.status);
   const togglePause = useGameStore((s) => s.togglePause);
   const restart = useGameStore((s) => s.restart);
@@ -56,6 +57,16 @@ export default function GameHUD() {
               {orbs}
             </span>
           </div>
+          {/* Gems are rare: the counter only appears once the first one is found */}
+          {gems > 0 && (
+            <div className="stat stat--gems">
+              <span className="stat__label">Gems</span>
+              <span className="stat__value" key={gems}>
+                <span className="gem-dot" aria-hidden="true" />
+                {gems}
+              </span>
+            </div>
+          )}
         </div>
       )}
 

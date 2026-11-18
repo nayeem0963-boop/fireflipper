@@ -78,6 +78,26 @@ export const sfx = {
     tone({ type: 'triangle', from: 880, to: 1760, duration: 0.16, peak: 0.16 });
     tone({ type: 'sine', from: 1320, to: 2640, duration: 0.2, peak: 0.08, delay: 0.05 });
   },
+  /** Rare gem: a quick rising sparkle. */
+  gem() {
+    if (!ready()) return;
+    tone({ type: 'sine', from: 1320, to: 1980, duration: 0.14, peak: 0.13 });
+    tone({ type: 'sine', from: 1760, to: 2640, duration: 0.16, peak: 0.11, delay: 0.07 });
+    tone({ type: 'triangle', from: 2640, to: 3520, duration: 0.22, peak: 0.08, delay: 0.14 });
+  },
+  /** Through a fire ring: warm whoosh and a bright chime. */
+  ring() {
+    if (!ready()) return;
+    noiseBurst({ duration: 0.3, filter: 'bandpass', from: 700, to: 2200, q: 1.1, peak: 0.16 });
+    tone({ type: 'triangle', from: 660, to: 990, duration: 0.22, peak: 0.14, delay: 0.04 });
+    tone({ type: 'sine', from: 990, to: 1480, duration: 0.28, peak: 0.1, delay: 0.1 });
+  },
+  /** A boulder hitting the lava. */
+  landing() {
+    if (!ready()) return;
+    noiseBurst({ duration: 0.35, filter: 'lowpass', from: 900, to: 90, q: 0.8, peak: 0.28 });
+    tone({ from: 90, to: 40, duration: 0.3, peak: 0.25 });
+  },
   /** Air rushing past a rock. `tight` is 0..1: the closer the shave, the brighter and louder. */
   nearMiss(tight = 0.5) {
     if (!ready()) return;

@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Object3D } from 'three';
+import { RENDER_CAPS } from '../../systems/obstacles/renderCaps.js';
 
 /**
  * Renders every pooled obstacle with a handful of InstancedMeshes, so
@@ -11,8 +12,9 @@ import { Object3D } from 'three';
  * Geometry and materials are declared in JSX, so R3F disposes them when
  * the scene unmounts.
  */
-const MAX = { column: 48, block: 12, rock: 112 };
+const MAX = RENDER_CAPS; // shared with the tests: the generator must never exceed these
 const CAP_THICKNESS = 0.14;
+const HAZARD_KINDS = new Set(['boulder', 'geyser', 'spinner', 'ring']);
 
 export default function ObstacleField({ sim }) {
   const columns = useRef();
@@ -35,6 +37,7 @@ export default function ObstacleField({ sim }) {
     for (const o of sim.obstacles.active) {
       const x = o.x - dist;
       if (x < -20 - o.extent || x > 60) continue;
+      if (HAZARD_KINDS.has(o.kind)) continue; // drawn by HazardField
 
       if (o.kind === 'rock') {
         if (nRock >= MAX.rock) continue;

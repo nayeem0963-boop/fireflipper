@@ -3,6 +3,7 @@ import { applyFlap, stepFlight } from '../physics/flight.js';
 import { circleHitsObstacle, clearanceToObstacle } from '../physics/collision.js';
 import { ObjectPool } from '../obstacles/ObjectPool.js';
 import { createTrack, fillTrack, resetTrack, speedAt } from '../obstacles/spawner.js';
+import { BOULDER, RING, SPINNER, applyTime, fillRingNodes } from '../obstacles/dynamics.js';
 import { computeScore, toMetres } from '../scoring/scoring.js';
 import { GAME_EVENTS } from '../events/gameEvents.js';
 import { createRng, randomSeed } from '../../utils/random.js';
@@ -19,6 +20,7 @@ import { createRng, randomSeed } from '../../utils/random.js';
 export const PHASE = Object.freeze({ READY: 'ready', RUNNING: 'running', DYING: 'dying', OVER: 'over' });
 
 const ORB_RADIUS = 0.35;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const FLAP_EVENT = Object.freeze({ type: GAME_EVENTS.FLAP });
 const START_EVENT = Object.freeze({ type: GAME_EVENTS.START });
 
@@ -33,15 +35,24 @@ const HIT_STOP_TIME = 0.075;
 const HIT_STOP_SCALE = 0.1;
 
 function createObstacle() {
-  return { kind: 'column', shape: 'box', x: 0, y: 0, z: 0, w: 1, h: 1, d: 1, hw: 0, hh: 0, cr: 0, r: 0, sx: 1, sy: 1, sz: 1, rot: 0, spin: 0, cap: 0, extent: 0, minClear: Infinity, nearDone: false, nearX: 0, nearY: 0, nearSide: 0 };
+  return { kind: 'column', shape: 'box', x: 0, y: 0, z: 0, w: 1, h: 1, d: 1, hw: 0, hh: 0, cr: 0, r: 0, sx: 1, sy: 1, sz: 1, rot: 0, spin: 0, cap: 0, extent: 0, minClear: Infinity, nearDone: false, nearX: 0, nearY: 0, nearSide: 0,
+    // Moving hazards and multi-circle colliders (see obstacles/dynamics.js).
+    dyn: '', p1: 0, p2: 0, p3: 0, p4: 0, p5: 0, arm: 0, landed: false, gone: false, landedSent: false,
+    nodes: new Float32Array(20), nodeCount: 0, nr: 0, claimed: false, rr: 0 };
 }
-/** Fresh near-miss tracking for a (re)used obstacle record. */
-function resetNear(o) {
+/** Clear everything a (re)used obstacle record may carry from its previous life. */
+function freshObstacle(o) {
   o.minClear = Infinity;
   o.nearDone = false;
+  o.dyn = '';
+  o.arm = 0;
+  o.landed = o.gone = o.landedSent = o.claimed = false;
+  o.nodeCount = 0;
+  o.nr = 0;
+  o.rr = 0;
 }
 function createOrb() {
-  return { x: 0, y: 0, phase: 0 };
+  return { x: 0, y: 0, phase: 0, kind: 0 };
 }
 
 function createBird() {
@@ -58,11 +69,122 @@ export function createGameSim() {
   const orbs = new ObjectPool(createOrb, undefined, 32);
   const track = createTrack();
 
+  /** Everything the current section proposal acquired, so a rejected one can be rolled back. */
+  const built = { obs: [], orbs: [] };
+  function acquireObstacle() {
+    const o = obstacles.acquire();
+    freshObstacle(o);
+    built.obs.push(o);
+    return o;
+  }
+  function acquireOrb(kind) {
+    const orb = orbs.acquire();
+    orb.kind = kind;
+    orb.phase = rng() * Math.PI * 2;
+    built.orbs.push(orb);
+    return orb;
+  }
+
   /** Pool-backed builder handed to obstacle patterns. */
   const builder = {
+    built,
+    begin() {
+      built.obs.length = 0;
+      built.orbs.length = 0;
+    },
+    mark() {
+      return { o: built.obs.length, b: built.orbs.length };
+    },
+    rollbackTo(m) {
+      while (built.obs.length > m.o) obstacles.release(built.obs.pop());
+      while (built.orbs.length > m.b) orbs.release(built.orbs.pop());
+    },
+    rollback() {
+      builder.rollbackTo({ o: 0, b: 0 });
+    },
+    geyser(x, w, topMin, topMax, period, sArrive, rising, tArrive) {
+      const o = acquireObstacle();
+      o.kind = 'geyser';
+      o.dyn = 'geyser';
+      o.shape = 'box';
+      o.x = x;
+      o.z = 0;
+      o.w = w;
+      o.d = w;
+      o.hw = w * 0.4;
+      o.extent = w / 2;
+      o.rot = 0;
+      o.cap = 0;
+      // s(t) = 0.5 - 0.5 cos(omega (t - tArrive) + psi): choose psi so s = sArrive on arrival.
+      const psi = Math.acos(clamp(1 - 2 * sArrive, -1, 1)) * (rising ? 1 : -1);
+      o.p1 = psi;
+      o.p2 = (2 * Math.PI) / period;
+      o.p3 = tArrive;
+      o.p4 = topMin;
+      o.p5 = topMax;
+      applyTime(o, tArrive);
+    },
+    boulder(x, r, yCross, tArrive) {
+      const o = acquireObstacle();
+      o.kind = 'boulder';
+      o.dyn = 'boulder';
+      o.shape = 'circle';
+      o.x = x;
+      o.z = 0;
+      o.r = r;
+      o.cr = r * 0.86;
+      o.sx = o.sy = o.sz = 1;
+      o.rot = rng() * Math.PI * 2;
+      o.spin = rng.range(-2, 2);
+      o.extent = r;
+      o.cap = 0;
+      o.p1 = BOULDER.startY;
+      o.p2 = BOULDER.gravity;
+      const fall = Math.sqrt((2 * (BOULDER.startY - yCross)) / BOULDER.gravity); // time to reach yCross
+      o.p3 = tArrive - fall;
+      applyTime(o, tArrive - fall - 1);
+    },
+    spinner(x, y, omega, angleArrive, tArrive) {
+      const o = acquireObstacle();
+      o.kind = 'spinner';
+      o.dyn = 'spinner';
+      o.shape = 'nodes';
+      o.x = x;
+      o.y = y;
+      o.z = 0;
+      o.nr = SPINNER.nodeRadius;
+      o.nodeCount = SPINNER.offsets.length;
+      o.extent = SPINNER.offsets[SPINNER.offsets.length - 1] + SPINNER.nodeRadius;
+      o.r = o.extent;
+      o.h = 2 * o.extent;
+      o.cap = 0;
+      o.p1 = angleArrive;
+      o.p2 = omega;
+      o.p3 = tArrive;
+      applyTime(o, tArrive);
+    },
+    ring(x, y) {
+      const o = acquireObstacle();
+      o.kind = 'ring';
+      o.shape = 'nodes';
+      o.x = x;
+      o.y = y;
+      o.z = 0;
+      o.nr = RING.nodeRadius;
+      o.extent = RING.spread + RING.nodeRadius;
+      o.r = RING.radius;
+      o.h = 2 * (RING.radius + RING.nodeRadius);
+      o.cap = 0;
+      o.rr = RING.radius - RING.nodeRadius - 0.12; // how close to centre counts as "through"
+      fillRingNodes(o, x, y);
+    },
+    gem(x, y) {
+      const orb = acquireOrb(1);
+      orb.x = x;
+      orb.y = y;
+    },
     column(cx, yBottom, yTop, w, cap) {
-      const o = obstacles.acquire();
-      resetNear(o);
+      const o = acquireObstacle();
       o.kind = 'column';
       o.shape = 'box';
       o.x = cx;
@@ -79,8 +201,7 @@ export function createGameSim() {
       o.extent = w / 2;
     },
     block(x0, x1, yBottom, yTop, cap) {
-      const o = obstacles.acquire();
-      resetNear(o);
+      const o = acquireObstacle();
       o.kind = 'block';
       o.shape = 'box';
       o.x = (x0 + x1) / 2;
@@ -97,8 +218,7 @@ export function createGameSim() {
       o.extent = o.w / 2;
     },
     rock(x, y, r) {
-      const o = obstacles.acquire();
-      resetNear(o);
+      const o = acquireObstacle();
       o.kind = 'rock';
       o.shape = 'circle';
       o.x = x;
@@ -115,10 +235,9 @@ export function createGameSim() {
       o.extent = r;
     },
     orb(x, y) {
-      const orb = orbs.acquire();
+      const orb = acquireOrb(0);
       orb.x = x;
       orb.y = y;
-      orb.phase = rng() * Math.PI * 2;
     },
   };
 
@@ -132,6 +251,10 @@ export function createGameSim() {
     scoredDistance: 0,
     speed: WORLD.baseSpeed,
     orbsCollected: 0,
+    gemsCollected: 0,
+    ringsPassed: 0,
+    /** Seconds since the first flap: the clock every moving hazard runs on. */
+    runTime: 0,
     deathTime: 0,
     /** Interpolation factor between the last two fixed steps (set by the loop). */
     alpha: 1,
@@ -150,10 +273,16 @@ export function createGameSim() {
       return toMetres(sim.phase === PHASE.RUNNING || sim.phase === PHASE.READY ? sim.distance : sim.scoredDistance);
     },
     get score() {
-      return computeScore(sim.metres, sim.orbsCollected);
+      return computeScore(sim.metres, sim.orbsCollected, sim.gemsCollected, sim.ringsPassed);
     },
     results() {
-      return { score: sim.score, distance: sim.metres, orbs: sim.orbsCollected };
+      return {
+        score: sim.score,
+        distance: sim.metres,
+        orbs: sim.orbsCollected,
+        gems: sim.gemsCollected,
+        rings: sim.ringsPassed,
+      };
     },
 
     reset(seed = randomSeed()) {
@@ -166,6 +295,9 @@ export function createGameSim() {
       sim.distance = sim.prevDistance = sim.scoredDistance = 0;
       sim.speed = WORLD.baseSpeed;
       sim.orbsCollected = 0;
+      sim.gemsCollected = 0;
+      sim.ringsPassed = 0;
+      sim.runTime = 0;
       sim.deathTime = 0;
       sim.alpha = 1;
       const b = sim.bird;
@@ -176,6 +308,7 @@ export function createGameSim() {
       sim.events.length = 0;
       resetTrack(track, WORLD.birdStartY);
       fillTrack(track, builder, 0, rng);
+      for (const o of obstacles.active) if (o.dyn) applyTime(o, 0);
     },
 
     /** Flap input. The first flap starts the run. */
@@ -238,6 +371,7 @@ export function createGameSim() {
 
     sim.speed = speedAt(sim.distance);
     sim.distance += sim.speed * dt;
+    sim.runTime += dt;
     fillTrack(track, builder, sim.distance, rng);
 
     const bx = sim.distance;
@@ -255,7 +389,23 @@ export function createGameSim() {
         obstacles.release(o);
         continue;
       }
+      if (o.dyn) {
+        applyTime(o, sim.runTime);
+        if (o.landed && !o.landedSent) {
+          o.landedSent = true;
+          sim.events.push({ type: GAME_EVENTS.LANDING, x: o.x, y: o.y });
+        }
+      }
       const dx = o.x - bx;
+      // A fire ring pays out once, the moment the bird crosses it without having hit it.
+      if (o.kind === 'ring' && !o.claimed && dx <= 0) {
+        o.claimed = true;
+        if (Math.abs(b.y - o.y) < o.rr) {
+          sim.ringsPassed += 1;
+          sim.fx.fovKick += 1.2;
+          sim.events.push({ type: GAME_EVENTS.RING, x: o.x, y: o.y });
+        }
+      }
       const reachX = o.extent + R;
       if (Math.abs(dx) > reachX + NEAR_WINDOW) {
         // Just passed it: report a near miss once, then stop looking at it.
@@ -288,9 +438,11 @@ export function createGameSim() {
       if (dx * dx + dy * dy < reach * reach) {
         // Released immediately, so it can never be collected twice.
         orbs.release(orb);
-        sim.orbsCollected += 1;
-        sim.fx.fovKick += 1.4;
-        sim.events.push({ type: GAME_EVENTS.ORB, x: orb.x, y: orb.y });
+        const gem = orb.kind === 1;
+        if (gem) sim.gemsCollected += 1;
+        else sim.orbsCollected += 1;
+        sim.fx.fovKick += gem ? 2 : 1.4;
+        sim.events.push({ type: GAME_EVENTS.ORB, x: orb.x, y: orb.y, gem });
       }
     }
   }

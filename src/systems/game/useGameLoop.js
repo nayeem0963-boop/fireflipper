@@ -54,7 +54,7 @@ export function useGameLoop(sim) {
     hudTimer.current += rawDelta;
     if (hudTimer.current >= HUD_INTERVAL) {
       hudTimer.current = 0;
-      store.setHud(sim.metres, sim.score, sim.orbsCollected);
+      store.setHud(sim.metres, sim.score, sim.orbsCollected, sim.gemsCollected);
     }
   });
 }

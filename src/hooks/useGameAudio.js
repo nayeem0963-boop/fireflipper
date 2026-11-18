@@ -11,7 +11,9 @@ export function useGameAudio() {
     };
     const offs = [
       gameEvents.on(GAME_EVENTS.FLAP, play(sfx.flap)),
-      gameEvents.on(GAME_EVENTS.ORB, play(sfx.orb)),
+      gameEvents.on(GAME_EVENTS.ORB, (e) => play(e.gem ? sfx.gem : sfx.orb)(e)),
+      gameEvents.on(GAME_EVENTS.RING, play(sfx.ring)),
+      gameEvents.on(GAME_EVENTS.LANDING, play(sfx.landing)),
       gameEvents.on(GAME_EVENTS.CRASH, play(sfx.crash, (e) => e.cause)),
       gameEvents.on(GAME_EVENTS.NEAR_MISS, play(sfx.nearMiss, (e) => Math.min(1, Math.max(0, 1 - e.clearance / 0.3)))),
     ];

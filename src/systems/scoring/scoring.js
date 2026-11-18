@@ -6,8 +6,8 @@ export function toMetres(distanceUnits) {
   return Math.max(0, Math.floor(distanceUnits));
 }
 
-export function computeScore(metres, orbs) {
-  return metres * SCORING.pointsPerMetre + orbs * SCORING.orbPoints;
+export function computeScore(metres, orbs, gems = 0, rings = 0) {
+  return metres * SCORING.pointsPerMetre + orbs * SCORING.orbPoints + gems * SCORING.gemPoints + rings * SCORING.ringPoints;
 }
 
 export function formatDistance(metres) {

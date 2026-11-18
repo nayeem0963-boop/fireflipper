@@ -37,9 +37,10 @@ export const useGameStore = create((set, get) => ({
   score: 0,
   distance: 0,
   orbs: 0,
+  gems: 0,
   runId: 0, // bumped on every (re)start; the game loop resets the sim on change
   overAt: 0,
-  /** { score, distance, orbs, isNewBest } of the last finished run. */
+  /** { score, distance, orbs, gems, rings, isNewBest } of the last finished run. */
   lastResult: null,
 
   // --- scores ---
@@ -65,7 +66,7 @@ export const useGameStore = create((set, get) => ({
   // --- run lifecycle (driven by simulation events + UI) ---
   beginRun: () => set((s) => (s.status === STATUS.READY ? { status: STATUS.RUNNING } : s)),
   crash: () => set((s) => (s.status === STATUS.RUNNING ? { status: STATUS.DYING } : s)),
-  endRun: ({ score, distance, orbs }) => {
+  endRun: ({ score, distance, orbs, gems = 0, rings = 0 }) => {
     const s = get();
     // Guard: a run can only end once.
     if (s.status !== STATUS.DYING && s.status !== STATUS.RUNNING) return;
@@ -77,7 +78,8 @@ export const useGameStore = create((set, get) => ({
       score,
       distance,
       orbs,
-      lastResult: { score, distance, orbs, isNewBest },
+      gems,
+      lastResult: { score, distance, orbs, gems, rings, isNewBest },
       bestScore: Math.max(s.bestScore, score),
       sessionBest: Math.max(s.sessionBest, score),
       runsThisSession: s.runsThisSession + 1,
@@ -94,9 +96,9 @@ export const useGameStore = create((set, get) => ({
   },
 
   /** Throttled HUD snapshot from the game loop. Skips no-op updates. */
-  setHud: (distance, score, orbs) => {
+  setHud: (distance, score, orbs, gems = 0) => {
     const s = get();
-    if (s.distance !== distance || s.score !== score || s.orbs !== orbs) set({ distance, score, orbs });
+    if (s.distance !== distance || s.score !== score || s.orbs !== orbs || s.gems !== gems) set({ distance, score, orbs, gems });
   },
 
   // --- settings ---
@@ -112,5 +114,5 @@ export const useGameStore = create((set, get) => ({
 }));
 
 function freshRun(s) {
-  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, lastResult: null, runId: s.runId + 1 };
+  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, gems: 0, lastResult: null, runId: s.runId + 1 };
 }

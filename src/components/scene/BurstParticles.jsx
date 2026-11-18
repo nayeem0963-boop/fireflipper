@@ -17,6 +17,8 @@ const CRASH_COLOR = [1.0, 0.42, 0.1];
 const DEBRIS_COLOR = [0.75, 0.42, 0.26];
 const LAVA_COLOR = [1.0, 0.55, 0.12];
 const NEAR_COLOR = [1.0, 0.9, 0.62];
+const GEM_COLOR = [0.45, 0.92, 1.0];
+const RING_COLOR = [1.0, 0.78, 0.25];
 
 export default function BurstParticles({ sim }) {
   const points = useRef();
@@ -55,7 +57,12 @@ export default function BurstParticles({ sim }) {
         state.base[k * 3 + 2] = color[2];
       }
     };
-    const offOrb = gameEvents.on(GAME_EVENTS.ORB, (e) => emit(e.x, e.y, 14, 3.2, ORB_COLOR, 0.55));
+    const offOrb = gameEvents.on(GAME_EVENTS.ORB, (e) =>
+      e.gem ? emit(e.x, e.y, 22, 4.2, GEM_COLOR, 0.7) : emit(e.x, e.y, 14, 3.2, ORB_COLOR, 0.55),
+    );
+    const offRing = gameEvents.on(GAME_EVENTS.RING, (e) => emit(e.x, e.y, 26, 4.6, RING_COLOR, 0.65));
+    // A boulder smashing into the lava throws embers up.
+    const offLand = gameEvents.on(GAME_EVENTS.LANDING, (e) => emit(e.x, e.y - 0.3, 22, 3.6, LAVA_COLOR, 0.8, 0, 2.8));
     const offCrash = gameEvents.on(GAME_EVENTS.CRASH, (e) => {
       if (e.cause === 'lava') {
         // Splash: embers thrown up out of the lava.
@@ -72,6 +79,8 @@ export default function BurstParticles({ sim }) {
     );
     return () => {
       offOrb();
+      offRing();
+      offLand();
       offCrash();
       offNear();
     };
