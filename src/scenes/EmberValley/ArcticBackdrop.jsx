@@ -4,6 +4,7 @@ import { WORLD } from '../../systems/physics/constants.js';
 import { BIOMES } from '../../systems/world/biomes.js';
 import { createSnowTexture } from './valleyTextures.js';
 import { createIceCrystals, createSnowOutcrops } from './arcticGeometry.js';
+import { AuroraShimmer, DriftParticles } from './AmbientEffects.jsx';
 import { GradientSky, ParallaxLayer, PaintedHorizon, WeightDriver } from './ZoneParts.jsx';
 
 const Z = BIOMES.arctic;
@@ -51,6 +52,8 @@ export default function ArcticBackdrop({ sim }) {
       <ParallaxLayer sim={sim} wRef={wRef} geometry={crystals} depth={-26} scale={1.5} count={5} span={140} speedFactor={0.32} seed={9} tint="#ffffff" emissive="#6fd0f0" emissiveIntensity={0.55} />
       <ParallaxLayer sim={sim} wRef={wRef} geometry={outcrops} depth={-34} scale={2.4} count={7} span={170} speedFactor={0.22} seed={6} tint="#dfe6ea" />
       <ParallaxLayer sim={sim} wRef={wRef} geometry={outcrops} depth={-17} scale={0.95} count={5} span={104} speedFactor={0.55} seed={14} tint="#ffffff" />
+      <AuroraShimmer sim={sim} wRef={wRef} />
+      <DriftParticles sim={sim} wRef={wRef} zoneId="arctic" />
       <WeightDriver sim={sim} zone={Z} wRef={wRef} groupRef={root} />
     </group>
   );

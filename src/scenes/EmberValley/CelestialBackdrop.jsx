@@ -4,6 +4,7 @@ import { WORLD } from '../../systems/physics/constants.js';
 import { BIOMES } from '../../systems/world/biomes.js';
 import { createStarSeaTexture } from './valleyTextures.js';
 import { createFloatingIsland } from './celestialGeometry.js';
+import { DriftParticles } from './AmbientEffects.jsx';
 import { GradientSky, ParallaxLayer, PaintedHorizon, WeightDriver } from './ZoneParts.jsx';
 
 const Z = BIOMES.celestial;
@@ -16,8 +17,8 @@ const GROUND_REPEAT = 50; // 4 world units per tile
  */
 const PAINTINGS = [
   { file: 'celestial-a.jpg', aspect: 1280 / 698 },
-  { file: 'celestial-b.jpg', aspect: 1280 / 698 },
-  { file: 'celestial-c.jpg', aspect: 1280 / 698 },
+  { file: 'celestial-b.jpg', aspect: 1280 / 698, loadAt: 2180 },
+  { file: 'celestial-c.jpg', aspect: 1280 / 698, loadAt: 2510 },
 ];
 /** Where each next painting dissolves in over the one before it (metres). */
 const CUTS = [2330, 2660];
@@ -45,6 +46,7 @@ export default function CelestialBackdrop({ sim }) {
       <StarSea sim={sim} wRef={wRef} />
       <ParallaxLayer sim={sim} wRef={wRef} geometry={island} depth={-30} scale={1.5} count={6} span={190} speedFactor={0.22} seed={8} tint="#ffffff" lift={[10, 28]} emissive="#7a78c8" emissiveIntensity={0.75} growAll bob={0.4} />
       <ParallaxLayer sim={sim} wRef={wRef} geometry={island} depth={-18} scale={0.7} count={4} span={120} speedFactor={0.45} seed={19} tint="#ffffff" lift={[8, 17]} emissive="#7a78c8" emissiveIntensity={0.75} growAll bob={0.3} />
+      <DriftParticles sim={sim} wRef={wRef} zoneId="celestial" />
       <WeightDriver sim={sim} zone={Z} wRef={wRef} groupRef={root} />
     </group>
   );

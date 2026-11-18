@@ -252,3 +252,13 @@ The arctic zone is now **Frosty Polar**, with three sub-scenes from the owner's 
 and Aurora Lake (1830 to 2000 m), dissolving over 40 m at 1665 and 1830 m with their horizons aligned. The old arctic paintings and research camp are gone; 3D ice crystals and
 slate outcrops give depth. The art is the owner's 16:9 set (1408x792 here; see `public/images/backdrop/README.md`). Because the sub-scenes are only 165 m long, the slide
 is capped (`SLIDE_CAP`, 0.2 units per metre) so the backdrop never outruns the 3D layers.
+
+### Step 5: ambient animation and texture lifecycle
+
+- **Texture lifecycle** (`residency` in `scrollDriver.js`, used by `PaintedHorizon`): a painting loads when the run passes its `loadAt` and its texture is disposed 100 m after the end of its stretch
+  (or after a restart far before it); a load that finishes after its painting was unloaded is freed at once. The first canyon painting is never unloaded, so a retry starts without a reload.
+  Later Celestial and Palace paintings now load about 150 m ahead each (`loadAt`) instead of all at once. Peak painting texture memory drops from 61.5 MB (all twelve) to about 23 MB.
+- **Ambient animation** (`systems/world/ambient.js`, `AmbientEffects.jsx`), driven only by the run distance: 40 drifting particles per zone, one draw call, all behind the flight plane (canyon dust, snow,
+  rising sparkles, petals), and an aurora shimmer (additive curtains) over Crystal Ice Canyon and Aurora Lake. Island bobbing now follows the distance too, so scenery no longer uses the wall clock.
+  `EmberParticles` and the bird animations still use the clock (they are not scenery scrolling).
+- `npm run test:ambient` covers residency, the memory budget, particle safety and the no-wall-clock rule. In development `window.__fireflipper.gl` exposes the renderer for stats.

@@ -71,3 +71,16 @@ export const SLIDE_CAP = 0.2;
 
 /** Slack actually used across the stretch [start, end]: the picture's own slack, limited by SLIDE_CAP. */
 export const effectiveSlack = (slack, start, end) => Math.min(slack, (SLIDE_CAP * (end - start)) / 2);
+
+/**
+ * Texture lifecycle for painted backdrops. A painting loads when the run gets within its `loadAt`, and its texture is disposed once the
+ * run is UNLOAD_AFTER metres past the end of its stretch (or far enough before its `loadAt`, after a restart), so only the paintings near
+ * the player are on the GPU. A painting with `loadAt < 0` (the very first one) is never unloaded, so a retry starts without a reload.
+ * Returns 'load' | 'unload' | 'keep' | 'idle'.
+ */
+export const UNLOAD_AFTER = 100;
+export function residency(distance, loadAt, spanEnd, loaded) {
+  if (!loaded) return distance > loadAt && distance < spanEnd + UNLOAD_AFTER ? 'load' : 'idle';
+  if (loadAt >= 0 && (distance > spanEnd + UNLOAD_AFTER || distance < loadAt - UNLOAD_AFTER)) return 'unload';
+  return 'keep';
+}

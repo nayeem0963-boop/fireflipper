@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { CanvasTexture, Color, Object3D, SRGBColorSpace, TextureLoader } from 'three';
 import { WORLD } from '../../systems/physics/constants.js';
 import { CROSSFADE, zoneWeight } from '../../systems/world/biomes.js';
-import { DEPTH_SLIDE, effectiveSlack, layerSlack, loopOffset, paintingSlide, paintingSpan, slideWidth } from '../../systems/world/scrollDriver.js';
+import { DEPTH_SLIDE, effectiveSlack, layerSlack, loopOffset, paintingSlide, paintingSpan, residency, slideWidth } from '../../systems/world/scrollDriver.js';
 
 /**
  * Parts shared by the painted scenery zones (Canyon, Frosty Polar, Celestial City, Palace): the per-frame zone weight, a gradient sky, the
@@ -122,7 +122,7 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
   const mats = useRef([]);
   const fades = useRef([]);
   const fadeMats = useRef([]);
-  const state = useRef({ requested: [], textures: [] });
+  const state = useRef({ requested: [], textures: [], tokens: [] });
   // depth layers (mid, near): extra planes sharing the painting's texture through a soft mask; mid-layer slides slower than near, both slower than the 3D layers
   const layerMeshes = useRef([]);
   const layerMats = useRef([]);
@@ -151,38 +151,62 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
     };
   }, [fadeTex]);
 
+  const setMaps = (i, tex) => {
+    const apply = (m) => {
+      if (m) {
+        m.map = tex;
+        m.needsUpdate = true;
+      }
+    };
+    apply(mats.current[i]);
+    layerMats.current[i]?.forEach(apply);
+  };
+
   const load = (i) => {
-    state.current.requested[i] = true;
+    const own = state.current;
+    const token = (own.tokens[i] = (own.tokens[i] ?? 0) + 1);
+    own.requested[i] = true;
     const loader = new TextureLoader();
     const base = import.meta.env?.BASE_URL ?? '/';
     loader.load(
       `${base}images/backdrop/${paintings[i].file}`,
       (tex) => {
+        // the painting was unloaded again while it was loading: free it straight away
+        if (own.tokens[i] !== token) {
+          tex.dispose();
+          return;
+        }
         tex.colorSpace = SRGBColorSpace;
         tex.anisotropy = 4;
-        state.current.textures[i] = tex;
-        const m = mats.current[i];
-        if (m) {
-          m.map = tex;
-          m.needsUpdate = true;
-        }
-        layerMats.current[i]?.forEach((lm) => {
-          if (lm) {
-            lm.map = tex;
-            lm.needsUpdate = true;
-          }
-        });
+        own.textures[i] = tex;
+        setMaps(i, tex);
       },
       undefined,
       () => {}, // a missing painting just leaves the gradient sky and the 3D floor
     );
   };
 
+  /** Frees a painting's GPU texture once the run is well past it (see residency in scrollDriver.js). */
+  const unload = (i) => {
+    const own = state.current;
+    own.tokens[i] = (own.tokens[i] ?? 0) + 1;
+    own.requested[i] = false;
+    setMaps(i, null);
+    own.textures[i]?.dispose();
+    own.textures[i] = null;
+  };
+
   const refAspect = Math.min(...paintings.map((p) => p.aspect));
   useFrame((frame) => {
     const d = sim.renderDistance();
-    // each painting loads when the player gets within its own distance (`loadAt`, else the zone's `preloadAt`), so none waits at start-up unless it is the first
-    for (let i = 0; i < paintings.length; i++) if (!state.current.requested[i] && d > (paintings[i].loadAt ?? preloadAt)) load(i);
+    // each painting loads when the player gets within its own distance (`loadAt`, else the zone's `preloadAt`), so none waits at start-up unless it is the first,
+    // and is disposed again once the player is well past it, so only the paintings near the player are on the GPU
+    for (let i = 0; i < paintings.length; i++) {
+      const [, end] = paintingSpan(zone, cuts, dissolve, i, paintings.length, CROSSFADE);
+      const act = residency(d, paintings[i].loadAt ?? preloadAt, end, !!state.current.requested[i]);
+      if (act === 'load') load(i);
+      else if (act === 'unload') unload(i);
+    }
     const w = wRef.current;
     if (w <= 0.001) return;
     const cam = frame.camera;
@@ -301,11 +325,12 @@ export function ParallaxLayer({ sim, wRef, geometry, depth, scale, count, span, 
     if (!m) return;
     const grow = Math.max(0.0001, wRef.current);
     const camX = state.camera.position.x;
-    const offset = loopOffset(sim.renderDistance(), speedFactor, span);
+    const dist = sim.renderDistance();
+    const offset = loopOffset(dist, speedFactor, span);
     items.forEach((it, i) => {
       let x = it.x - offset;
       if (x < -span / 2) x += span;
-      const floatY = bob ? Math.sin(state.clock.elapsedTime * 0.6 + it.phase) * bob : 0;
+      const floatY = bob ? Math.sin(dist * 0.045 + it.phase) * bob : 0; // distance-driven: frozen on pause, no wall clock
       dummy.position.set(x + camX, WORLD.groundY + it.y + floatY, it.dz);
       dummy.rotation.set(0, it.rot, 0);
       if (growAll) dummy.scale.setScalar(it.s * grow);

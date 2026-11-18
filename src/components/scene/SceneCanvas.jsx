@@ -23,6 +23,10 @@ export default function SceneCanvas({ children, camera, frameloop = 'always', cl
         className={className}
         dpr={cappedDpr}
         frameloop={frameloop}
+        onCreated={({ gl }) => {
+          // development only: lets checks read renderer stats (window.__fireflipper.gl.info)
+          if (import.meta.env?.DEV && window.__fireflipper) window.__fireflipper.gl = gl;
+        }}
         camera={camera}
         gl={{ antialias, alpha: false, powerPreference: 'high-performance', stencil: false }}
       >

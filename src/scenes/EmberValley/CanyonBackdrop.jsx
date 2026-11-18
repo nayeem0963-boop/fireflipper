@@ -4,6 +4,7 @@ import { WORLD } from '../../systems/physics/constants.js';
 import { BIOMES } from '../../systems/world/biomes.js';
 import { createCanyonFloorTexture } from './valleyTextures.js';
 import { createCanyonMesas } from './mangroveGeometry.js';
+import { DriftParticles } from './AmbientEffects.jsx';
 import { GradientSky, ParallaxLayer, PaintedHorizon, WeightDriver } from './ZoneParts.jsx';
 
 const Z = BIOMES.canyon;
@@ -44,6 +45,7 @@ export default function CanyonBackdrop({ sim }) {
       <Floor sim={sim} wRef={wRef} />
       <ParallaxLayer sim={sim} wRef={wRef} geometry={mesas} depth={-34} scale={1.7} count={5} span={190} speedFactor={0.22} seed={52} tint="#d8a090" />
       <ParallaxLayer sim={sim} wRef={wRef} geometry={mesas} depth={-20} scale={0.8} count={4} span={120} speedFactor={0.45} seed={63} tint="#ffffff" />
+      <DriftParticles sim={sim} wRef={wRef} zoneId="canyon" />
       <WeightDriver sim={sim} zone={Z} wRef={wRef} groupRef={root} />
     </group>
   );
