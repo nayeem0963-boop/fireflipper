@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGameStore, STATUS } from '../../store/useGameStore.js';
 import { PHYSICS } from '../physics/constants.js';
+import { createAutopilot } from '../bot/autopilot.js';
 import { GAME_EVENTS, gameEvents } from '../events/gameEvents.js';
 
 const HUD_INTERVAL = 0.1; // seconds; the HUD only needs ~10 updates/s
@@ -18,12 +19,15 @@ export function useGameLoop(sim) {
   const runId = useGameStore((s) => s.runId);
   const acc = useRef(0);
   const hudTimer = useRef(0);
+  // Auto play: the bot presses the same inputs a player would, once per fixed step.
+  const bot = useMemo(() => createAutopilot(sim), [sim]);
 
   useEffect(() => {
     sim.reset();
+    bot.reset();
     acc.current = 0;
     hudTimer.current = 0;
-  }, [runId, sim]);
+  }, [runId, sim, bot]);
 
   useFrame((_, rawDelta) => {
     const store = useGameStore.getState();
@@ -32,6 +36,7 @@ export function useGameLoop(sim) {
     const step = PHYSICS.fixedStep;
     acc.current += Math.min(rawDelta, PHYSICS.maxFrameDelta);
     while (acc.current >= step) {
+      if (store.demo) bot.control();
       sim.step(step);
       acc.current -= step;
     }

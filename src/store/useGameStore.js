@@ -44,6 +44,8 @@ export const useGameStore = create((set, get) => ({
   // --- navigation ---
   screen: SCREENS.HOME,
   settingsOpen: false,
+  /** Auto play (watch-only): a bot flies, nothing is scored or saved. Keep this feature (see CLAUDE.md). */
+  demo: false,
   avatarsOpen: false,
   achievementsOpen: false,
   creditsOpen: false,
@@ -84,9 +86,16 @@ export const useGameStore = create((set, get) => ({
   startGame: () =>
     set((s) => ({
       screen: SCREENS.GAME,
+      demo: false,
       ...freshRun(s),
     })),
-  exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE }),
+  startDemo: () =>
+    set((s) => ({
+      screen: SCREENS.GAME,
+      demo: true,
+      ...freshRun(s),
+    })),
+  exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE, demo: false }),
   openAvatars: () => set({ avatarsOpen: true }),
   closeAvatars: () => set({ avatarsOpen: false }),
   openAchievements: () => set({ achievementsOpen: true }),
@@ -103,6 +112,11 @@ export const useGameStore = create((set, get) => ({
     const s = get();
     // Guard: a run can only end once.
     if (s.status !== STATUS.DYING && s.status !== STATUS.RUNNING) return;
+    // Auto play never counts: no best score, stats, achievements or daily progress.
+    if (s.demo) {
+      set({ status: STATUS.OVER, overAt: performance.now(), lastResult: null });
+      return;
+    }
     const previousBest = s.bestScore;
     const isNewBest = score > previousBest;
     if (isNewBest) saveValue('bestScore', score);

@@ -242,3 +242,17 @@
   justify-content: center;
   gap: 8px;
 }
+
+/* Auto play button under Play */
+.home__demo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-block: 8px;
+}
+.home__demo small {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}

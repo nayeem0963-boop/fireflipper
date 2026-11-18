@@ -143,3 +143,11 @@ a deterministic daily goal (same for everyone each UTC day, with a day streak) a
 shown on the start prompt, new achievements and the daily result appear compactly on the game-over screen, and the
 Achievements panel lists everything, including skin unlock milestones. Local only (no accounts or leaderboard yet),
 and nothing in it affects gameplay. `npm run test:progression` covers the logic.
+
+## Auto play (watch-only)
+
+The home screen's **Watch auto play** button starts a bot that flies the real game while you watch. It searches 1.2 s
+ahead over the real flight physics and obstacles (`src/systems/bot/autopilot.js`), shows its inputs as TAP / HOLD
+lights, and offers **Play it yourself** and **Exit**. Nothing is scored or saved (no best score, stats, achievements or
+daily progress), and there is no game-over screen: if the bot ever crashes it restarts. **This feature must stay in
+every future version unless the owner says otherwise** (see `CLAUDE.md`); `npm run test:autoplay` guards it.
