@@ -170,3 +170,15 @@ which bird colour is free: every bird starts in the theme's own colour (Fire in 
 colour unlocks at a best score of 600 and White at 1,500. Each theme remembers its own bird choice. Themes are looks
 only: the simulation has no theme input, and `npm run test:theme` checks both themes define every colour, that
 obstacles and orbs keep strong contrast against the background, and that a run is identical in both.
+
+## Sundarbans (first 500 m)
+
+The first 500 m of every run is the Sundarbans mangrove delta, recreated for Fire Flipper in the style of the
+Bulbuli project's Sundarbans scene (nothing is copied: it is all built from primitives, so no extra assets): pale
+teal sky and haze, three parallax layers of faceted mangroves with stilt roots, tidal-water floor with ripples, breathing-root
+spikes and grass tufts, dark-bark obstacles with moss / plank caps, daylight lighting, and saturated orbs that stay visible
+on the bright background. Between 420 and 500 m the mangroves sink while the mountains rise, and the original scenery
+(Ember Valley or Frost Cavern, per theme) takes over. `systems/world/biomes.js` holds the zone data; `SundarbansBackdrop.jsx`
+draws it (about 8 instanced draw calls). It is looks only: obstacles, collisions, speed and scoring depend on distance alone, and
+`npm run test:biome` checks the fade, the contrast of obstacles against the Sundarbans backdrop, and that no simulation code reads the zone.
+In dev builds `window.__fireflipper.game` lets you jump along the track for screenshots.

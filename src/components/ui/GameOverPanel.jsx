@@ -3,6 +3,7 @@ import { useGameStore } from '../../store/useGameStore.js';
 import { SCORING } from '../../systems/physics/constants.js';
 import { formatDistance, formatScore } from '../../systems/scoring/scoring.js';
 import { useTheme } from '../../hooks/useTheme.js';
+import { biomeAt } from '../../systems/world/biomes.js';
 import { sfx } from '../../systems/audio/sfx.js';
 import { isCoarsePointer } from '../../utils/device.js';
 import { RestartIcon } from './Icons.jsx';
@@ -117,7 +118,7 @@ export default function GameOverPanel() {
             <h2 id="gameover-title" className="panel__title panel__title--big">
               {isRecord ? 'New record!' : theme.copy.over}
             </h2>
-            {cause && <p className="gameover__cause">{cause === 'lava' ? theme.copy.lava : (CAUSES[cause] ?? 'Crashed')}</p>}
+            {cause && <p className="gameover__cause">{cause === 'lava' ? (biomeAt(distance)?.lavaCopy ?? theme.copy.lava) : (CAUSES[cause] ?? 'Crashed')}</p>}
 
             <div className="gameover__scorewrap">
               {isRecord && done && (

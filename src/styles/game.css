@@ -337,3 +337,24 @@
   padding: 0 1.2em;
   font-size: 0.95rem;
 }
+
+/* Controls stay readable over bright scenery (the pale Sundarbans water and sky) */
+.demo__btn.ghost-btn {
+  background: rgba(var(--bg-rgb), 0.68);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.demo__key {
+  background: rgba(var(--bg-rgb), 0.72);
+}
+
+/* Phones: the HUD uses two rows, so the Auto play badge sits below them and drops its subtitle */
+@media (max-width: 520px) {
+  .demo__badge {
+    top: calc(var(--safe-top) + 138px);
+    padding: 5px 10px;
+  }
+  .demo__badge small {
+    display: none;
+  }
+}

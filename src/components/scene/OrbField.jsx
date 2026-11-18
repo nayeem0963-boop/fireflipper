@@ -1,6 +1,7 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, Object3D } from 'three';
+import { AdditiveBlending, Color, NormalBlending, Object3D } from 'three';
+import { biomeWeight } from '../../systems/world/biomes.js';
 import { useTheme } from '../../hooks/useTheme.js';
 
 /**
@@ -14,10 +15,28 @@ export default function OrbField({ sim }) {
   const cores = useRef();
   const halos = useRef();
   const dummy = useMemo(() => new Object3D(), []);
+  const coreMat = useRef();
+  const haloMat = useRef();
+  const day = useRef(null);
+  const colors = useMemo(() => ({ coreNight: new Color(scene.orbCore), haloNight: new Color(scene.orbHalo), coreDay: new Color('#ffb21a'), haloDay: new Color('#ff6a10') }), [scene]);
+  useEffect(() => {
+    day.current = null; // re-apply after a theme change
+  }, [colors]);
 
   useFrame(() => {
     if (!cores.current) return;
     const dist = sim.renderDistance();
+    // In the bright Sundarbans daylight an additive glow washes out on the pale sky and water, so the orbs switch to
+    // a saturated, normally blended halo there (still the same orb, same size and hitbox: looks only).
+    const isDay = biomeWeight(dist) > 0.5;
+    if (isDay !== day.current && coreMat.current && haloMat.current) {
+      day.current = isDay;
+      coreMat.current.color.copy(isDay ? colors.coreDay : colors.coreNight);
+      haloMat.current.color.copy(isDay ? colors.haloDay : colors.haloNight);
+      haloMat.current.blending = isDay ? NormalBlending : AdditiveBlending;
+      haloMat.current.opacity = isDay ? 0.6 : 0.35;
+      haloMat.current.needsUpdate = true;
+    }
     const t = sim.time;
     let n = 0;
     for (const orb of sim.orbs.active) {
@@ -45,11 +64,11 @@ export default function OrbField({ sim }) {
     <group>
       <instancedMesh ref={cores} args={[undefined, undefined, MAX_ORBS]} frustumCulled={false}>
         <icosahedronGeometry args={[0.2, 2]} />
-        <meshBasicMaterial color={scene.orbCore} toneMapped={false} />
+        <meshBasicMaterial ref={coreMat} color={scene.orbCore} toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={halos} args={[undefined, undefined, MAX_ORBS]} frustumCulled={false} renderOrder={2}>
         <icosahedronGeometry args={[0.46, 2]} />
-        <meshBasicMaterial color={scene.orbHalo} transparent opacity={0.35} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+        <meshBasicMaterial ref={haloMat} color={scene.orbHalo} transparent opacity={0.35} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
       </instancedMesh>
     </group>
   );
