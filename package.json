@@ -16,8 +16,9 @@
     "test:theme": "node scripts/theme-test.mjs",
     "test:biome": "node scripts/biome-test.mjs",
     "test:obstacles": "node scripts/obstacle-style-test.mjs",
+    "test:scroll": "node scripts/scroll-test.mjs",
     "test:e2e": "node scripts/e2e-smoke.mjs",
-    "test:all": "npm run test:sim && npm run test:avatars && npm run test:progression && npm run test:autoplay && npm run test:store && npm run test:theme && npm run test:biome && npm run test:obstacles"
+    "test:all": "npm run test:sim && npm run test:avatars && npm run test:progression && npm run test:autoplay && npm run test:store && npm run test:theme && npm run test:biome && npm run test:obstacles && npm run test:scroll"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

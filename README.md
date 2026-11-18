@@ -221,3 +221,11 @@ and `npm run test:obstacles` still checks their sizes against their colliders. T
 
 **Obstacles and orbs in the canyon.** Obstacles keep their shapes but turn deep indigo with cream caps, and floating rocks get a cream outline, so they read against the orange rock, the purple-pink sky and the dark shadows. Orbs are a cream core in a deep violet halo (they would
 vanish orange-on-orange otherwise), and the portrait edge warning uses deep violet bars. `npm run test:biome` checks the contrast of all of these against every backdrop colour from the paintings. Nothing in the simulation reads the zones.
+
+## Continuous moving environment, step 1: scroll driver
+
+`src/systems/world/scrollDriver.js` holds the pure functions that turn the run distance (`sim.renderDistance()`) into scenery offsets:
+layer speeds far 0.05 / mid 0.25 / near 0.7 world units per metre, seamless looping (`loopOffset`), and the sideways slide of the painted
+backdrops (`paintingSlide`). Each painting now slides across its whole stretch of the run (it used to crawl at about 1% of its width) and is
+sized so it never shows an edge. Offsets depend only on distance, so they are frame-rate independent, freeze on pause and use no wall clock.
+`npm run test:scroll` covers this (part of `test:all`).

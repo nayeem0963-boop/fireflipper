@@ -1,0 +1,99 @@
+// Scenery scroll driver tests: distance-driven, frame-rate independent, pause-safe, seamless, correctly layered.
+import { readFileSync, readdirSync } from 'node:fs';
+import { SCROLL_SPEED, loopOffset, paintingSlide, paintingSpan, progress, slideWidth, wrap } from '../src/systems/world/scrollDriver.js';
+import { BIOMES, CROSSFADE, ZONE_IDS } from '../src/systems/world/biomes.js';
+
+let failed = 0;
+const ok = (c, m) => { if (!c) { failed++; console.error('FAIL', m); } else console.log('ok  ', m); };
+const near = (a, b, e = 1e-9) => Math.abs(a - b) < e;
+
+// layering: far < mid < near < the bird's own plane (1 unit per metre)
+ok(SCROLL_SPEED.far < SCROLL_SPEED.mid && SCROLL_SPEED.mid < SCROLL_SPEED.near && SCROLL_SPEED.near < 1, 'layer speeds ordered far < mid < near < 1');
+
+// frame-rate independence: fly the same 5000 m at 30/60/120 fps (and a jittery one); offsets at the same distance are identical
+const fly = (fps, jitter = false) => {
+  let d = 0, t = 0, seed = 7;
+  const speed = 12; // m/s
+  const trace = new Map();
+  while (d < 5000) {
+    const dt = (1 / fps) * (jitter ? 0.4 + ((seed = (seed * 9301 + 49297) % 233280) / 233280) * 1.6 : 1);
+    d += speed * dt; t += dt;
+    trace.set(Math.round(d), [loopOffset(d, SCROLL_SPEED.mid, 120), paintingSlide(d, 0, 530, 20)]);
+  }
+  return trace;
+};
+for (const dist of [450, 1000, 2500, 4000]) {
+  const results = [30, 60, 120].map((f) => { const d = dist + 0.37; return [loopOffset(d, SCROLL_SPEED.mid, 120), paintingSlide(d, 0, 5000, 20)]; });
+  ok(results.every((r) => near(r[0], results[0][0]) && near(r[1], results[0][1])), `offset depends only on distance (${dist} m at 30/60/120 fps)`);
+}
+fly(30); fly(60); fly(120); fly(60, true);
+ok(near(loopOffset(333.3, 0.25, 120), loopOffset(333.3, 0.25, 120)), 'pure: same distance gives same offset (pause = no motion)');
+
+// pause: with the distance unchanged for any number of frames, nothing moves
+const frozen = Array.from({ length: 600 }, () => paintingSlide(1234.5, 1000, 1530, 20));
+ok(frozen.every((v) => v === frozen[0]), 'distance held (paused) gives zero motion over 600 frames');
+
+// seamless loops: no jump at the seam, positive for negative distances
+for (const [speed, span] of [[0.22, 190], [0.45, 120], [0.55, 104]]) {
+  let worst = 0;
+  for (let d = 0; d < 6000; d += 0.5) {
+    const a = loopOffset(d, speed, span), b = loopOffset(d + 0.5, speed, span);
+    const step = Math.min(Math.abs(b - a), span - Math.abs(b - a)); // wrap seam counts as continuous
+    worst = Math.max(worst, step);
+  }
+  ok(near(worst, 0.5 * speed, 1e-6), `loop span ${span} speed ${speed}: step per 0.5 m is constant across the seam (${worst.toFixed(4)})`);
+}
+ok(wrap(-5, 120) === 115 && wrap(125, 120) === 5, 'wrap handles negative and overflow distances');
+
+// painted slide: continuous, monotonic, spans the full slack, never exceeds it
+const slack = 25;
+let prev = paintingSlide(-100, 0, 530, slack), mono = true, maxStep = 0;
+for (let d = -100; d < 700; d += 0.25) {
+  const v = paintingSlide(d, 0, 530, slack);
+  if (v > prev + 1e-12) mono = false;
+  maxStep = Math.max(maxStep, Math.abs(v - prev));
+  if (Math.abs(v) > slack + 1e-9) mono = false;
+  prev = v;
+}
+ok(mono, 'painting slide is monotonic and inside its slack');
+ok(maxStep <= (2 * slack) / 530 * 0.25 + 1e-9, 'painting slide has no jumps (constant speed)');
+ok(near(paintingSlide(0, 0, 530, slack), slack) && near(paintingSlide(530, 0, 530, slack), -slack), 'painting slides through its entire slack across its stretch');
+ok(near(progress(5, 10, 10), 0) && near(progress(15, 10, 10), 1), 'degenerate stretch handled');
+
+// every live painting in every zone really moves, at >= the far-layer speed and below the mid-layer speed (it is the far backdrop)
+const viewWs = { desktop: 158, phonePortrait: 42, phoneLandscape: 120 };
+const read = (f) => readFileSync(new URL(`../src/scenes/EmberValley/${f}`, import.meta.url), 'utf8');
+const zoneFiles = { canyon: 'CanyonBackdrop.jsx', arctic: 'ArcticBackdrop.jsx', celestial: 'CelestialBackdrop.jsx', palace: 'PalaceBackdrop.jsx' };
+for (const id of ZONE_IDS) {
+  const z = BIOMES[id];
+  const src = read(zoneFiles[id]);
+  const cuts = JSON.parse(/const CUTS = (\[[^\]]*\])/.exec(src)[1]);
+  const dissolve = Number(/const DISSOLVE = (\d+)/.exec(src)?.[1] ?? 30);
+  const count = cuts.length + 1;
+  for (let i = 0; i < count; i++) {
+    const [a, b] = paintingSpan(z, cuts, dissolve, i, count, CROSSFADE);
+    for (const [name, vw] of Object.entries(viewWs)) {
+      const W = slideWidth(vw, b - a);
+      const speed = (W - vw) / (b - a);
+      ok(speed >= SCROLL_SPEED.far - 1e-9 && speed < SCROLL_SPEED.mid, `${id} painting ${i} (${a}-${b} m) on ${name}: slides at ${speed.toFixed(3)} u/m`);
+    }
+  }
+  ok(!/\bpan=\{/.test(src), `${id}: no leftover static pan prop`);
+}
+
+// no wall-clock time in the painted-backdrop path or the driver
+const parts = read('ZoneParts.jsx');
+const horizon = parts.slice(parts.indexOf('export function PaintedHorizon'), parts.indexOf('export function ParallaxLayer'));
+ok(!/elapsedTime|Date\.now|performance\.now|requestAnimationFrame|setInterval|setTimeout/.test(horizon), 'PaintedHorizon uses no wall clock');
+ok(/paintingSlide\(/.test(horizon) && /renderDistance\(\)/.test(horizon), 'PaintedHorizon slides from renderDistance() via the scroll driver');
+const driver = readFileSync(new URL('../src/systems/world/scrollDriver.js', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+ok(!/Date|performance|clock|random/i.test(driver), 'scroll driver has no clock or randomness');
+
+// simulation isolation: nothing in the sim imports scenery code
+const simDir = new URL('../src/systems/', import.meta.url);
+const walk = (u) => readdirSync(u, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(new URL(`${e.name}/`, u)) : [new URL(e.name, u)]));
+const simFiles = walk(simDir).filter((u) => /createGameSim|physics\/|collision/i.test(u.pathname) && u.pathname.endsWith('.js'));
+ok(simFiles.length > 0 && simFiles.every((u) => !/scrollDriver|EmberValley/.test(readFileSync(u, 'utf8'))), 'simulation/physics/collision do not import the scroll driver or scenery');
+
+if (failed) { console.error(`\n${failed} scroll test(s) failed`); process.exit(1); }
+console.log('\nAll scroll tests passed');

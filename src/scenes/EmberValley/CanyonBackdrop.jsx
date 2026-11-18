@@ -40,7 +40,7 @@ export default function CanyonBackdrop({ sim }) {
   return (
     <group ref={root} name="canyon">
       <GradientSky wRef={wRef} top={S.skyTop} bottom={S.skyBottom} />
-      <PaintedHorizon sim={sim} wRef={wRef} zone={Z} paintings={PAINTINGS} cuts={CUTS} dissolve={DISSOLVE} preloadAt={0} fadeRgb={FADE_RGB} rise={RISE} pan={0.012} />
+      <PaintedHorizon sim={sim} wRef={wRef} zone={Z} paintings={PAINTINGS} cuts={CUTS} dissolve={DISSOLVE} preloadAt={0} fadeRgb={FADE_RGB} rise={RISE} />
       <Floor sim={sim} wRef={wRef} />
       <ParallaxLayer sim={sim} wRef={wRef} geometry={mesas} depth={-34} scale={1.7} count={5} span={190} speedFactor={0.22} seed={52} tint="#d8a090" />
       <ParallaxLayer sim={sim} wRef={wRef} geometry={mesas} depth={-20} scale={0.8} count={4} span={120} speedFactor={0.45} seed={63} tint="#ffffff" />

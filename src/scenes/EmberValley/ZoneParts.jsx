@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CanvasTexture, Color, Object3D, SRGBColorSpace, TextureLoader } from 'three';
 import { WORLD } from '../../systems/physics/constants.js';
-import { zoneWeight } from '../../systems/world/biomes.js';
+import { CROSSFADE, zoneWeight } from '../../systems/world/biomes.js';
+import { loopOffset, paintingSlide, paintingSpan, slideWidth } from '../../systems/world/scrollDriver.js';
 
 /**
  * Parts shared by the painted scenery zones (Volcanic Coast, Arctic Ice Shelf): the per-frame zone weight, a gradient sky, the
@@ -72,12 +73,11 @@ export function GradientSky({ wRef, top, bottom }) {
 
 /**
  * Painted horizon bands as unlit billboards behind everything. Each painting is cropped to its sky-and-horizon band (so has its own
- * aspect), sized from the camera every frame so it always covers the view (and stays a sensible size on a tall phone screen), drifts
- * slowly sideways as you fly, and dissolves in over the one before at the given distances. Each painting loads when the player gets
+ * aspect), sized from the camera every frame so it always covers the view (and stays a sensible size on a tall phone screen), slides
+ * sideways with the run distance (scrollDriver.js), and dissolves in over the one before at the given distances. Each painting loads when the player gets
  * within `preloadAt` metres (or its own `loadAt`), so the first screens of the game never wait for later paintings; a painting that fails to load is simply skipped.
  *
- * Props: zone, paintings [{ file, aspect }], cuts (metres where painting i+1 dissolves in), dissolve (metres), preloadAt, pan (world
- * units per metre), fadeRgb ([r, g, b] of the sky colour at the top of every painting, used to melt its top edge into the sky).
+ * Props: zone, paintings [{ file, aspect }], cuts (metres where painting i+1 dissolves in), dissolve (metres), preloadAt, fadeRgb ([r, g, b] of the sky colour at the top of every painting, used to melt its top edge into the sky).
  *
  * A painting may set `horizon` (the row, as a fraction from its top, that sits on the horizon line) to hold still instead of sliding. `rise.cover` (default 1.5)
  * is how many times taller than the visible window the picture is scaled.
@@ -86,7 +86,7 @@ export function GradientSky({ wRef, top, bottom }) {
  * cover the view and slides down as you fly, from `rise.from` to `rise.to` (the fraction of the picture, from its top, that sits on the horizon),
  * so the view climbs from the floating cities up into the cosmos. No top fade is needed there.
  */
-export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30, preloadAt, pan = 0.036, fadeRgb, rise }) {
+export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30, preloadAt, fadeRgb, rise }) {
   const meshes = useRef([]);
   const mats = useRef([]);
   const fades = useRef([]);
@@ -151,9 +151,12 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
     // Large enough to cover the view and reach the sky, but on a tall (portrait) screen no more than ~2.6 views wide, so the scenery stays in frame.
     const needH = cam.position.y - WORLD.groundY + viewH * 0.58;
     // Sky mode: cover the view both ways (at least 1.5x the visible height, so there is room to slide); band mode as before.
-    const W = rise ? Math.max(viewW * 1.12, needH * (rise.cover ?? 1.5) * refAspect) : Math.max(viewW * 1.12, Math.min(needH * refAspect, viewW * 2.6));
+    // Wide enough to cover the view and, in addition, to slide across the whole of its stretch at no less than the far-layer speed (see scrollDriver.js).
+    const longest = Math.max(...paintings.map((_, i) => { const [a, b] = paintingSpan(zone, cuts, dissolve, i, paintings.length, CROSSFADE); return b - a; }));
+    const W = rise
+      ? Math.max(slideWidth(viewW, longest), needH * (rise.cover ?? 1.5) * refAspect)
+      : Math.max(slideWidth(viewW, longest), Math.min(needH * refAspect, viewW * 2.6));
     const slack = (W - viewW) / 2;
-    const x = cam.position.x + clamp(slack - (d - zone.start) * pan, -slack, slack);
     paintings.forEach(({ aspect, horizon }, i) => {
       const alpha = i === 0 ? w : w * smooth(cuts[i - 1] - dissolve / 2, cuts[i - 1] + dissolve / 2, d);
       const m = meshes.current[i];
@@ -163,6 +166,9 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
       if (m) m.visible = show;
       if (f) f.visible = show;
       if (!show) return;
+      // distance-driven slide across this painting's own stretch of the run (no wall clock, no per-frame accumulation)
+      const [a, b] = paintingSpan(zone, cuts, dissolve, i, paintings.length, CROSSFADE);
+      const x = cam.position.x + paintingSlide(d, a, b, slack);
       const H = W / aspect;
       let y = WORLD.groundY + H / 2 - 0.05;
       if (rise) {
@@ -235,7 +241,7 @@ export function ParallaxLayer({ sim, wRef, geometry, depth, scale, count, span, 
     if (!m) return;
     const grow = Math.max(0.0001, wRef.current);
     const camX = state.camera.position.x;
-    const offset = (sim.renderDistance() * speedFactor) % span;
+    const offset = loopOffset(sim.renderDistance(), speedFactor, span);
     items.forEach((it, i) => {
       let x = it.x - offset;
       if (x < -span / 2) x += span;

@@ -43,7 +43,7 @@ export default function PalaceBackdrop({ sim }) {
   return (
     <group ref={root} name="palace" visible={false}>
       <GradientSky wRef={wRef} top={S.skyTop} bottom={S.skyBottom} />
-      <PaintedHorizon sim={sim} wRef={wRef} zone={Z} paintings={PAINTINGS} cuts={CUTS} dissolve={DISSOLVE} preloadAt={PRELOAD_AT} fadeRgb={FADE_RGB} rise={RISE} pan={0.012} />
+      <PaintedHorizon sim={sim} wRef={wRef} zone={Z} paintings={PAINTINGS} cuts={CUTS} dissolve={DISSOLVE} preloadAt={PRELOAD_AT} fadeRgb={FADE_RGB} rise={RISE} />
       <Pool sim={sim} wRef={wRef} />
       <ParallaxLayer sim={sim} wRef={wRef} geometry={island} depth={-30} scale={1.4} count={5} span={190} speedFactor={0.22} seed={31} tint="#ffffff" lift={[9, 24]} emissive="#ffb0c8" emissiveIntensity={0.55} growAll bob={0.4} />
       <ParallaxLayer sim={sim} wRef={wRef} geometry={island} depth={-18} scale={0.65} count={4} span={120} speedFactor={0.45} seed={44} tint="#ffffff" lift={[7, 15]} emissive="#ffb0c8" emissiveIntensity={0.55} growAll bob={0.3} />
