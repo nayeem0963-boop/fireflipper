@@ -151,3 +151,12 @@ ahead over the real flight physics and obstacles (`src/systems/bot/autopilot.js`
 lights, and offers **Play it yourself** and **Exit**. Nothing is scored or saved (no best score, stats, achievements or
 daily progress), and there is no game-over screen: if the bot ever crashes it restarts. **This feature must stay in
 every future version unless the owner says otherwise** (see `CLAUDE.md`); `npm run test:autoplay` guards it.
+
+## Testing and performance
+
+`npm run test:all` runs the headless suites: simulation (physics, collisions, orbs, scoring, track fairness),
+avatars (cosmetic-only birds), progression, auto play and the run-lifecycle store (pause/resume, retry/reset,
+game over). `npm run test:e2e` drives the production build in a browser on desktop and on phone portrait and
+landscape (needs Playwright). The 3D scenes are lazy-loaded so the menu paints first (initial JS about 284 kB);
+obstacles, orbs and the mountain layers are instanced meshes, so a gameplay frame is about 47 draw calls, and
+particle systems use fixed buffers (no per-frame allocation).

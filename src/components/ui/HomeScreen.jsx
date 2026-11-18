@@ -1,6 +1,5 @@
+import { lazy, Suspense } from 'react';
 import { useGameStore } from '../../store/useGameStore.js';
-import SceneCanvas from '../scene/SceneCanvas.jsx';
-import ShowcaseScene from '../../scenes/Showcase/ShowcaseScene.jsx';
 import IconButton from './IconButton.jsx';
 import SoundToggle from './SoundToggle.jsx';
 import { FlameIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
@@ -10,6 +9,8 @@ import { AVATAR_SPECIES, avatarFor, collectionProgress, isAvatarUnlocked } from 
 import { formatScore } from '../../systems/scoring/scoring.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
 import '../../styles/home.css';
+
+const HomeStage = lazy(() => import('../scene/HomeStage.jsx'));
 
 export default function HomeScreen() {
   const bestScore = useGameStore((s) => s.bestScore);
@@ -43,10 +44,9 @@ export default function HomeScreen() {
 
       <div className="home__stagewrap">
         <section className="home__stage" aria-label="Bird preview">
-          {/* Stop rendering the preview while a modal covers it */}
-          <SceneCanvas camera={{ position: [0, 0.25, 6], fov: 45 }} frameloop={settingsOpen || avatarsOpen || achievementsOpen ? 'demand' : 'always'}>
-            <ShowcaseScene />
-          </SceneCanvas>
+          <Suspense fallback={null}>
+            <HomeStage paused={settingsOpen || avatarsOpen || achievementsOpen} />
+          </Suspense>
         </section>
 
         {/* Every bird is one tap away: the seven species, in the colour you have chosen when it is unlocked */}

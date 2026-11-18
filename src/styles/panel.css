@@ -452,3 +452,68 @@
   background: linear-gradient(180deg, var(--fire-400), var(--fire-600));
   color: #1a0904;
 }
+
+/* Phone held sideways (about 340-400px tall): compact results so the stats fit without scrolling */
+@media (max-height: 420px) {
+  .gameover {
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px);
+  }
+  .gameover__body {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 6px 14px;
+    padding: 8px 14px 4px;
+  }
+  .gameover__kicker,
+  .gameover__cause {
+    display: none;
+  }
+  .gameover .panel__title--big {
+    font-size: 1.25rem;
+  }
+  .gameover__score {
+    font-size: 2.1rem;
+  }
+  .gameover__hero {
+    gap: 3px;
+  }
+  .pb {
+    margin-top: 2px;
+  }
+  .pb__text {
+    margin-top: 3px;
+    font-size: 0.7rem;
+  }
+  .gameover__stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+  }
+  .stat {
+    padding: 4px 6px;
+  }
+  .stat dt {
+    font-size: 0.56rem;
+    letter-spacing: 0.08em;
+  }
+  .stat dd {
+    font-size: 0.85rem;
+  }
+  .rewards {
+    gap: 4px 6px;
+  }
+  .reward {
+    padding: 2px 9px;
+    font-size: 0.68rem;
+  }
+  .gameover__footer {
+    padding: 6px 14px;
+  }
+  .gameover__footer .play-btn {
+    min-height: 42px;
+  }
+  .gameover__footer .ghost-btn {
+    min-height: 38px;
+  }
+  .gameover__hint {
+    display: none;
+  }
+}

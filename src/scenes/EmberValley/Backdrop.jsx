@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { Object3D } from 'three';
 import { useFrame } from '@react-three/fiber';
 import { WORLD } from '../../systems/physics/constants.js';
 import { createGroundTexture, createSkyTexture } from './valleyTextures.js';
@@ -70,8 +71,14 @@ function seeded(seed) {
   };
 }
 
+/**
+ * One layer of distant peaks as a single InstancedMesh (one draw call for the whole layer instead of one per
+ * peak). Each peak is a unit cone scaled to its own radius and height; positions are rewritten every frame as the
+ * layer scrolls with parallax.
+ */
 function PeakLayer({ sim, depth, scale, count, span, speedFactor, color, seed, spire = false }) {
-  const group = useRef();
+  const mesh = useRef();
+  const dummy = useMemo(() => new Object3D(), []);
   const peaks = useMemo(() => {
     const rand = seeded(seed);
     return Array.from({ length: count }, (_, i) => ({
@@ -82,25 +89,28 @@ function PeakLayer({ sim, depth, scale, count, span, speedFactor, color, seed, s
   }, [count, scale, seed, span, spire]);
 
   useFrame((state) => {
-    if (!group.current) return;
+    const m = mesh.current;
+    if (!m) return;
     const camX = state.camera.position.x;
     const offset = (sim.renderDistance() * speedFactor) % span;
-    const children = group.current.children;
-    for (let i = 0; i < children.length; i++) {
-      let x = peaks[i].x - offset;
+    for (let i = 0; i < peaks.length; i++) {
+      const p = peaks[i];
+      let x = p.x - offset;
       if (x < -span / 2) x += span;
-      children[i].position.x = x + camX;
+      dummy.position.set(x + camX, p.h / 2, 0);
+      dummy.scale.set(p.r, p.h, p.r);
+      dummy.updateMatrix();
+      m.setMatrixAt(i, dummy.matrix);
     }
+    m.instanceMatrix.needsUpdate = true;
   });
 
   return (
-    <group ref={group} position={[0, WORLD.groundY, depth]}>
-      {peaks.map((p, i) => (
-        <mesh key={i} position={[p.x, p.h / 2, 0]}>
-          <coneGeometry args={[p.r, p.h, spire ? 6 : 5]} />
-          <meshStandardMaterial color={color} emissive="#3a1206" emissiveIntensity={0.4} roughness={1} flatShading />
-        </mesh>
-      ))}
+    <group position={[0, WORLD.groundY, depth]}>
+      <instancedMesh ref={mesh} args={[undefined, undefined, count]} frustumCulled={false}>
+        <coneGeometry args={[1, 1, spire ? 6 : 5]} />
+        <meshStandardMaterial color={color} emissive="#3a1206" emissiveIntensity={0.4} roughness={1} flatShading />
+      </instancedMesh>
     </group>
   );
 }

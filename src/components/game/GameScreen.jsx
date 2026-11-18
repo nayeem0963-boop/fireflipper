@@ -1,7 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { useGameStore, STATUS } from '../../store/useGameStore.js';
-import SceneCanvas from '../scene/SceneCanvas.jsx';
-import EmberValleyScene from '../../scenes/EmberValley/EmberValleyScene.jsx';
 import GameHUD from '../ui/GameHUD.jsx';
 import PauseMenu from '../ui/PauseMenu.jsx';
 import StartPrompt from '../ui/StartPrompt.jsx';
@@ -13,8 +11,9 @@ import { useGameAudio } from '../../hooks/useGameAudio.js';
 import { ACTIONS, onAction } from '../../systems/input/inputBus.js';
 import { game } from '../../systems/game/gameInstance.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
-import { BASE_FOV } from '../../scenes/EmberValley/cameraConfig.js';
 import '../../styles/game.css';
+
+const GameStage = lazy(() => import('../scene/GameStage.jsx'));
 
 /** Ignore retry input this soon after the game-over screen appears (avoids accidental restarts). */
 const RETRY_GUARD_MS = 450;
@@ -69,9 +68,9 @@ export default function GameScreen() {
   return (
     <main className="game">
       <div className="game__surface" ref={playSurface}>
-        <SceneCanvas camera={{ position: [0, 0.5, 10], fov: BASE_FOV }} frameloop={paused ? 'demand' : 'always'}>
-          <EmberValleyScene />
-        </SceneCanvas>
+        <Suspense fallback={null}>
+          <GameStage paused={paused} />
+        </Suspense>
       </div>
 
       <GameHUD />
