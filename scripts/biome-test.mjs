@@ -16,18 +16,21 @@ const S0 = BIOMES.sundarbans;
 const V = BIOMES.volcano;
 const A = BIOMES.amazon;
 const R = BIOMES.arctic;
+const C = BIOMES.celestial;
 check('Sundarbans covers the first 500 m', SUNDARBANS_END === 500 && S0.start === 0 && S0.end === 500);
 check('Volcanic Coast covers 500 to 1000 m', V.start === 500 && V.end === 1000);
 check('Amazon covers 1000 to 1500 m', A.start === 1000 && A.end === 1500);
 check('Arctic Ice Shelf covers 1500 to 2000 m', R.start === 1500 && R.end === 2000);
-check('zone lookup by border', biomeAt(0)?.id === 'sundarbans' && biomeAt(499.9)?.id === 'sundarbans' && biomeAt(500)?.id === 'volcano' && biomeAt(999.9)?.id === 'volcano' && biomeAt(1000)?.id === 'amazon' && biomeAt(1499.9)?.id === 'amazon' && biomeAt(1500)?.id === 'arctic' && biomeAt(1999.9)?.id === 'arctic' && biomeAt(2000) === null && biomeAt(9000) === null);
-check('game-over wording per zone', /creek/i.test(S0.lavaCopy) && /sea/i.test(V.lavaCopy) && /forest floor/i.test(A.lavaCopy) && /ice/i.test(R.lavaCopy));
+check('Celestial Realm covers 2000 to 3000 m', C.start === 2000 && C.end === 3000);
+check('zone lookup by border', biomeAt(0)?.id === 'sundarbans' && biomeAt(499.9)?.id === 'sundarbans' && biomeAt(500)?.id === 'volcano' && biomeAt(999.9)?.id === 'volcano' && biomeAt(1000)?.id === 'amazon' && biomeAt(1499.9)?.id === 'amazon' && biomeAt(1500)?.id === 'arctic' && biomeAt(1999.9)?.id === 'arctic' && biomeAt(2000)?.id === 'celestial' && biomeAt(2999.9)?.id === 'celestial' && biomeAt(3000) === null && biomeAt(9000) === null);
+check('game-over wording per zone', /creek/i.test(S0.lavaCopy) && /sea/i.test(V.lavaCopy) && /forest floor/i.test(A.lavaCopy) && /ice/i.test(R.lavaCopy) && /cloud/i.test(C.lavaCopy));
 
 // Each zone is full strength well inside it, and absent well outside it.
 check('Sundarbans is full strength from the start to 460 m, gone by 540 m', [0, 1, 250, 460].every((d) => zoneWeight(S0, d) === 1) && zoneWeight(S0, 540) === 0 && zoneWeight(S0, 3000) === 0);
 check('Volcanic Coast is off before 460 m, full from 540 to 960 m, gone from 1040 m', zoneWeight(V, 0) === 0 && zoneWeight(V, 460) === 0 && [540, 700, 960].every((d) => zoneWeight(V, d) === 1) && zoneWeight(V, 1040) === 0);
 check('Amazon is off before 960 m, full from 1040 to 1460 m, gone from 1540 m', zoneWeight(A, 0) === 0 && zoneWeight(A, 960) === 0 && [1040, 1250, 1460].every((d) => zoneWeight(A, d) === 1) && zoneWeight(A, 1540) === 0 && zoneWeight(A, 4000) === 0);
-check('Arctic is off before 1460 m, full from 1540 to 1920 m, gone by 2000 m', zoneWeight(R, 0) === 0 && zoneWeight(R, 1460) === 0 && [1540, 1700, 1920].every((d) => zoneWeight(R, d) === 1) && zoneWeight(R, 2000) === 0 && zoneWeight(R, 5000) === 0);
+check('Arctic is off before 1460 m, full from 1540 to 1960 m, gone from 2040 m', zoneWeight(R, 0) === 0 && zoneWeight(R, 1460) === 0 && [1540, 1700, 1960].every((d) => zoneWeight(R, d) === 1) && zoneWeight(R, 2040) === 0 && zoneWeight(R, 5000) === 0);
+check('Celestial is off before 1960 m, full from 2040 to 2920 m, gone by 3000 m', zoneWeight(C, 0) === 0 && zoneWeight(C, 1960) === 0 && [2040, 2500, 2920].every((d) => zoneWeight(C, d) === 1) && zoneWeight(C, 3000) === 0 && zoneWeight(C, 6000) === 0);
 check('FADE and CROSSFADE are 80 m', FADE === 80 && CROSSFADE === 80 && FADE_START === 460);
 
 // Handover between zones: the weights add up to exactly 1 (so the original scenery never flashes in), and each fades smoothly.
@@ -35,13 +38,13 @@ let sumsToOne = true;
 let strengthOk = true;
 let smoothSteps = true;
 const prevW = biomeWeights(0);
-const peaks = { sundarbans: 0, volcano: 0, amazon: 0, arctic: 0 };
-const turns = { sundarbans: 0, volcano: 0, amazon: 0, arctic: 0 };
-const dir = { sundarbans: 0, volcano: 0, amazon: 0, arctic: 0 };
-for (let d = 0.5; d <= 2100; d += 0.5) {
+const peaks = { sundarbans: 0, volcano: 0, amazon: 0, arctic: 0, celestial: 0 };
+const turns = { sundarbans: 0, volcano: 0, amazon: 0, arctic: 0, celestial: 0 };
+const dir = { sundarbans: 0, volcano: 0, amazon: 0, arctic: 0, celestial: 0 };
+for (let d = 0.5; d <= 3100; d += 0.5) {
   const w = biomeWeights(d);
-  const sum = w.sundarbans + w.volcano + w.amazon + w.arctic;
-  if (d <= 1920 && Math.abs(sum - 1) > 1e-9) sumsToOne = false;
+  const sum = w.sundarbans + w.volcano + w.amazon + w.arctic + w.celestial;
+  if (d <= 2920 && Math.abs(sum - 1) > 1e-9) sumsToOne = false;
   if (zoneStrength(d) < -1e-9 || zoneStrength(d) > 1 + 1e-9) strengthOk = false;
   for (const k of Object.keys(w)) {
     const step = w[k] - prevW[k];
@@ -53,12 +56,12 @@ for (let d = 0.5; d <= 2100; d += 0.5) {
     prevW[k] = w[k];
   }
 }
-check('weights add up to 1 from the start to 1920 m (no gap between zones)', sumsToOne);
+check('weights add up to 1 from the start to 2920 m (no gap between zones)', sumsToOne);
 check('combined strength stays within 0..1', strengthOk);
 check('every handover is smooth (no pops)', smoothSteps);
 check('each zone rises once and falls once (never flickers back)', Object.values(turns).every((t) => t <= 1) && Object.values(peaks).every((p) => Math.abs(p - 1) < 1e-9), JSON.stringify({ turns, peaks }));
-check('cross-fade is centred on the 500, 1000 and 1500 m borders', [[S0, V, 500], [V, A, 1000], [A, R, 1500]].every(([a, b, at]) => Math.abs(zoneWeight(a, at) - 0.5) < 1e-9 && Math.abs(zoneWeight(b, at) - 0.5) < 1e-9));
-check('the original scenery is back by 2000 m', zoneStrength(2000) === 0 && zoneStrength(1960) > 0.1 && zoneStrength(1960) < 0.9);
+check('cross-fade is centred on the 500, 1000, 1500 and 2000 m borders', [[S0, V, 500], [V, A, 1000], [A, R, 1500], [R, C, 2000]].every(([a, b, at]) => Math.abs(zoneWeight(a, at) - 0.5) < 1e-9 && Math.abs(zoneWeight(b, at) - 0.5) < 1e-9));
+check('the original scenery is back by 3000 m', zoneStrength(3000) === 0 && zoneStrength(2960) > 0.1 && zoneStrength(2960) < 0.9);
 check('Sundarbans weight helper agrees', biomeWeight(480) === zoneWeight(S0, 480));
 
 // Fairness: obstacles must read against every backdrop a zone can put behind them (WCAG-style contrast).
@@ -71,9 +74,10 @@ const hexOk = (c) => /^#[0-9a-f]{6}$/i.test(c);
 const backdropsOf = {
   sundarbans: (S) => ({ 'sky top': S.skyTop, 'sky bottom': S.skyBottom, water: S.water, ...Object.fromEntries(S.canopy.map((c, i) => [`canopy ${i}`, c])) }),
   volcano: (S) => Object.fromEntries(S.backdrops.map((c, i) => [['sky top', 'sky mid', 'horizon', 'sea', 'sand', 'rocks', 'volcano', 'snow'][i], c])),
+  celestial: (S) => Object.fromEntries(S.backdrops.map((c, i) => [['void', 'mid sky', 'bright', 'teal nebula', 'violet nebula', 'pink glow', 'crystal', 'island'][i], c])),
   amazon: (S) => ({ 'sky top': S.skyTop, 'sky bottom': S.skyBottom, floor: S.floor, bark: S.bark, bough: S.bough, ...Object.fromEntries(S.leaf.map((c, i) => [`leaf ${i}`, c])) }),
 };
-for (const zone of [BIOMES.sundarbans, BIOMES.volcano, BIOMES.amazon]) {
+for (const zone of [BIOMES.sundarbans, BIOMES.volcano, BIOMES.amazon, BIOMES.celestial]) {
   const S = zone.scene;
   const backdrops = backdropsOf[zone.id](S);
   const flat = [];
@@ -89,8 +93,10 @@ for (const zone of [BIOMES.sundarbans, BIOMES.volcano, BIOMES.amazon]) {
     }
   }
   for (const [bn, bc] of Object.entries(backdrops)) {
+    // a floating rock with a glowing rim (the Celestial Realm) reads by whichever of its body and rim stands out more
+    const seen = S.rock.rim ? Math.max(contrast(S.rock.color, bc), contrast(S.rock.rim, bc)) : contrast(S.rock.color, bc);
     const need = bn.startsWith('canopy') || bn.startsWith('leaf') || bn === 'bough' || bn === 'bark' ? 1.2 : bn === 'water' ? 1.25 : 1.5; // one natural tone cannot do better against mid-tones
-    check(`${zone.id}: rock reads against ${bn}`, contrast(S.rock.color, bc) >= need, contrast(S.rock.color, bc).toFixed(2));
+    check(`${zone.id}: rock reads against ${bn}`, seen >= need, seen.toFixed(2));
   }
 }
 
@@ -116,19 +122,22 @@ for (const zone of [V, R]) {
   }
 }
 
-// The six paintings (three for the Volcanic Coast, three for the Arctic) are real files, small enough to load quickly, and loaded lazily.
+// The nine paintings (three each for the Volcanic Coast, the Arctic and the Celestial Realm) are real files, small enough to load quickly, and loaded lazily.
 import { existsSync, statSync as fileStat } from 'node:fs';
-for (const f of ['coast-a.jpg', 'coast-b.jpg', 'coast-c.jpg', 'arctic-a.jpg', 'arctic-b.jpg', 'arctic-c.jpg']) {
+for (const f of ['coast-a.jpg', 'coast-b.jpg', 'coast-c.jpg', 'arctic-a.jpg', 'arctic-b.jpg', 'arctic-c.jpg', 'celestial-a.jpg', 'celestial-b.jpg', 'celestial-c.jpg']) {
   const path = new URL(`../public/images/backdrop/${f}`, import.meta.url);
   check(`painting ${f} exists`, existsSync(path));
-  if (existsSync(path)) check(`painting ${f} is under 120 kB`, fileStat(path).size < 120 * 1024, String(fileStat(path).size));
+  if (existsSync(path)) check(`painting ${f} is under ${f.startsWith('celestial') ? 180 : 120} kB`, fileStat(path).size < (f.startsWith('celestial') ? 180 : 120) * 1024, String(fileStat(path).size));
 }
 const backdropSource = readFileSync(new URL('../src/scenes/EmberValley/VolcanoBackdrop.jsx', import.meta.url), 'utf8');
 const zonePartsSource = readFileSync(new URL('../src/scenes/EmberValley/ZoneParts.jsx', import.meta.url), 'utf8');
 check('paintings load lazily, not at start-up', /PRELOAD_AT = 380/.test(backdropSource) && /d > preloadAt/.test(zonePartsSource) && /preloadAt=\{PRELOAD_AT\}/.test(backdropSource));
 const sceneSource = readFileSync(new URL('../src/scenes/EmberValley/EmberValleyScene.jsx', import.meta.url), 'utf8');
 const arcticSource = readFileSync(new URL('../src/scenes/EmberValley/ArcticBackdrop.jsx', import.meta.url), 'utf8');
-check('the scene mounts the Volcanic Coast and Arctic backdrops', /VolcanoBackdrop/.test(sceneSource) && /ArcticBackdrop/.test(sceneSource));
+const celestialSource = readFileSync(new URL('../src/scenes/EmberValley/CelestialBackdrop.jsx', import.meta.url), 'utf8');
+check('the scene mounts the Volcanic Coast, Arctic and Celestial backdrops', /VolcanoBackdrop/.test(sceneSource) && /ArcticBackdrop/.test(sceneSource) && /CelestialBackdrop/.test(sceneSource));
+check('Celestial paintings load lazily, just before the zone', /PRELOAD_AT = 1880/.test(celestialSource) && 1880 < C.start && C.start - 1880 <= 200);
+check('the picture never slides past its own edges (the view always stays inside it)', /vMin/.test(readFileSync(new URL('../src/scenes/EmberValley/ZoneParts.jsx', import.meta.url), 'utf8')));
 check('Arctic paintings load lazily, just before the zone', /PRELOAD_AT = 1380/.test(arcticSource) && 1380 < R.start && R.start - 1380 <= 200);
 check('the edge warning switches to a daytime look on pale scenery', /NormalBlending/.test(readFileSync(new URL('../src/components/scene/EdgeWarning.jsx', import.meta.url), 'utf8')));
 

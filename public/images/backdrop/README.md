@@ -11,3 +11,10 @@ retouched out (the neighbouring rocks were mirrored over it).
 canyon and a research station, and a finer render of the second), supplied by the project owner for the 1500 to 2000 m stretch. Each is cropped at its own
 horizon (the top 440 rows of the first, the top 350 of the others, out of 824) and resized to 1600 px wide. The snowfield, the camp's tents, snowmobile, mast
 and flagged cairn, and the slate outcrops are drawn in 3D by `src/scenes/EmberValley/ArcticBackdrop.jsx`.
+
+## Celestial Realm backdrop
+
+`celestial-a.jpg`, `celestial-b.jpg` and `celestial-c.jpg` are three cosmic paintings (floating crystal cities among galaxies and a ringed planet; the same sky with
+a wider view of the cities; the same with a figure on a balcony), supplied by the project owner for the 2000 to 3000 m stretch. Unlike the horizon-band paintings they are
+whole scenes, so each is used in full (resized from 1408x768 to 1280x698, about 120 to 160 kB each). The picture fills the sky and slides as you fly, from the cities up to the
+planet and nebulae. The cloud-sea floor and the floating crystal islands are drawn in 3D by `src/scenes/EmberValley/CelestialBackdrop.jsx`.

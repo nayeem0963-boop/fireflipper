@@ -11,12 +11,14 @@
  *    a snow-capped range and sandstone buttes on a sandy shore. The far scenery is the three coast paintings (public/images/backdrop,
  *    cropped to their horizon band and blended along the track); the water, shore and rock islands are drawn in 3D.
  *  - Arctic Ice Shelf (1500 to 2000 m): a pale ice shelf and snowfield under an aurora and a peach horizon, from three more paintings.
- *  - After 2000 m the original scenery (Ember Valley / Frost Cavern, per theme) shows. (It shows nowhere before that:
- *    the four zones join up, so there is no gap between them.)
+ *  - Celestial Realm (2000 to 3000 m): a night of floating crystal cities among galaxies, a ringed planet and nebulae, from three
+ *    cosmic paintings; the view slowly rises from the floating cities up into the cosmos.
+ *  - After 3000 m the original scenery (Ember Valley / Frost Cavern, per theme) shows. (It shows nowhere before that:
+ *    the five zones join up, so there is no gap between them.)
  *
- * Changes are gradual. Where two zones meet (500, 1000 and 1500 m) they cross-fade over CROSSFADE metres centred on the border,
+ * Changes are gradual. Where two zones meet (500, 1000, 1500 and 2000 m) they cross-fade over CROSSFADE metres centred on the border,
  * so the weights always add up to 1 and the original scenery never flashes in between. The outer edges (the start of the run
- * and 2000 m) fade over FADE metres, so scenery sinks away while the mountains rise instead of popping.
+ * and 3000 m) fade over FADE metres, so scenery sinks away while the mountains rise instead of popping.
  */
 export const SUNDARBANS_END = 500;
 export const FADE = 80;
@@ -127,6 +129,7 @@ export const BIOMES = Object.freeze({
     start: 1500,
     end: 2000,
     joinsPrev: true,
+    joinsNext: true,
     lavaCopy: 'Fell through the ice',
     orbStyle: 'day',
     scene: Object.freeze({
@@ -151,9 +154,42 @@ export const BIOMES = Object.freeze({
       backdrops: Object.freeze(['#bbecf2', '#cfd9da', '#ecdccf', '#d2e4ed', '#9ebdcb', '#b6c3c9', '#6f7f88']),
     }),
   }),
+  celestial: Object.freeze({
+    id: 'celestial',
+    name: 'Celestial Realm',
+    start: 2000,
+    end: 3000,
+    joinsPrev: true,
+    lavaCopy: 'Fell through the clouds',
+    orbStyle: 'night',
+    scene: Object.freeze({
+      // Taken from the paintings: a deep blue-violet night, pastel nebulae, glowing crystal spires.
+      skyTop: '#323b5c',
+      skyBottom: '#4a5576',
+      fog: '#3e4870',
+      bg: '#323b5c',
+      ambient: '#c6c2ff',
+      hemiSky: '#8fa0ff',
+      hemiGround: '#2a2050',
+      key: '#ffe8d4',
+      floor: '#1b2150',
+      floorMist: '#4a4f8a',
+      stars: ['#ffffff', '#bff4ff', '#ffd6f0', '#fff0b8'],
+      /** Dark indigo bodies with glowing cyan caps: between the two they read against the black void, the pastel nebulae and the pale crystal spires (fairness). */
+      column: Object.freeze({ color: '#241c4a', emissive: '#150f33', cap: '#7af0ff' }),
+      block: Object.freeze({ color: '#241c4a', emissive: '#150f33', cap: '#7af0ff' }),
+      /** `rim` is the colour of the glowing outline drawn round a floating rock here, so it reads against the dark void as well as the pale spires. */
+      rock: Object.freeze({ color: '#241c4a', emissive: '#2a1a5a', rim: '#7af0ff' }),
+      island: '#8c8cc0',
+      grass: ['#5ed0b8', '#c27ae0', '#6a9af0'],
+      crystal: ['#cfe0ff', '#f0c8ff', '#bff4ff'],
+      /** What the obstacles are tested against (see biome-test.mjs): the colours the player sees behind them. */
+      backdrops: Object.freeze(['#26314d', '#5b6685', '#cfd1d9', '#73a6b4', '#5b5480', '#e7dae2', '#c4d2e2', '#4c556c']),
+    }),
+  }),
 });
 
-const ZONES = Object.freeze([BIOMES.sundarbans, BIOMES.volcano, BIOMES.amazon, BIOMES.arctic]);
+const ZONES = Object.freeze([BIOMES.sundarbans, BIOMES.volcano, BIOMES.amazon, BIOMES.arctic, BIOMES.celestial]);
 
 const smoothstep = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -178,20 +214,21 @@ export function biomeWeight(distance) {
   return zoneWeight(BIOMES.sundarbans, distance);
 }
 
-/** { sundarbans, volcano, amazon, arctic } weights at a distance. They add up to 1 from the start to 1920 m, then fade to 0 by 2000 m. */
+/** { sundarbans, volcano, amazon, arctic, celestial } weights at a distance. They add up to 1 from the start to 2920 m, then fade to 0 by 3000 m. */
 export function biomeWeights(distance) {
   return {
     sundarbans: zoneWeight(BIOMES.sundarbans, distance),
     volcano: zoneWeight(BIOMES.volcano, distance),
     amazon: zoneWeight(BIOMES.amazon, distance),
     arctic: zoneWeight(BIOMES.arctic, distance),
+    celestial: zoneWeight(BIOMES.celestial, distance),
   };
 }
 
 /** Combined strength of every zone at a distance: how far the original scenery has been replaced (0 to 1). */
 export function zoneStrength(distance) {
   const w = biomeWeights(distance);
-  return Math.min(1, w.sundarbans + w.volcano + w.amazon + w.arctic);
+  return Math.min(1, w.sundarbans + w.volcano + w.amazon + w.arctic + w.celestial);
 }
 
 /** The zone a distance belongs to (by its border, not its fade), or null for the original scenery. */
@@ -207,11 +244,11 @@ export const ROCK_RANGE = Object.freeze({ id: 'rock', start: BIOMES.volcano.star
 
 /**
  * Which obstacle look applies at a track position: 'sundarbans', 'amazon', 'rock' (poles only, 500 to 1000 m) or null
- * (the original look, including the whole Arctic stretch). Decided by the obstacle's own position, so it is the same however the camera sees it.
+ * (the original look, including the Arctic stretch). 'celestial' is the original shapes in the realm's own colours. Decided by the obstacle's own position, so it is the same however the camera sees it.
  */
 export function obstacleStyleAt(x) {
   const zone = biomeAt(x);
   if (!zone) return null;
   if (zone.id === 'volcano') return ROCK_RANGE.id;
-  return zone.id === 'arctic' ? null : zone.id; // the Arctic keeps the original obstacles
+  return zone.id === 'arctic' ? null : zone.id; // the Arctic keeps the original obstacles; the Celestial Realm recolours them (see ObstacleField)
 }

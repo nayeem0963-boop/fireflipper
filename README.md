@@ -259,3 +259,15 @@ zones share `ZoneParts.jsx` (the painting blend, the gradient sky and the parall
 
 **Edge warning on pale scenery.** In portrait the screen-edge warning for approaching obstacles used additive glow, which washes out to white on the pale
 Sundarbans, Volcanic Coast and Arctic scenery and hides the gaps. There it now draws normal-blended bars in the theme's deep daytime colour, pale for far and saturated for near.
+
+## Celestial Realm (2000 to 3000 m)
+
+The fifth zone is a night of floating crystal cities among galaxies, a ringed planet and pastel nebulae, from three cosmic paintings (`public/images/backdrop/celestial-*.jpg`). They
+are whole scenes, not horizon bands, so each fills the sky (scaled to cover the view, with no edge ever showing) and slowly **slides as you fly**: the view starts on the floating cities
+at 2000 m and climbs through the swirling galaxy to the planet, nebulae and comet by 3000 m. The paintings dissolve at about 2330 m and 2660 m (the three share one sky, so only the cities
+change). The floor is a starlit cloud sea, and small floating crystal islands (grass top, rock underneath, pastel spires) drift past at two depths and bob gently, all instanced. The Arctic
+cross-fades into it around 2000 m, and it fades back to the original scenery by 3000 m. The paintings load only from 1880 m.
+
+Obstacles keep their shapes here but turn dark indigo with glowing cyan caps, and floating rocks get a glowing cyan outline, so they read against the black void, the pastel nebulae
+and the pale crystal spires alike (`npm run test:biome` checks the contrast against every backdrop colour, in the paintings' palette). Colliders are untouched, and a fall reads "Fell through the clouds".
+Nothing in the simulation reads the zones.

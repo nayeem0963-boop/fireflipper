@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { DoubleSide, Object3D } from 'three';
+import { BackSide, DoubleSide, Object3D } from 'three';
 import { WORLD } from '../../systems/physics/constants.js';
-import { obstacleStyleAt } from '../../systems/world/biomes.js';
+import { BIOMES, obstacleStyleAt } from '../../systems/world/biomes.js';
 import { useTheme } from '../../hooks/useTheme.js';
 import { OBSTACLE_STYLE_IDS, createObstacleStyle, styleGeometries } from './obstacleStyles.js';
 
@@ -27,6 +27,8 @@ const MAX = { column: 48, block: 12, rock: 112, up: 16, down: 48, deco: 192 };
 /** How much of a pole is dressed (metres from the gap end): the rest is off screen or under the water / ground. */
 const DECO_REACH = 9;
 const CAP_THICKNESS = 0.14;
+/** The Celestial Realm's obstacle colours (the original shapes, recoloured: see systems/world/biomes.js). */
+const CEL = BIOMES.celestial.scene;
 /** Zone caps are a little taller than the flat original ones so their shapes read; still inside the corridor edge. */
 const ZONE_CAP = 1.0;
 
@@ -56,11 +58,13 @@ export default function ObstacleField({ sim }) {
       if (x < -20 - o.extent || x > 60) continue;
       // The look follows the obstacle's own position. Between the zones (500 to 1000 m) only poles are rock pillars;
       // slabs and floating rocks there keep the original look.
+      // In the Celestial Realm (2000 to 3000 m) the original shapes are drawn in the realm's own colours ('tinted').
       let style = obstacleStyleAt(o.x) ?? 'default';
       if (style === 'rock' && o.kind !== 'column') style = 'default';
+      if (style === 'celestial') style = 'tinted';
       if (!refs.current[style]) style = 'default';
       const set = refs.current[style];
-      const zoned = style !== 'default';
+      const zoned = style !== 'default' && style !== 'tinted'; // zone looks with their own shapes (animals, plants, pillars)
       const L = zoned ? styles[style].layout : null;
 
       if (o.kind === 'rock') {
@@ -80,6 +84,12 @@ export default function ObstacleField({ sim }) {
         }
         dummy.updateMatrix();
         set.rock.setMatrixAt(i, dummy.matrix);
+        if (set.rim) {
+          // the outline shell: the same transform, 12% larger
+          dummy.scale.multiplyScalar(1.12);
+          dummy.updateMatrix();
+          set.rim.setMatrixAt(next(style, 'rim'), dummy.matrix);
+        }
         continue;
       }
 
@@ -231,6 +241,33 @@ export default function ObstacleField({ sim }) {
       <instancedMesh ref={reg('default', 'rock')} args={[undefined, undefined, MAX.rock]} frustumCulled={false}>
         <icosahedronGeometry args={[1, 1]} />
         <meshStandardMaterial color={scene.rock.color} emissive={scene.rock.emissive} emissiveIntensity={0.55} roughness={0.8} flatShading />
+      </instancedMesh>
+
+      {/* The Celestial Realm (2000 to 3000 m): the same shapes in dark indigo with glowing cyan caps */}
+      <instancedMesh ref={reg('tinted', 'column')} args={[undefined, undefined, MAX.column]} frustumCulled={false}>
+        <cylinderGeometry args={[0.5, 0.5, 1, 6]} />
+        <meshStandardMaterial color={CEL.column.color} emissive={CEL.column.emissive} emissiveIntensity={0.7} roughness={0.7} flatShading />
+      </instancedMesh>
+      <instancedMesh ref={reg('tinted', 'cap')} args={[undefined, undefined, MAX.column]} frustumCulled={false}>
+        <cylinderGeometry args={[0.5, 0.5, 1, 6]} />
+        <meshBasicMaterial color={CEL.column.cap} toneMapped={false} />
+      </instancedMesh>
+      <instancedMesh ref={reg('tinted', 'block')} args={[undefined, undefined, MAX.block]} frustumCulled={false}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color={CEL.block.color} emissive={CEL.block.emissive} emissiveIntensity={0.7} roughness={0.7} flatShading />
+      </instancedMesh>
+      <instancedMesh ref={reg('tinted', 'blockCap')} args={[undefined, undefined, MAX.block]} frustumCulled={false}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshBasicMaterial color={CEL.block.cap} toneMapped={false} />
+      </instancedMesh>
+      <instancedMesh ref={reg('tinted', 'rock')} args={[undefined, undefined, MAX.rock]} frustumCulled={false}>
+        <icosahedronGeometry args={[1, 1]} />
+        <meshStandardMaterial color={CEL.rock.color} emissive={CEL.rock.emissive} emissiveIntensity={0.9} roughness={0.5} metalness={0.2} flatShading />
+      </instancedMesh>
+      {/* A glowing outline round each floating rock (a slightly larger back-face shell), so it reads against the black void too */}
+      <instancedMesh ref={reg('tinted', 'rim')} args={[undefined, undefined, MAX.rock]} frustumCulled={false}>
+        <icosahedronGeometry args={[1, 1]} />
+        <meshBasicMaterial color={CEL.rock.rim} side={BackSide} transparent opacity={0.9} toneMapped={false} depthWrite={false} />
       </instancedMesh>
 
       {/* Zone looks: animals and plants of the Sundarbans and the Amazon (vertex-coloured geometry from obstacleStyles.js) */}

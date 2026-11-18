@@ -78,8 +78,12 @@ export function GradientSky({ wRef, top, bottom }) {
  *
  * Props: zone, paintings [{ file, aspect }], cuts (metres where painting i+1 dissolves in), dissolve (metres), preloadAt, pan (world
  * units per metre), fadeRgb ([r, g, b] of the sky colour at the top of every painting, used to melt its top edge into the sky).
+ *
+ * `rise` switches to "sky" mode for a painting that is a whole scene rather than a horizon band (the Celestial Realm): the picture is scaled to
+ * cover the view and slides down as you fly, from `rise.from` to `rise.to` (the fraction of the picture, from its top, that sits on the horizon),
+ * so the view climbs from the floating cities up into the cosmos. No top fade is needed there.
  */
-export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30, preloadAt, pan = 0.036, fadeRgb }) {
+export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30, preloadAt, pan = 0.036, fadeRgb, rise }) {
   const meshes = useRef([]);
   const mats = useRef([]);
   const fades = useRef([]);
@@ -144,7 +148,8 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
     const viewW = viewH * cam.aspect;
     // Large enough to cover the view and reach the sky, but on a tall (portrait) screen no more than ~2.6 views wide, so the scenery stays in frame.
     const needH = cam.position.y - WORLD.groundY + viewH * 0.58;
-    const W = Math.max(viewW * 1.12, Math.min(needH * refAspect, viewW * 2.6));
+    // Sky mode: cover the view both ways (at least 1.5x the visible height, so there is room to slide); band mode as before.
+    const W = rise ? Math.max(viewW * 1.12, needH * 1.5 * refAspect) : Math.max(viewW * 1.12, Math.min(needH * refAspect, viewW * 2.6));
     const slack = (W - viewW) / 2;
     const x = cam.position.x + clamp(slack - (d - zone.start) * pan, -slack, slack);
     paintings.forEach(({ aspect }, i) => {
@@ -157,12 +162,24 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
       if (f) f.visible = show;
       if (!show) return;
       const H = W / aspect;
-      m.position.set(x, WORLD.groundY + H / 2 - 0.05, BAND_Z);
+      let y = WORLD.groundY + H / 2 - 0.05;
+      if (rise) {
+        // the row v of the picture on the horizon slides from rise.from to rise.to, kept inside the picture so no edge ever shows
+        const t = smooth(0, 1, (d - zone.start) / (zone.end - zone.start));
+        const vMin = Math.min(0.99, needH / H);
+        const v = clamp(rise.from + (rise.to - rise.from) * t, vMin, 1);
+        y = WORLD.groundY + H * (v - 0.5);
+      }
+      m.position.set(x, y, BAND_Z);
       m.scale.set(W, H, 1);
       mats.current[i].opacity = Math.min(1, alpha * 1.5);
-      f.position.set(x, WORLD.groundY + H * 0.91, BAND_Z + 0.01);
-      f.scale.set(W, H * 0.18, 1);
-      fadeMats.current[i].opacity = Math.min(1, alpha * 1.5);
+      if (rise) {
+        f.visible = false;
+      } else {
+        f.position.set(x, WORLD.groundY + H * 0.91, BAND_Z + 0.01);
+        f.scale.set(W, H * 0.18, 1);
+        fadeMats.current[i].opacity = Math.min(1, alpha * 1.5);
+      }
     });
   });
 
@@ -188,7 +205,7 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
  * A layer of low scenery behind the flight plane (boulder islands, rock outcrops, tents...): one instanced mesh of the given geometry,
  * scrolling at its own parallax speed, growing from nothing as the zone fades in. `yScale` squashes it (flat outcrops).
  */
-export function ParallaxLayer({ sim, wRef, geometry, depth, scale, count, span, speedFactor, seed, tint, yScale = 1 }) {
+export function ParallaxLayer({ sim, wRef, geometry, depth, scale, count, span, speedFactor, seed, tint, yScale = 1, lift = [0, 0], emissive, emissiveIntensity = 0.4, growAll = false, bob = 0 }) {
   const mesh = useRef();
   const dummy = useMemo(() => new Object3D(), []);
   const items = useMemo(() => {
@@ -199,8 +216,10 @@ export function ParallaxLayer({ sim, wRef, geometry, depth, scale, count, span, 
       dz: (rand() - 0.5) * 3,
       rot: rand() * Math.PI * 2,
       shade: 0.85 + rand() * 0.25,
+      y: lift[0] + rand() * (lift[1] - lift[0]),
+      phase: rand() * Math.PI * 2,
     }));
-  }, [count, scale, seed, span]);
+  }, [count, scale, seed, span, lift]);
   useEffect(() => {
     const m = mesh.current;
     if (!m) return;
@@ -218,9 +237,11 @@ export function ParallaxLayer({ sim, wRef, geometry, depth, scale, count, span, 
     items.forEach((it, i) => {
       let x = it.x - offset;
       if (x < -span / 2) x += span;
-      dummy.position.set(x + camX, WORLD.groundY, it.dz);
+      const floatY = bob ? Math.sin(state.clock.elapsedTime * 0.6 + it.phase) * bob : 0;
+      dummy.position.set(x + camX, WORLD.groundY + it.y + floatY, it.dz);
       dummy.rotation.set(0, it.rot, 0);
-      dummy.scale.set(it.s, it.s * yScale * grow, it.s);
+      if (growAll) dummy.scale.setScalar(it.s * grow);
+      else dummy.scale.set(it.s, it.s * yScale * grow, it.s);
       dummy.updateMatrix();
       m.setMatrixAt(i, dummy.matrix);
     });
@@ -230,7 +251,7 @@ export function ParallaxLayer({ sim, wRef, geometry, depth, scale, count, span, 
     <group position={[0, 0, depth]}>
       <instancedMesh ref={mesh} args={[undefined, undefined, count]} frustumCulled={false}>
         <primitive object={geometry} attach="geometry" />
-        <meshStandardMaterial vertexColors flatShading roughness={1} />
+        <meshStandardMaterial vertexColors flatShading roughness={1} emissive={emissive ?? '#000000'} emissiveIntensity={emissive ? emissiveIntensity : 0} />
       </instancedMesh>
     </group>
   );

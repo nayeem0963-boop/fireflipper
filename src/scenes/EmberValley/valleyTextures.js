@@ -311,3 +311,55 @@ export function createSnowTexture(s) {
   tex.anisotropy = 4;
   return tex;
 }
+
+/**
+ * The Celestial Realm's floor: a deep blue-violet cloud sea with soft pastel mist and scattered stars. Tiles in both directions
+ * (one tile = 4 world units). The stars give it a glittering, starlit-water look as it scrolls past.
+ */
+export function createStarSeaTexture(s) {
+  const size = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const rnd = seededRnd(57);
+  ctx.fillStyle = s.floor;
+  ctx.fillRect(0, 0, size, size);
+  // soft mist blotches (drawn at every wrap offset so the tile is seamless)
+  for (let i = 0; i < 9; i++) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    const r = 40 + rnd() * 70;
+    for (const dx of [-size, 0, size]) {
+      for (const dy of [-size, 0, size]) {
+        const g = ctx.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
+        g.addColorStop(0, i % 3 === 0 ? 'rgba(150,110,210,0.30)' : 'rgba(90,120,200,0.28)');
+        g.addColorStop(1, 'rgba(60,70,150,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x + dx - r, y + dy - r, r * 2, r * 2);
+      }
+    }
+  }
+  // stars: mostly tiny, a few with a glow
+  for (let i = 0; i < 70; i++) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    const big = rnd() > 0.88;
+    ctx.fillStyle = s.stars[Math.floor(rnd() * s.stars.length)];
+    ctx.globalAlpha = 0.55 + rnd() * 0.45;
+    ctx.beginPath();
+    ctx.arc(x, y, big ? 2.2 : 1, 0, Math.PI * 2);
+    ctx.fill();
+    if (big) {
+      ctx.globalAlpha = 0.25;
+      ctx.beginPath();
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = tex.wrapT = RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
