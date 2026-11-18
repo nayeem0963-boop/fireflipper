@@ -171,86 +171,9 @@ colour unlocks at a best score of 600 and White at 1,500. Each theme remembers i
 only: the simulation has no theme input, and `npm run test:theme` checks both themes define every colour, that
 obstacles and orbs keep strong contrast against the background, and that a run is identical in both.
 
-## Sundarbans (first 500 m)
-
-The first 500 m of every run is the Sundarbans mangrove delta, recreated for Fire Flipper in the style of the
-Bulbuli project's Sundarbans scene (nothing is copied: it is all built from primitives, so no extra assets): pale
-teal sky and haze, three parallax layers of faceted mangroves with stilt roots, tidal-water floor with ripples, breathing-root
-spikes and grass tufts, dark-bark obstacles with moss / plank caps, daylight lighting, and saturated orbs that stay visible
-on the bright background. Between 420 and 500 m the mangroves sink while the mountains rise, and the original scenery
-(Ember Valley or Frost Cavern, per theme) takes over. `systems/world/biomes.js` holds the zone data; `SundarbansBackdrop.jsx`
-draws it (about 8 instanced draw calls). It is looks only: obstacles, collisions, speed and scoring depend on distance alone, and
-`npm run test:biome` checks the fade, the contrast of obstacles against the Sundarbans backdrop, and that no simulation code reads the zone.
-In dev builds `window.__fireflipper.game` lets you jump along the track for screenshots.
-
-## Amazon (1000 to 1500 m)
-
-A second scenery zone, recreated in the style of the Bulbuli project's Amazon scene (built from primitives; no assets copied):
-tall slender rainforest trunks with buttress roots, boughs and dense faceted crowns in three parallax layers, an overhead leaf
-canopy, a leaf-litter forest floor, ferns, swaying hanging vines, soft light shafts and a teal-green haze. Obstacles turn sunlit
-wood with bright caps so they stand out against the dark trunks and leaves, and a fall reads "Fell to the forest floor". It grows in over
-1000 to 1080 m and fades out over 1420 to 1500 m (scenery sinks while the mountains rise), the group is hidden outside the zone so it
-costs nothing elsewhere, and it is about 9 instanced draw calls inside it. Zone data and the blend maths are in
-`systems/world/biomes.js` (`BIOMES`, `zoneWeight`, `biomeWeights`); `AmazonBackdrop.jsx` draws it. Looks only: `npm run test:biome`
-checks both zones' ranges and fades, that they never overlap, obstacle contrast against each backdrop, and that no simulation code reads them.
-
-## Zone obstacles
-
-In the Sundarbans and Amazon zones the obstacles are animals and plants of the region, drawn in place of the plain columns, slabs and rocks
-(chosen from the obstacle's own track position: `ObstacleField.jsx`, layout in `obstacleStyles.js`, models in `animalModels.js`,
-all built from primitives with vertex colours, so no model files):
-
-| | Rising column | Hanging column | Lower slab (on top) | Upper slab (underside) | Floating |
-| --- | --- | --- | --- | --- | --- |
-| **Sundarbans** (0 to 500 m) | Sundari mangrove: stilt roots at the water line, leaf crown | wild honey hive on a branch | Bengal tiger or saltwater crocodile on a mud bank | roosting fruit bats | swarm of angry bees |
-| **Amazon** (1000 to 1500 m) | kapok tree with buttress roots and a toco toucan on top | emerald tree boa coiled round the end | jaguar or green anaconda on a fallen log | hanging three-toed sloths | blue morpho butterfly |
-| elsewhere | the original columns, slabs and rocks (themed red / blue) | | | | |
-
-Only the drawing changes. Colliders are untouched and stay honest: floating creatures are drawn at least as large as the circle collider
-(the bee swarm's core is never inside it, and a test samples the morpho's wings to prove they cover the whole disc), a trunk body covers its
-hitbox, and everything that reaches into a gap stays under 1.2 m. The morpho always faces you and never spins. Looks with nothing on screen are
-hidden, so they cost nothing; gameplay stays around 50 to 60 draw calls per frame. `npm run test:obstacles` checks all of this.
-
-**Dressed poles.** The columns (poles) are not plain bars: growths spill out of the trunk all along its visible length, on both sides, so the
-outline is broken up and the pole reads as a living tree. Sundarbans: leafy mangrove branches, honeycomb clusters with bees and hanging aerial roots.
-Amazon: bromeliads, liana curtains with leaves and bracket-fungus shelves. They are modest (under 1.3 m out) and only ever start at the trunk or beyond
-the gap end, never in the gap, so they never hide where it is safe to fly.
-`gallery.html` (dev server only, not built) shows every model close up: `/gallery.html?set=sund` or `?set=amazon` (add `&only=createTiger`, `&z=6`).
-
-## Tree-trunk and rock poles
-
-Poles (the tall columns) now have a look per stretch of the track:
-
-| Track | Pole |
-| --- | --- |
-| 0 to 500 m (Sundarbans) | ridged mangrove trunk: 14 bark ridges shaded dark to light, knots with broken branch stubs and leaf tufts, branches, honeycombs, aerial roots, stilt roots at the water line |
-| 500 to 1000 m | **rock pillar**: a faceted stone column with strata shading, glowing crystal shards at the gap end, scree at the foot of a rising pillar, and angular outcrops and stone spikes jutting from the sides. Tinted by the theme (red embers or blue ice) |
-| 1000 to 1500 m (Amazon) | ridged rainforest trunk: bark ridges, knots with stubs and leaf tufts, bromeliads, lianas, bracket fungi, buttress roots, toucan / tree boa on the end |
-| elsewhere | the original columns |
-
-Between the zones only the poles change; slabs and floating rocks keep the original look. `obstacleStyleAt(x)` (in `systems/world/biomes.js`) picks the look from the
-obstacle's own position. Ridges and facets only ever push outwards (or barely in), the narrowest face of every pole is wider than the 0.4 collider half-width, and
-`npm run test:obstacles` checks that for all three looks.
-
-## Volcanic Coast (500 to 1000 m)
-
-The stretch between the Sundarbans and the Amazon is a pale-teal sea under a peach horizon, built from three coast paintings you supplied
-(`public/images/backdrop/`): an erupting volcano on a boulder island, the same volcano beside a snow-capped range, and sandstone buttes on a sandy shore.
-Each is cropped to its sky-and-horizon band, scaled from the camera so it always fills the view (and stays in frame on a tall phone screen),
-drifts slowly sideways as you fly, and dissolves into the next at about 660 m and 820 m. The sea, the beach (from about 760 m) and the rock islands
-are drawn in 3D, matched to the paintings' colours, so the horizon joins up and the scenery keeps depth and parallax. The paintings load only once
-you pass 380 m (about 30 kB each). If one fails to load, the sky and 3D sea still show.
-
-The three zones **cross-fade** over 80 m centred on each border (500 m and 1000 m), so their weights always add up to 1 and the original
-Ember Valley / Frost Cavern scenery never flashes in between; it only returns after 1500 m. Lights, fog and the sky blend with the same weights, and the
-mountains sink while a zone is showing. Poles in this stretch are the rock pillars described above; slabs and floating rocks keep the original look, coloured
-by the theme. Daytime orbs (Sundarbans and here) use a deeper, saturated halo in each theme so they stay unmistakable on the pale scenery. All looks only:
-`npm run test:biome` checks the borders, the handover, the contrast of obstacles and orbs against the coast in both themes, the paintings' files, and that no
-simulation code reads the zones.
-
 ## Arctic Ice Shelf (1500 to 2000 m)
 
-The fourth scenery zone, built the same way as the Volcanic Coast from three arctic paintings (`public/images/backdrop/arctic-*.jpg`): an ice shelf under an aurora
+The second scenery zone, built the same way as the canyon from three arctic paintings (`public/images/backdrop/arctic-*.jpg`): an ice shelf under an aurora
 with a peach horizon. Each painting is cropped at its horizon, sized from the camera so it fills the view, and dissolves into the next at about 1720 m and 1860 m
 (the last two are near-identical renders, so that handover is subtle). The snowfield, the slate outcrops and a research camp (orange dome tents, snowmobile, radio
 mast, flagged cairn) are 3D, so there is depth and parallax. The paintings only load from 1380 m on. The Amazon cross-fades into it around 1500 m, and it fades back
@@ -258,7 +181,7 @@ to the original Ember Valley / Frost Cavern scenery by 2000 m, so the four zones
 zones share `ZoneParts.jsx` (the painting blend, the gradient sky and the parallax layers).
 
 **Edge warning on pale scenery.** In portrait the screen-edge warning for approaching obstacles used additive glow, which washes out to white on the pale
-Sundarbans, Volcanic Coast and Arctic scenery and hides the gaps. There it now draws normal-blended bars in the theme's deep daytime colour, pale for far and saturated for near.
+pale scenery (the canyon, the arctic, the palace) and hides the gaps. There it now draws normal-blended bars in the theme's deep daytime colour, pale for far and saturated for near.
 
 ## Celestial Realm (2000 to 3000 m)
 
@@ -284,3 +207,17 @@ Obstacles keep their shapes but turn **deep teal with white caps** (the colours 
 foliage; `npm run test:biome` checks the contrast against every backdrop colour. A fall reads "Splashed into the palace pool". Daytime orbs and the portrait edge warning use their pale-scenery looks here.
 The scene's lights, fog and sky now blend over every zone in a loop (`ZONE_IDS` in `systems/world/biomes.js`), and recoloured obstacle sets are generated per zone (`TINTED_ZONES` in `ObstacleField.jsx`), so adding
 another zone is mostly data. Nothing in the simulation reads the zones.
+
+## Red Rock Canyon (0 to 1500 m)
+
+The first 1500 m is a red sandstone canyon at sunset, from three paintings (`public/images/backdrop/canyon-*.jpg`), **one for each 500 m**: an arch and a misty gorge (0 to 500 m), pillars and a natural bridge in the low sun
+(500 to 1000 m), a winding river canyon (1000 to 1500 m). Each painting is a whole scene, scaled to about 1.55 times the visible height with its valley floor on the horizon: the cliffs, arches and sunset sky fill the view above it, and a
+dusty faceted 3D canyon floor takes over below it. They drift slowly sideways as you fly and dissolve into each other at 500 m and 1000 m (over 60 m); red sandstone mesas stand at two depths for parallax. Only the first painting loads at
+start-up (about 140 kB); the others load from about 250 m and 750 m. It cross-fades into the Arctic around 1500 m.
+
+**Retired scenes.** The Sundarbans and Amazon scenery and the Volcanic Coast backdrop that used to fill this range are gone (their images are deleted). The animal and plant obstacle looks built for them (tigers, crocodiles, bats, beehives, toucans, jaguars,
+sloths, morpho butterflies, ridged tree-trunk poles, rock pillars) are **kept in the repo but not live**: `components/scene/obstacleStyles.js`, `animalModels.js` and the geometry helpers still build them, `ACTIVE_OBSTACLE_LOOKS` in `systems/world/biomes.js` is empty,
+and `npm run test:obstacles` still checks their sizes against their colliders. To bring a look back, add its id to `ACTIVE_OBSTACLE_LOOKS` and map a track range to it in `obstacleStyleAt`. (They were last live in commit `9a63602`.)
+
+**Obstacles and orbs in the canyon.** Obstacles keep their shapes but turn deep indigo with cream caps, and floating rocks get a cream outline, so they read against the orange rock, the purple-pink sky and the dark shadows. Orbs are a cream core in a deep violet halo (they would
+vanish orange-on-orange otherwise), and the portrait edge warning uses deep violet bars. `npm run test:biome` checks the contrast of all of these against every backdrop colour from the paintings. Nothing in the simulation reads the zones.

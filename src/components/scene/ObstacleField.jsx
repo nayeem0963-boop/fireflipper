@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { BackSide, DoubleSide, Object3D } from 'three';
 import { WORLD } from '../../systems/physics/constants.js';
-import { BIOMES, obstacleStyleAt } from '../../systems/world/biomes.js';
+import { ACTIVE_OBSTACLE_LOOKS, BIOMES, obstacleStyleAt } from '../../systems/world/biomes.js';
 import { useTheme } from '../../hooks/useTheme.js';
-import { OBSTACLE_STYLE_IDS, createObstacleStyle, styleGeometries } from './obstacleStyles.js';
+import { createObstacleStyle, styleGeometries } from './obstacleStyles.js';
 
 /** Deterministic 0..1 from a number, so an obstacle always picks the same animal and spot. */
 const hash = (n) => {
@@ -17,10 +17,9 @@ const hash = (n) => {
  * of draw calls no matter how many obstacles are alive. Instance matrices are rewritten each frame from simulation
  * data; nothing is allocated per frame.
  *
- * Each obstacle is drawn in the look of the scenery zone it stands in (chosen by its own track position):
- * the original look (coloured by the theme), or the Sundarbans / Amazon look with the animals and plants of those regions
- * (tigers, crocodiles, bats, beehives, toucans, jaguars, sloths, morpho butterflies...; see obstacleStyles.js). Only the
- * drawing differs: colliders never change.
+ * Each obstacle is drawn in the look of the scenery zone it stands in (chosen by its own track position): the original look (coloured by the
+ * theme), or the original shapes recoloured for the zone (canyon, celestial, palace). Looks with their own shapes (the retired Sundarbans / Amazon
+ * animals and plants and the rock pillars, see obstacleStyles.js) are built only if listed in ACTIVE_OBSTACLE_LOOKS. Only the drawing differs: colliders never change.
  * Meshes with nothing to draw are hidden, so a look costs nothing when it is not on screen.
  */
 const MAX = { column: 48, block: 12, rock: 112, up: 16, down: 48, deco: 192 };
@@ -31,7 +30,7 @@ const CAP_THICKNESS = 0.14;
  * Zones that keep the original obstacle shapes but recolour them (see systems/world/biomes.js): zone id -> the id of its 'tinted' mesh set.
  * Each set is the six original meshes in the zone's own colours.
  */
-const TINTED_ZONES = Object.freeze({ celestial: BIOMES.celestial.scene, palace: BIOMES.palace.scene });
+const TINTED_ZONES = Object.freeze({ canyon: BIOMES.canyon.scene, celestial: BIOMES.celestial.scene, palace: BIOMES.palace.scene });
 /** Zone caps are a little taller than the flat original ones so their shapes read; still inside the corridor edge. */
 const ZONE_CAP = 1.0;
 
@@ -44,7 +43,8 @@ export default function ObstacleField({ sim }) {
   const reg = (style, part) => (m) => {
     (refs.current[style] ??= {})[part] = m;
   };
-  const styles = useMemo(() => Object.fromEntries(OBSTACLE_STYLE_IDS.map((id) => [id, createObstacleStyle(id)])), []);
+  // Looks with their own shapes (animals, plants, pillars) are only built when a track range is mapped to them (none are, now: see ACTIVE_OBSTACLE_LOOKS).
+  const styles = useMemo(() => Object.fromEntries(ACTIVE_OBSTACLE_LOOKS.map((id) => [id, createObstacleStyle(id)])), []);
   useEffect(() => () => Object.values(styles).forEach((st) => styleGeometries(st).forEach((g) => g.dispose())), [styles]);
 
   useFrame(() => {
@@ -59,11 +59,9 @@ export default function ObstacleField({ sim }) {
     for (const o of sim.obstacles.active) {
       const x = o.x - dist;
       if (x < -20 - o.extent || x > 60) continue;
-      // The look follows the obstacle's own position. Between the zones (500 to 1000 m) only poles are rock pillars;
-      // slabs and floating rocks there keep the original look.
+      // The look follows the obstacle's own position: the original shapes in the zone's own colours ('tinted-...'), or the original look.
       // In the Celestial Realm (2000 to 3000 m) the original shapes are drawn in the realm's own colours ('tinted').
       let style = obstacleStyleAt(o.x) ?? 'default';
-      if (style === 'rock' && o.kind !== 'column') style = 'default';
       if (TINTED_ZONES[style]) style = `tinted-${style}`;
       if (!refs.current[style]) style = 'default';
       const set = refs.current[style];
@@ -252,7 +250,7 @@ export default function ObstacleField({ sim }) {
       ))}
 
       {/* Zone looks: animals and plants of the Sundarbans and the Amazon (vertex-coloured geometry from obstacleStyles.js) */}
-      {OBSTACLE_STYLE_IDS.map((id) => {
+      {ACTIVE_OBSTACLE_LOOKS.map((id) => {
         const { geo } = styles[id];
         if (id === 'rock') {
           // Rock pillars (500 to 1000 m): grey-scale geometry tinted by the theme; shards glow in the theme's cap colour.

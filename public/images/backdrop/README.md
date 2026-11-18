@@ -1,9 +1,8 @@
-# Volcanic Coast backdrop
+## Red Rock Canyon backdrop
 
-`coast-a.jpg`, `coast-b.jpg` and `coast-c.jpg` are the three coast paintings supplied by the project owner for the 500 to 1000 m stretch of
-the game, cropped to their sky-and-horizon band (the top 462 of 824 rows, resized to 1600 x 370). The sea and sand below the horizon are
-drawn in 3D by `src/scenes/EmberValley/VolcanoBackdrop.jsx`. A tree-trunk obstacle that appeared in the bottom-left of the first image was
-retouched out (the neighbouring rocks were mirrored over it).
+`canyon-a.jpg`, `canyon-b.jpg` and `canyon-c.jpg` are three red sandstone canyon paintings at sunset (an arch and a misty gorge; pillars and a natural bridge in the low sun; a winding river canyon), supplied by the project owner for the first 1500 m, one for each 500 m
+(originally 1672x941 WebP, 230 to 340 kB each). Each is a whole scene, resized to 1280x720 JPEG (about 110 to 140 kB). The valley floor of each picture (row 0.66) sits on the game's horizon; everything below it is replaced by a 3D canyon floor, drawn by
+`src/scenes/EmberValley/CanyonBackdrop.jsx`.
 
 ## Arctic Ice Shelf backdrop
 

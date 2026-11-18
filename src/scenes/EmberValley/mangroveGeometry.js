@@ -1,6 +1,7 @@
 import {
   BufferAttribute,
   Color,
+  BoxGeometry,
   CylinderGeometry,
   DodecahedronGeometry,
   ConeGeometry,
@@ -106,22 +107,16 @@ export function createTuftGeometry() {
   return mergeGeometries(blades, false);
 }
 
-/** A cluster of faceted boulders standing in the water (the Volcanic Coast's rock islands): about 3 units wide and 1.6 tall, base on y = 0. */
-export function createCoastRocks(colors) {
+/**
+ * Red sandstone mesas for the Red Rock Canyon's parallax layers: each is a stack of three ledges (wide, medium, narrow) with a pale cap, about
+ * 3 units wide and 3 tall, base on y = 0. One geometry (vertex colours) per layer, so one draw call.
+ */
+export function createCanyonMesas(colors) {
   const parts = [];
-  [
-    [0, 0.55, 0, 0.8, 0],
-    [-0.95, 0.35, 0.1, 0.55, 1],
-    [0.9, 0.3, -0.1, 0.5, 2],
-    [0.3, 0.95, 0.05, 0.42, 0],
-    [-0.4, 0.22, 0.35, 0.38, 2],
-  ].forEach(([x, y, z, r, k], i) => {
-    parts.push(
-      paint(
-        place(new DodecahedronGeometry(r, 0), { position: [x, y, z], rotation: [0.3 * i, 0.9 * i, 0.2 * i], scale: [1.1, 0.85 + (i % 2) * 0.2, 1] }),
-        colors[k % colors.length],
-      ),
-    );
-  });
+  const ledge = (w, h, d, y, color, x = 0) => parts.push(paint(place(new BoxGeometry(w, h, d), { position: [x, y + h / 2, 0], rotation: [0, 0.1 * (x + 1), 0] }), color));
+  ledge(2.6, 1.3, 1.9, 0, colors[1]);
+  ledge(2.0, 1.1, 1.5, 1.3, colors[0], -0.1);
+  ledge(1.3, 1.0, 1.1, 2.4, colors[2], 0.15);
+  parts.push(paint(place(new BoxGeometry(1.5, 0.12, 1.3), { position: [0.15, 3.46, 0] }), '#f0a070'));
   return mergeGeometries(parts, false);
 }

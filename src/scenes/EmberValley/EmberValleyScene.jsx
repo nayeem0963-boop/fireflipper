@@ -14,9 +14,7 @@ import { PHASE } from '../../systems/game/createGameSim.js';
 import { useTheme } from '../../hooks/useTheme.js';
 import CameraRig from './CameraRig.jsx';
 import Backdrop from './Backdrop.jsx';
-import SundarbansBackdrop from './SundarbansBackdrop.jsx';
-import AmazonBackdrop from './AmazonBackdrop.jsx';
-import VolcanoBackdrop from './VolcanoBackdrop.jsx';
+import CanyonBackdrop from './CanyonBackdrop.jsx';
 import ArcticBackdrop from './ArcticBackdrop.jsx';
 import CelestialBackdrop from './CelestialBackdrop.jsx';
 import PalaceBackdrop from './PalaceBackdrop.jsx';
@@ -89,9 +87,7 @@ export default function EmberValleyScene() {
 
       <CameraRig sim={game} />
       <Backdrop sim={game} />
-      <SundarbansBackdrop sim={game} />
-      <VolcanoBackdrop sim={game} />
-      <AmazonBackdrop sim={game} />
+      <CanyonBackdrop sim={game} />
       <ArcticBackdrop sim={game} />
       <CelestialBackdrop sim={game} />
       <PalaceBackdrop sim={game} />

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, Color, NormalBlending, Object3D } from 'three';
-import { biomeWeights } from '../../systems/world/biomes.js';
+import { dominantZone } from '../../systems/world/biomes.js';
 import { useTheme } from '../../hooks/useTheme.js';
 
 /**
@@ -17,23 +17,33 @@ export default function OrbField({ sim }) {
   const dummy = useMemo(() => new Object3D(), []);
   const coreMat = useRef();
   const haloMat = useRef();
-  const day = useRef(null);
-  const colors = useMemo(() => ({ coreNight: new Color(scene.orbCore), haloNight: new Color(scene.orbHalo), coreDay: new Color(scene.orbCoreDay), haloDay: new Color(scene.orbHaloDay) }), [scene]);
+  const look = useRef(null);
+  const colors = useMemo(() => ({ coreNight: new Color(scene.orbCore), haloNight: new Color(scene.orbHalo), coreDay: new Color(scene.orbCoreDay), haloDay: new Color(scene.orbHaloDay), core: new Color(), halo: new Color() }), [scene]);
   useEffect(() => {
-    day.current = null; // re-apply after a theme change
+    look.current = null; // re-apply after a theme change
   }, [colors]);
 
   useFrame(() => {
     if (!cores.current) return;
     const dist = sim.renderDistance();
-    // In the bright Sundarbans daylight an additive glow washes out on the pale sky and water, so the orbs switch to
-    // a saturated, normally blended halo there (still the same orb, same size and hitbox: looks only).
-    const w = biomeWeights(dist);
-    const isDay = w.sundarbans + w.volcano + w.arctic + w.palace > 0.5; // the Amazon is dark enough for the additive glow
-    if (isDay !== day.current && coreMat.current && haloMat.current) {
-      day.current = isDay;
-      coreMat.current.color.copy(isDay ? colors.coreDay : colors.coreNight);
-      haloMat.current.color.copy(isDay ? colors.haloDay : colors.haloNight);
+    // On bright scenery an additive glow washes out, so the orbs switch to a saturated, normally blended halo (still the same orb, same size
+    // and hitbox: looks only). The zone can set its own colours (the canyon: a cream core in a deep violet halo); other bright zones use the
+    // theme's day colours; dark zones keep the theme's glow.
+    const zone = dominantZone(dist);
+    const key = zone ? (zone.orbs ? zone.id : zone.orbStyle) : 'night';
+    if (key !== look.current && coreMat.current && haloMat.current) {
+      look.current = key;
+      const own = zone?.orbs;
+      const isDay = !!own || zone?.orbStyle === 'day';
+      if (own) {
+        colors.core.set(own.core);
+        colors.halo.set(own.halo);
+      } else {
+        colors.core.copy(isDay ? colors.coreDay : colors.coreNight);
+        colors.halo.copy(isDay ? colors.haloDay : colors.haloNight);
+      }
+      coreMat.current.color.copy(colors.core);
+      haloMat.current.color.copy(colors.halo);
       haloMat.current.blending = isDay ? NormalBlending : AdditiveBlending;
       haloMat.current.opacity = isDay ? 0.6 : 0.35;
       haloMat.current.needsUpdate = true;

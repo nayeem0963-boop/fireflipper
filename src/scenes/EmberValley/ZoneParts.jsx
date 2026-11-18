@@ -73,8 +73,8 @@ export function GradientSky({ wRef, top, bottom }) {
 /**
  * Painted horizon bands as unlit billboards behind everything. Each painting is cropped to its sky-and-horizon band (so has its own
  * aspect), sized from the camera every frame so it always covers the view (and stays a sensible size on a tall phone screen), drifts
- * slowly sideways as you fly, and dissolves in over the one before at the given distances. The paintings load only when the player gets
- * within `preloadAt` metres, so the first screens of the game never wait for them; a painting that fails to load is simply skipped.
+ * slowly sideways as you fly, and dissolves in over the one before at the given distances. Each painting loads when the player gets
+ * within `preloadAt` metres (or its own `loadAt`), so the first screens of the game never wait for later paintings; a painting that fails to load is simply skipped.
  *
  * Props: zone, paintings [{ file, aspect }], cuts (metres where painting i+1 dissolves in), dissolve (metres), preloadAt, pan (world
  * units per metre), fadeRgb ([r, g, b] of the sky colour at the top of every painting, used to melt its top edge into the sky).
@@ -91,7 +91,7 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
   const mats = useRef([]);
   const fades = useRef([]);
   const fadeMats = useRef([]);
-  const state = useRef({ started: false, textures: [] });
+  const state = useRef({ requested: [], textures: [] });
   const fadeTex = useMemo(() => {
     const c = document.createElement('canvas');
     c.width = 4;
@@ -115,33 +115,32 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
     };
   }, [fadeTex]);
 
-  const load = () => {
-    state.current.started = true;
+  const load = (i) => {
+    state.current.requested[i] = true;
     const loader = new TextureLoader();
     const base = import.meta.env?.BASE_URL ?? '/';
-    paintings.forEach(({ file }, i) => {
-      loader.load(
-        `${base}images/backdrop/${file}`,
-        (tex) => {
-          tex.colorSpace = SRGBColorSpace;
-          tex.anisotropy = 4;
-          state.current.textures[i] = tex;
-          const m = mats.current[i];
-          if (m) {
-            m.map = tex;
-            m.needsUpdate = true;
-          }
-        },
-        undefined,
-        () => {}, // a missing painting just leaves the gradient sky and the 3D floor
-      );
-    });
+    loader.load(
+      `${base}images/backdrop/${paintings[i].file}`,
+      (tex) => {
+        tex.colorSpace = SRGBColorSpace;
+        tex.anisotropy = 4;
+        state.current.textures[i] = tex;
+        const m = mats.current[i];
+        if (m) {
+          m.map = tex;
+          m.needsUpdate = true;
+        }
+      },
+      undefined,
+      () => {}, // a missing painting just leaves the gradient sky and the 3D floor
+    );
   };
 
   const refAspect = Math.min(...paintings.map((p) => p.aspect));
   useFrame((frame) => {
     const d = sim.renderDistance();
-    if (!state.current.started && d > preloadAt) load();
+    // each painting loads when the player gets within its own distance (`loadAt`, else the zone's `preloadAt`), so none waits at start-up unless it is the first
+    for (let i = 0; i < paintings.length; i++) if (!state.current.requested[i] && d > (paintings[i].loadAt ?? preloadAt)) load(i);
     const w = wRef.current;
     if (w <= 0.001) return;
     const cam = frame.camera;

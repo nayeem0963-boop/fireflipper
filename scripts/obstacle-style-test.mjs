@@ -1,6 +1,6 @@
 /**
  * Zone obstacle tests. Run with: npm run test:obstacles
- * Sundarbans and Amazon obstacles are animals and plants of those regions (tigers, crocodiles, bats, beehives,
+ * The retired Sundarbans and Amazon obstacles are animals and plants of those regions (tigers, crocodiles, bats, beehives,
  * toucans, jaguars, sloths, a morpho butterfly...). This checks they stay honest: floating creatures are at least as
  * big as the circle collider they stand for, everything that reaches into a gap is modest, animals fit the slabs they
  * stand on, and the renderer's choice of look depends only on where the obstacle is.
@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { Vector3 } from 'three';
 import { createObstacleStyle, OBSTACLE_STYLE_IDS, styleGeometries } from '../src/components/scene/obstacleStyles.js';
 import { MORPHO_WINGS, createBeeCore } from '../src/components/scene/animalModels.js';
-import { biomeAt, obstacleStyleAt, ROCK_RANGE } from '../src/systems/world/biomes.js';
+import { ACTIVE_OBSTACLE_LOOKS, obstacleStyleAt } from '../src/systems/world/biomes.js';
 
 let failures = 0;
 const check = (name, cond, detail = '') => {
@@ -120,17 +120,15 @@ for (const radius of [0.5, 0.7, 0.86 / 1.05]) {
   }
 }
 check('Amazon: the morpho butterfly covers its whole 0.86 hitbox disc', uncovered === 0, `${uncovered} sample points uncovered`);
-// The rock range: 500 to 1000 m, poles only.
-check('rock range is 500 to 1000 m', ROCK_RANGE.start === 500 && ROCK_RANGE.end === 1000);
-check('obstacle look by position', obstacleStyleAt(0) === 'sundarbans' && obstacleStyleAt(499.9) === 'sundarbans' && obstacleStyleAt(500) === 'rock' && obstacleStyleAt(750) === 'rock' && obstacleStyleAt(999.9) === 'rock' && obstacleStyleAt(1000) === 'amazon' && obstacleStyleAt(1499.9) === 'amazon' && obstacleStyleAt(1500) === null && obstacleStyleAt(5000) === null);
 check('Amazon: the morpho does not spin (it always faces the viewer)', styles.amazon.layout.rockSpin === false);
 
 
+// The retired looks (animals, plants and pillars) are kept for reuse but not live: no track range maps to them, so the game builds none of them.
+check('no obstacle look with its own shapes is mapped to a track range', ACTIVE_OBSTACLE_LOOKS.length === 0 && [0, 250, 700, 1250, 1499, 1600, 2500, 4000, 6000].every((d) => !OBSTACLE_STYLE_IDS.includes(obstacleStyleAt(d))));
 // The look is chosen by the obstacle's own track position; colliders and the simulation never see any of it.
-check('look follows position', biomeAt(250)?.id === 'sundarbans' && biomeAt(750)?.id === 'volcano' && biomeAt(1250)?.id === 'amazon');
 const field = read('src/components/scene/ObstacleField.jsx');
 check('renderer picks the look from the obstacle position', /obstacleStyleAt\(o\.x\)/.test(field));
-check('between the zones only poles are rock (slabs and rocks keep the original look)', /style === 'rock' && o\.kind !== 'column'/.test(field));
+check('the renderer builds only the looks listed as active', /ACTIVE_OBSTACLE_LOOKS\.map/.test(field));
 check('unused looks are hidden (no draw cost)', /mesh\.visible = count > 0/.test(field));
 check('the renderer dresses poles with the growths', /deco\$\{variant\}/.test(field) && /DECO_REACH/.test(field));
 check('simulation does not import obstacle looks', !/obstacleStyles|animalModels|ObstacleField/.test(read('src/systems/game/createGameSim.js') + read('src/systems/obstacles/spawner.js') + read('src/systems/obstacles/patterns.js') + read('src/systems/physics/collision.js')));

@@ -44,109 +44,7 @@ export function createSkyTexture(scene) {
   return tex;
 }
 
-/**
- * Sundarbans floor: tidal water in the foreground with lighter ripple streaks running along the flight direction,
- * and a brown mud bank (with a wobbling edge) at the far side. Tiles along x. The top of the image is the far side.
- */
-export function createSundarbansGroundTexture(s) {
-  const w = 256;
-  const h = 256;
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = s.water;
-  ctx.fillRect(0, 0, w, h);
-  // ripple streaks (seamless across x: each is drawn twice when it crosses the edge)
-  ctx.strokeStyle = s.waterLight;
-  ctx.lineCap = 'round';
-  let seed = 7;
-  const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
-  for (let i = 0; i < 46; i++) {
-    const y = h * 0.38 + rnd() * h * 0.62;
-    const x = rnd() * w;
-    const len = 14 + rnd() * 40;
-    ctx.globalAlpha = 0.18 + rnd() * 0.3;
-    ctx.lineWidth = 1 + rnd() * 1.6;
-    for (const dx of [0, -w, w]) {
-      ctx.beginPath();
-      ctx.moveTo(x + dx, y);
-      ctx.lineTo(x + dx + len, y + (rnd() - 0.5) * 2);
-      ctx.stroke();
-    }
-  }
-  ctx.globalAlpha = 1;
-  // far mud bank: top ~36% of the image, with a wavy shoreline that tiles
-  const shore = (x) => h * 0.36 + Math.sin((x / w) * Math.PI * 6) * 7 + Math.sin((x / w) * Math.PI * 14 + 1) * 3;
-  ctx.fillStyle = s.mud;
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  for (let x = 0; x <= w; x += 4) ctx.lineTo(x, shore(x));
-  ctx.lineTo(w, 0);
-  ctx.closePath();
-  ctx.fill();
-  // darker wet mud along the shoreline
-  ctx.strokeStyle = s.mudDark;
-  ctx.globalAlpha = 0.55;
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  for (let x = 0; x <= w; x += 4) (x === 0 ? ctx.moveTo(x, shore(x) - 2) : ctx.lineTo(x, shore(x) - 2));
-  ctx.stroke();
-  ctx.globalAlpha = 1;
-  const tex = new CanvasTexture(c);
-  tex.colorSpace = SRGBColorSpace;
-  tex.wrapS = RepeatWrapping;
-  tex.anisotropy = 4;
-  return tex;
-}
-
-/** Amazon forest floor: dark brown earth with scattered leaf litter and a few root lines. Tiles along x. */
-export function createAmazonGroundTexture(s) {
-  const w = 256;
-  const h = 256;
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = s.floor;
-  ctx.fillRect(0, 0, w, h);
-  let seed = 11;
-  const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
-  // leaf litter: small angular flecks, seamless across x
-  for (let i = 0; i < 240; i++) {
-    const x = rnd() * w;
-    const y = rnd() * h;
-    const size = 2 + rnd() * 5;
-    ctx.fillStyle = s.leafLitter[Math.floor(rnd() * s.leafLitter.length)];
-    ctx.globalAlpha = 0.35 + rnd() * 0.4;
-    for (const dx of [0, -w, w]) {
-      ctx.save();
-      ctx.translate(x + dx, y);
-      ctx.rotate(rnd() * Math.PI);
-      ctx.fillRect(-size, -size * 0.4, size * 2, size * 0.8);
-      ctx.restore();
-    }
-  }
-  // root lines running along the flight direction
-  ctx.strokeStyle = s.floorDark;
-  ctx.globalAlpha = 0.3;
-  ctx.lineWidth = 2;
-  for (let i = 0; i < 3; i++) {
-    const y = rnd() * h;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.bezierCurveTo(w * 0.3, y + (rnd() - 0.5) * 18, w * 0.7, y + (rnd() - 0.5) * 18, w, y);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-  const tex = new CanvasTexture(c);
-  tex.colorSpace = SRGBColorSpace;
-  tex.wrapS = RepeatWrapping;
-  tex.anisotropy = 4;
-  return tex;
-}
-
-/* -------------------------------------------------------------- Volcanic Coast floors */
+/* -------------------------------------------------------------- Painted-zone floors */
 
 /** Colours as [r, g, b] from a hex string, and back, for shading triangles. */
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
@@ -188,85 +86,6 @@ const seededRnd = (seed) => {
   let v = seed;
   return () => ((v = (v * 9301 + 49297) % 233280) / 233280);
 };
-
-/** The sea: a muted-jade low-poly surface with faint lighter streaks. Tiles in both directions (one tile = 4 world units). */
-export function createCoastWaterTexture(s) {
-  const size = 256;
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const ctx = c.getContext('2d');
-  const rnd = seededRnd(5);
-  facets(ctx, 0, 0, size, size, s.water, { cell: 64, jitter: 0.032, rnd });
-  ctx.strokeStyle = 'rgba(255,255,255,0.10)';
-  ctx.lineWidth = 2;
-  for (let i = 0; i < 6; i++) {
-    const y = rnd() * size;
-    const x = rnd() * size;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + 40 + rnd() * 50, y + (rnd() - 0.5) * 3);
-    ctx.stroke();
-  }
-  const tex = new CanvasTexture(c);
-  tex.colorSpace = SRGBColorSpace;
-  tex.wrapS = tex.wrapT = RepeatWrapping;
-  tex.anisotropy = 4;
-  return tex;
-}
-
-/**
- * The shore: warm faceted sand on the far side of the floor with a jagged, darker wet edge, and the sea in front. Tiles along x;
- * one tile spans the whole depth of the floor, with the top of the image the far side.
- */
-export function createCoastShoreTexture(s) {
-  const w = 256;
-  const h = 256;
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext('2d');
-  const rnd = seededRnd(21);
-  ctx.clearRect(0, 0, w, h);
-  // the beach covers the far ~70% of the floor; the shoreline wanders gently (whole periods per tile, so it tiles)
-  const shore = (x) => h * 0.7 + Math.sin((x / w) * Math.PI * 2) * 2 + Math.sin((x / w) * Math.PI * 6 + 1) * 1;
-  // sand over the far side: facets clipped to the shoreline
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  for (let x = 0; x <= w; x += 4) ctx.lineTo(x, shore(x));
-  ctx.lineTo(w, 0);
-  ctx.closePath();
-  ctx.clip();
-  facets(ctx, 0, 0, w, h, s.sand, { cell: 32, jitter: 0.09, rnd });
-  // a few darker dune shadows
-  ctx.fillStyle = s.sandDark;
-  ctx.globalAlpha = 0.35;
-  for (let i = 0; i < 7; i++) {
-    const x = rnd() * w;
-    const y = rnd() * h * 0.5;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + 40 + rnd() * 40, y + 6);
-    ctx.lineTo(x + 20, y + 16 + rnd() * 10);
-    ctx.closePath();
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-  ctx.restore();
-  // wet edge
-  ctx.strokeStyle = s.sandDark;
-  ctx.globalAlpha = 0.6;
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  for (let x = 0; x <= w; x += 4) (x === 0 ? ctx.moveTo(x, shore(x)) : ctx.lineTo(x, shore(x)));
-  ctx.stroke();
-  ctx.globalAlpha = 1;
-  const tex = new CanvasTexture(c);
-  tex.colorSpace = SRGBColorSpace;
-  tex.wrapS = RepeatWrapping;
-  tex.anisotropy = 4;
-  return tex;
-}
 
 /**
  * The Arctic snowfield: faceted white-blue snow with soft pale-blue shadow facets and a few lighter ridges, like the paintings' low-poly
@@ -415,6 +234,40 @@ export function createPalacePoolTexture(s) {
     }
   }
   ctx.globalAlpha = 1;
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = tex.wrapT = RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+/**
+ * The Red Rock Canyon's floor: dusty faceted red-orange earth with darker strata streaks and lighter sunlit patches, like the paintings' canyon
+ * bed. Tiles in both directions (one tile = 4 world units).
+ */
+export function createCanyonFloorTexture(s) {
+  const size = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const rnd = seededRnd(91);
+  facets(ctx, 0, 0, size, size, s.floor, { cell: 64, jitter: 0.07, rnd });
+  // lighter sunlit and darker shadowed patches (drawn at every wrap offset so the tile is seamless)
+  for (let i = 0; i < 9; i++) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    const r = 40 + rnd() * 60;
+    const light = i % 2 === 0;
+    for (const dx of [-size, 0, size]) {
+      for (const dy of [-size, 0, size]) {
+        const g = ctx.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
+        g.addColorStop(0, light ? 'rgba(255,170,110,0.28)' : 'rgba(60,15,5,0.30)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x + dx - r, y + dy - r, r * 2, r * 2);
+      }
+    }
+  }
   const tex = new CanvasTexture(c);
   tex.colorSpace = SRGBColorSpace;
   tex.wrapS = tex.wrapT = RepeatWrapping;

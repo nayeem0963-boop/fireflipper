@@ -3,36 +3,35 @@
  * needs it: a zone changes only how the world LOOKS. Obstacle layout, collisions, speed and scoring depend on
  * distance alone and are identical everywhere.
  *
- *  - Sundarbans (0 to 500 m): the Bengal mangrove delta, after the Sundarbans scene in the Bulbuli project: pale teal
- *    sky, faceted mangrove canopies on stilt roots, brown mud banks, tidal water, pneumatophore (breathing-root) spikes.
- *  - Amazon (1000 to 1500 m): the Amazon rainforest, after the Amazon scene in the Bulbuli project: tall slender
- *    trunks with buttress roots, dense leafy crowns, a leaf-litter floor, ferns, hanging vines and light shafts.
- *  - Volcanic Coast (500 to 1000 m): a pale teal sea under a peach horizon, with an erupting volcano and its boulder island,
- *    a snow-capped range and sandstone buttes on a sandy shore. The far scenery is the three coast paintings (public/images/backdrop,
- *    cropped to their horizon band and blended along the track); the water, shore and rock islands are drawn in 3D.
+ *  - Red Rock Canyon (0 to 1500 m): a sunset over towering red sandstone cliffs, natural arches and a misty canyon, from three
+ *    paintings, one for each 500 m (0 to 500, 500 to 1000, 1000 to 1500). The far scenery is the painting; the floor is a dusty,
+ *    faceted canyon floor, and red mesas stand at two depths for parallax.
  *  - Arctic Ice Shelf (1500 to 2000 m): a pale ice shelf and snowfield under an aurora and a peach horizon, from three more paintings.
  *  - Celestial Realm (2000 to 3000 m): a night of floating crystal cities among galaxies, a ringed planet and nebulae, from three
  *    cosmic paintings; the view slowly rises from the floating cities up into the cosmos.
  *  - Rose Sky Palace (3000 to 5000 m): a pink-and-gold sunset over white filigree palaces, floating islands with waterfalls and a
  *    mirror-still pool, from three more paintings.
  *  - After 5000 m the original scenery (Ember Valley / Frost Cavern, per theme) shows. (It shows nowhere before that:
- *    the six zones join up, so there is no gap between them.)
+ *    the four zones join up, so there is no gap between them.)
  *
- * Changes are gradual. Where two zones meet (500, 1000, 1500, 2000 and 3000 m) they cross-fade over CROSSFADE metres centred on the border,
+ * The Sundarbans and Amazon scenes (and the animal / plant obstacle looks built for them) were retired when the Red Rock Canyon took over
+ * the first 1500 m. Their palettes stay in BIOMES below (flagged `retired`, not in the live zone list) because the retired obstacle models,
+ * kept in the repo for reuse, are coloured from them. See ACTIVE_OBSTACLE_LOOKS.
+ *
+ * Changes are gradual. Where two zones meet (1500, 2000 and 3000 m) they cross-fade over CROSSFADE metres centred on the border,
  * so the weights always add up to 1 and the original scenery never flashes in between. The outer edges (the start of the run
  * and 5000 m) fade over FADE metres, so scenery sinks away while the mountains rise instead of popping.
  */
-export const SUNDARBANS_END = 500;
 export const FADE = 80;
 export const CROSSFADE = 80;
-export const FADE_START = SUNDARBANS_END - CROSSFADE / 2;
 
 export const BIOMES = Object.freeze({
   sundarbans: Object.freeze({
+    retired: true,
     id: 'sundarbans',
     name: 'Sundarbans',
     start: 0,
-    end: SUNDARBANS_END,
+    end: 500,
     joinsNext: true,
     /** Game-over wording for falling into the floor here (the simulation's cause code stays 'lava'). */
     lavaCopy: 'Fell into the tidal creek',
@@ -60,40 +59,44 @@ export const BIOMES = Object.freeze({
       rock: Object.freeze({ color: '#9a7a52', emissive: '#2a2014' }),
     }),
   }),
-  volcano: Object.freeze({
-    id: 'volcano',
-    name: 'Volcanic Coast',
-    start: 500,
-    end: 1000,
-    joinsPrev: true,
+  canyon: Object.freeze({
+    id: 'canyon',
+    name: 'Red Rock Canyon',
+    start: 0,
+    end: 1500,
     joinsNext: true,
-    lavaCopy: 'Splashed into the sea',
+    lavaCopy: 'Fell into the canyon',
     orbStyle: 'day',
+    /** Orb colours here: a cream core (it reads against the dark shadows) in a deep violet halo (it reads against the bright orange rock). */
+    orbs: Object.freeze({ core: '#fff6d8', halo: '#3a0f6a', normal: true }),
+    /** Colour of the portrait edge-warning bars here (deep violet on the bright rock). */
+    warn: '#2a0a50',
     scene: Object.freeze({
-      // Taken from the paintings: the sky runs from pale teal to a peach horizon; the sea is a muted jade; the shore is warm sand.
-      skyTop: '#afdad9',
-      skyMid: '#d8e0d4',
-      skyBottom: '#f0dccd',
-      fog: '#c9dccf',
-      bg: '#c9dccf',
-      ambient: '#f3efe4',
-      hemiSky: '#b4dcd8',
-      hemiGround: '#7a6a58',
-      key: '#fff0d6',
-      water: '#8db4a2',
-      waterDeep: '#7a9f8e',
-      sand: '#d6a56f',
-      sandDark: '#bf8f5c',
-      rock: ['#c69a84', '#bd9a85', '#8d8a82'],
-      volcano: '#8a6a58',
-      lava: '#ff5a3c',
-      snow: '#e9eff0',
-      butte: ['#d19a64', '#bd8750'],
+      // Taken from the paintings: red-orange sandstone lit by a low sun, a purple-pink sunset sky, rose mist in the canyon.
+      skyTop: '#ac5a5b',
+      skyMid: '#dd7d6d',
+      skyBottom: '#d18856',
+      fog: '#c8705a',
+      bg: '#ac5a5b',
+      ambient: '#ffd8c0',
+      hemiSky: '#f0a080',
+      hemiGround: '#8a3a22',
+      key: '#ffe0b0',
+      floor: '#a8482a',
+      floorLight: '#d0683e',
+      floorDark: '#6a2814',
+      mesa: ['#c85a34', '#a84626', '#e07a4a'],
+      /** Deep indigo bodies with cream caps: they read against the orange rock, the purple-pink sky and the dark shadows alike (fairness). */
+      column: Object.freeze({ color: '#1a1450', emissive: '#0c0830', cap: '#fff3d0' }),
+      block: Object.freeze({ color: '#1a1450', emissive: '#0c0830', cap: '#fff3d0' }),
+      /** `rim` is a glowing outline round each floating rock, so it reads against the dark shadows too. */
+      rock: Object.freeze({ color: '#1a1450', emissive: '#241a6a', rim: '#fff3d0' }),
       /** What the obstacles are tested against (see biome-test.mjs): the colours the player sees behind them. */
-      backdrops: Object.freeze(['#afdad9', '#d8e0d4', '#f0dccd', '#8db4a2', '#d6a56f', '#bd9a85', '#8a6a58', '#e9eff0']),
+      backdrops: Object.freeze(['#ac5a5b', '#dd7d6d', '#d18856', '#e8785f', '#8d3b22', '#510e00', '#b8614b', '#722718']),
     }),
   }),
   amazon: Object.freeze({
+    retired: true,
     id: 'amazon',
     name: 'Amazon',
     start: 1000,
@@ -226,7 +229,7 @@ export const BIOMES = Object.freeze({
   }),
 });
 
-const ZONES = Object.freeze([BIOMES.sundarbans, BIOMES.volcano, BIOMES.amazon, BIOMES.arctic, BIOMES.celestial, BIOMES.palace]);
+const ZONES = Object.freeze([BIOMES.canyon, BIOMES.arctic, BIOMES.celestial, BIOMES.palace]);
 
 /** Zone ids in order (the order lights and fog blend in). */
 export const ZONE_IDS = Object.freeze(ZONES.map((z) => z.id));
@@ -249,27 +252,30 @@ export function zoneWeight(zone, distance) {
   return Math.min(fadeIn, fadeOut);
 }
 
-/** Sundarbans weight (kept for the original callers). */
-export function biomeWeight(distance) {
-  return zoneWeight(BIOMES.sundarbans, distance);
+/** One weight per live zone ({ canyon, arctic, celestial, palace }) at a distance. They add up to 1 from the start to 4920 m, then fade to 0 by 5000 m. */
+export function biomeWeights(distance) {
+  return Object.fromEntries(ZONES.map((z) => [z.id, zoneWeight(z, distance)]));
 }
 
-/** One weight per zone ({ sundarbans, volcano, amazon, arctic, celestial, palace }) at a distance. They add up to 1 from the start to 4920 m, then fade to 0 by 5000 m. */
-export function biomeWeights(distance) {
-  return {
-    sundarbans: zoneWeight(BIOMES.sundarbans, distance),
-    volcano: zoneWeight(BIOMES.volcano, distance),
-    amazon: zoneWeight(BIOMES.amazon, distance),
-    arctic: zoneWeight(BIOMES.arctic, distance),
-    celestial: zoneWeight(BIOMES.celestial, distance),
-    palace: zoneWeight(BIOMES.palace, distance),
-  };
+/** The live zone with the greatest weight at a distance (the first one at an exact tie; null when none applies). Used for choices that cannot be blended, like orb style. */
+export function dominantZone(distance) {
+  let best = null;
+  let bw = 0;
+  for (const z of ZONES) {
+    const w = zoneWeight(z, distance);
+    if (w > bw) {
+      bw = w;
+      best = z;
+    }
+  }
+  return best;
 }
 
 /** Combined strength of every zone at a distance: how far the original scenery has been replaced (0 to 1). */
 export function zoneStrength(distance) {
-  const w = biomeWeights(distance);
-  return Math.min(1, w.sundarbans + w.volcano + w.amazon + w.arctic + w.celestial + w.palace);
+  let sum = 0;
+  for (const z of ZONES) sum += zoneWeight(z, distance);
+  return Math.min(1, sum);
 }
 
 /** The zone a distance belongs to (by its border, not its fade), or null for the original scenery. */
@@ -278,18 +284,19 @@ export function biomeAt(distance) {
 }
 
 /**
- * The Volcanic Coast stretch (500 to 1000 m). Its poles are drawn as rock pillars (an obstacle look only: see obstacleStyleAt);
- * its slabs and floating rocks keep the original look.
+ * Obstacle looks with their own shapes (the retired Sundarbans and Amazon animals and plants, and the rock pillars) that the game builds and draws.
+ * None are live: the models stay in the repo (components/scene/obstacleStyles.js, animalModels.js) and a look is switched back on by adding its id here
+ * and mapping a track range to it in obstacleStyleAt.
  */
-export const ROCK_RANGE = Object.freeze({ id: 'rock', start: BIOMES.volcano.start, end: BIOMES.volcano.end });
+export const ACTIVE_OBSTACLE_LOOKS = Object.freeze([]);
 
 /**
- * Which obstacle look applies at a track position: 'sundarbans', 'amazon', 'rock' (poles only, 500 to 1000 m) or null
- * (the original look, including the Arctic stretch). 'celestial' and 'palace' are the original shapes in the zone's own colours. Decided by the obstacle's own position, so it is the same however the camera sees it.
+ * Which obstacle look applies at a track position: the id of a zone whose obstacles are recoloured ('canyon', 'celestial', 'palace': the original shapes in the
+ * zone's own colours) or null (the original look, including the whole Arctic stretch). Decided by the obstacle's own position, so it is the same however the
+ * camera sees it.
  */
 export function obstacleStyleAt(x) {
   const zone = biomeAt(x);
-  if (!zone) return null;
-  if (zone.id === 'volcano') return ROCK_RANGE.id;
-  return zone.id === 'arctic' ? null : zone.id; // the Arctic keeps the original obstacles; the Celestial Realm recolours them (see ObstacleField)
+  if (!zone || zone.id === 'arctic') return null;
+  return zone.id;
 }
