@@ -1,6 +1,6 @@
 import { DYING_DURATION, PHYSICS, WORLD } from '../physics/constants.js';
 import { applyFlap, stepFlight } from '../physics/flight.js';
-import { circleHitsObstacle } from '../physics/collision.js';
+import { circleGap, circleHitsObstacle } from '../physics/collision.js';
 import { ObjectPool } from '../obstacles/ObjectPool.js';
 import { createTrack, fillTrack, resetTrack, speedAt } from '../obstacles/spawner.js';
 import { computeScore, toMetres } from '../scoring/scoring.js';
@@ -19,14 +19,16 @@ import { createRng, randomSeed } from '../../utils/random.js';
 export const PHASE = Object.freeze({ READY: 'ready', RUNNING: 'running', DYING: 'dying', OVER: 'over' });
 
 const ORB_RADIUS = 0.35;
+/** Passing an obstacle with less clearance than this (world units) counts as a near miss. */
+const NEAR_MISS_GAP = 0.3;
 const FLAP_EVENT = Object.freeze({ type: GAME_EVENTS.FLAP });
 const START_EVENT = Object.freeze({ type: GAME_EVENTS.START });
 
 function createObstacle() {
-  return { kind: 'column', shape: 'box', x: 0, y: 0, z: 0, w: 1, h: 1, d: 1, hw: 0, hh: 0, cr: 0, r: 0, sx: 1, sy: 1, sz: 1, rot: 0, spin: 0, cap: 0, extent: 0 };
+  return { kind: 'column', shape: 'box', x: 0, y: 0, z: 0, w: 1, h: 1, d: 1, hw: 0, hh: 0, cr: 0, r: 0, sx: 1, sy: 1, sz: 1, rot: 0, spin: 0, cap: 0, extent: 0, gap: Infinity, nm: false };
 }
 function createOrb() {
-  return { x: 0, y: 0, phase: 0 };
+  return { x: 0, y: 0, phase: 0, missed: false };
 }
 
 export function createGameSim() {
@@ -53,6 +55,8 @@ export function createGameSim() {
       o.spin = 0;
       o.cap = cap;
       o.extent = w / 2;
+      o.gap = Infinity;
+      o.nm = false;
     },
     block(x0, x1, yBottom, yTop, cap) {
       const o = obstacles.acquire();
@@ -70,6 +74,8 @@ export function createGameSim() {
       o.spin = 0;
       o.cap = cap;
       o.extent = o.w / 2;
+      o.gap = Infinity;
+      o.nm = false;
     },
     rock(x, y, r) {
       const o = obstacles.acquire();
@@ -87,12 +93,15 @@ export function createGameSim() {
       o.spin = rng.range(-0.6, 0.6);
       o.cap = 0;
       o.extent = r;
+      o.gap = Infinity;
+      o.nm = false;
     },
     orb(x, y) {
       const orb = orbs.acquire();
       orb.x = x;
       orb.y = y;
       orb.phase = rng() * Math.PI * 2;
+      orb.missed = false;
     },
   };
 
@@ -106,6 +115,12 @@ export function createGameSim() {
     scoredDistance: 0,
     speed: WORLD.baseSpeed,
     orbsCollected: 0,
+    /** Orbs collected in a row without letting one slip past. */
+    orbStreak: 0,
+    bestStreak: 0,
+    nearMisses: 0,
+    /** What ended the run: 'lava' or an obstacle kind ('column' | 'block' | 'rock'). */
+    crashCause: null,
     deathTime: 0,
     /** Interpolation factor between the last two fixed steps (set by the loop). */
     alpha: 1,
@@ -126,7 +141,14 @@ export function createGameSim() {
       return computeScore(sim.metres, sim.orbsCollected);
     },
     results() {
-      return { score: sim.score, distance: sim.metres, orbs: sim.orbsCollected };
+      return {
+        score: sim.score,
+        distance: sim.metres,
+        orbs: sim.orbsCollected,
+        bestStreak: sim.bestStreak,
+        nearMisses: sim.nearMisses,
+        cause: sim.crashCause,
+      };
     },
 
     reset(seed = randomSeed()) {
@@ -139,6 +161,8 @@ export function createGameSim() {
       sim.distance = sim.prevDistance = sim.scoredDistance = 0;
       sim.speed = WORLD.baseSpeed;
       sim.orbsCollected = 0;
+      sim.orbStreak = sim.bestStreak = sim.nearMisses = 0;
+      sim.crashCause = null;
       sim.deathTime = 0;
       sim.alpha = 1;
       const b = sim.bird;
@@ -219,7 +243,7 @@ export function createGameSim() {
 
     // Ground is lava: touching it ends the run.
     if (b.y - R <= WORLD.groundY) {
-      die();
+      die('lava');
       return;
     }
 
@@ -228,11 +252,24 @@ export function createGameSim() {
         obstacles.release(o);
         continue;
       }
-      if (Math.abs(o.x - bx) > o.extent + R) continue; // broad phase
+      const ahead = o.x - bx;
+      const band = o.extent + R + NEAR_MISS_GAP;
+      if (ahead > band) continue; // broad phase
+      if (ahead < -band) {
+        // Passed cleanly: a close shave counts once.
+        if (!o.nm && o.gap < NEAR_MISS_GAP) {
+          o.nm = true;
+          sim.nearMisses += 1;
+          sim.events.push({ type: GAME_EVENTS.NEAR, x: o.x, y: b.y });
+        }
+        continue;
+      }
       if (circleHitsObstacle(bx, b.y, R, o)) {
-        die();
+        die(o.kind);
         return;
       }
+      const gap = circleGap(bx, b.y, R, o);
+      if (gap < o.gap) o.gap = gap;
     }
 
     const reach = R + ORB_RADIUS;
@@ -242,20 +279,29 @@ export function createGameSim() {
         orbs.release(orb);
         continue;
       }
+      if (dx < -reach && !orb.missed) {
+        // Slipped past uncollected: the streak is broken.
+        orb.missed = true;
+        sim.orbStreak = 0;
+        continue;
+      }
       if (dx > reach) continue;
       const dy = orb.y - b.y;
       if (dx * dx + dy * dy < reach * reach) {
         // Released immediately, so it can never be collected twice.
         orbs.release(orb);
         sim.orbsCollected += 1;
+        sim.orbStreak += 1;
+        if (sim.orbStreak > sim.bestStreak) sim.bestStreak = sim.orbStreak;
         sim.fx.fovKick += 1.4;
-        sim.events.push({ type: GAME_EVENTS.ORB, x: orb.x, y: orb.y });
+        sim.events.push({ type: GAME_EVENTS.ORB, x: orb.x, y: orb.y, streak: sim.orbStreak });
       }
     }
   }
 
-  function die() {
+  function die(cause) {
     const b = sim.bird;
+    sim.crashCause = cause;
     sim.phase = PHASE.DYING;
     sim.scoredDistance = sim.distance;
     sim.deathTime = 0;
@@ -263,7 +309,7 @@ export function createGameSim() {
     b.vy = Math.max(b.vy, 0) * 0.3 + 4; // knocked upward before falling
     sim.input.holding = sim.input.dive = sim.input.flapQueued = false;
     sim.fx.shake = 0.35;
-    sim.events.push({ type: GAME_EVENTS.CRASH, x: sim.distance, y: b.y });
+    sim.events.push({ type: GAME_EVENTS.CRASH, x: sim.distance, y: b.y, cause });
   }
 
   function stepDying(dt) {

@@ -11,7 +11,10 @@ export function useGameAudio() {
     };
     const offs = [
       gameEvents.on(GAME_EVENTS.FLAP, play(sfx.flap)),
-      gameEvents.on(GAME_EVENTS.ORB, play(sfx.orb)),
+      gameEvents.on(GAME_EVENTS.ORB, (e) => {
+        if (useGameStore.getState().soundEnabled) sfx.orb(e.streak);
+      }),
+      gameEvents.on(GAME_EVENTS.NEAR, play(sfx.near)),
       gameEvents.on(GAME_EVENTS.CRASH, play(sfx.crash)),
     ];
     return () => offs.forEach((off) => off());

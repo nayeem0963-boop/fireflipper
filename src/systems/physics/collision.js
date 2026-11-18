@@ -23,3 +23,11 @@ export function circleHitsObstacle(cx, cy, r, o) {
     ? circleIntersectsCircle(cx, cy, r, o.x, o.y, o.cr)
     : circleIntersectsBox(cx, cy, r, o.x, o.y, o.hw, o.hh);
 }
+
+/** Clearance between a circle and an obstacle's collider (negative when overlapping). */
+export function circleGap(cx, cy, r, o) {
+  if (o.shape === 'circle') return Math.hypot(cx - o.x, cy - o.y) - r - o.cr;
+  const dx = Math.max(Math.abs(cx - o.x) - o.hw, 0);
+  const dy = Math.max(Math.abs(cy - o.y) - o.hh, 0);
+  return Math.hypot(dx, dy) - r;
+}

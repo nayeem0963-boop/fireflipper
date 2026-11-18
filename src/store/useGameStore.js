@@ -39,7 +39,7 @@ export const useGameStore = create((set, get) => ({
   orbs: 0,
   runId: 0, // bumped on every (re)start; the game loop resets the sim on change
   overAt: 0,
-  /** { score, distance, orbs, isNewBest } of the last finished run. */
+  /** Stats of the last finished run, plus isNewBest and the previousBest it was measured against. */
   lastResult: null,
 
   // --- scores ---
@@ -65,11 +65,12 @@ export const useGameStore = create((set, get) => ({
   // --- run lifecycle (driven by simulation events + UI) ---
   beginRun: () => set((s) => (s.status === STATUS.READY ? { status: STATUS.RUNNING } : s)),
   crash: () => set((s) => (s.status === STATUS.RUNNING ? { status: STATUS.DYING } : s)),
-  endRun: ({ score, distance, orbs }) => {
+  endRun: ({ score, distance, orbs, bestStreak = 0, nearMisses = 0, cause = null }) => {
     const s = get();
     // Guard: a run can only end once.
     if (s.status !== STATUS.DYING && s.status !== STATUS.RUNNING) return;
-    const isNewBest = score > s.bestScore;
+    const previousBest = s.bestScore;
+    const isNewBest = score > previousBest;
     if (isNewBest) saveValue('bestScore', score);
     set({
       status: STATUS.OVER,
@@ -77,7 +78,7 @@ export const useGameStore = create((set, get) => ({
       score,
       distance,
       orbs,
-      lastResult: { score, distance, orbs, isNewBest },
+      lastResult: { score, distance, orbs, bestStreak, nearMisses, cause, isNewBest, previousBest },
       bestScore: Math.max(s.bestScore, score),
       sessionBest: Math.max(s.sessionBest, score),
       runsThisSession: s.runsThisSession + 1,

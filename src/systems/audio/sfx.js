@@ -73,10 +73,33 @@ export const sfx = {
     if (!ready()) return;
     noiseBurst({ duration: 0.12, filter: 'bandpass', from: 1300, to: 450, q: 0.9, peak: 0.22 });
   },
-  orb() {
+  orb(streak = 1) {
     if (!ready()) return;
-    tone({ type: 'triangle', from: 880, to: 1760, duration: 0.16, peak: 0.16 });
-    tone({ type: 'sine', from: 1320, to: 2640, duration: 0.2, peak: 0.08, delay: 0.05 });
+    // Pitch climbs a semitone per orb in a streak (capped at an octave).
+    const k = Math.pow(2, Math.min(Math.max(streak - 1, 0), 12) / 12);
+    tone({ type: 'triangle', from: 880 * k, to: 1760 * k, duration: 0.16, peak: 0.16 });
+    tone({ type: 'sine', from: 1320 * k, to: 2640 * k, duration: 0.2, peak: 0.08, delay: 0.05 });
+  },
+  near() {
+    if (!ready()) return;
+    noiseBurst({ duration: 0.14, filter: 'highpass', from: 2400, to: 5200, q: 0.8, peak: 0.12 });
+  },
+  /** Soft rising tick while the result score counts up. */
+  tick(progress = 0) {
+    if (!ready()) return;
+    tone({ type: 'sine', from: 500 + progress * 700, to: 560 + progress * 800, duration: 0.04, peak: 0.05 });
+  },
+  /** Score finished counting. */
+  result() {
+    if (!ready()) return;
+    tone({ type: 'triangle', from: 392, to: 392, duration: 0.18, peak: 0.12 });
+    tone({ type: 'triangle', from: 587, to: 587, duration: 0.3, peak: 0.12, delay: 0.1 });
+  },
+  /** Personal-best fanfare: a rising arpeggio with a sparkle on top. */
+  record() {
+    if (!ready()) return;
+    [523, 659, 784, 1047].forEach((f, i) => tone({ type: 'triangle', from: f, to: f, duration: 0.28, peak: 0.16, delay: i * 0.09 }));
+    tone({ type: 'sine', from: 2093, to: 3136, duration: 0.6, peak: 0.07, delay: 0.36 });
   },
   crash() {
     if (!ready()) return;

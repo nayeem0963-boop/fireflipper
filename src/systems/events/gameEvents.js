@@ -9,6 +9,7 @@ export const GAME_EVENTS = Object.freeze({
   START: 'start',
   FLAP: 'flap',
   ORB: 'orb',
+  NEAR: 'near',
   CRASH: 'crash',
   OVER: 'over',
 });
