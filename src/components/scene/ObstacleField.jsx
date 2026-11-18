@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { DoubleSide, Object3D } from 'three';
 import { WORLD } from '../../systems/physics/constants.js';
-import { biomeAt } from '../../systems/world/biomes.js';
+import { obstacleStyleAt } from '../../systems/world/biomes.js';
 import { useTheme } from '../../hooks/useTheme.js';
 import { OBSTACLE_STYLE_IDS, createObstacleStyle, styleGeometries } from './obstacleStyles.js';
 
@@ -54,8 +54,11 @@ export default function ObstacleField({ sim }) {
     for (const o of sim.obstacles.active) {
       const x = o.x - dist;
       if (x < -20 - o.extent || x > 60) continue;
-      const zone = biomeAt(o.x);
-      const style = zone && refs.current[zone.id] ? zone.id : 'default';
+      // The look follows the obstacle's own position. Between the zones (500 to 1000 m) only poles are rock pillars;
+      // slabs and floating rocks there keep the original look.
+      let style = obstacleStyleAt(o.x) ?? 'default';
+      if (style === 'rock' && o.kind !== 'column') style = 'default';
+      if (!refs.current[style]) style = 'default';
       const set = refs.current[style];
       const zoned = style !== 'default';
       const L = zoned ? styles[style].layout : null;
@@ -233,6 +236,23 @@ export default function ObstacleField({ sim }) {
       {/* Zone looks: animals and plants of the Sundarbans and the Amazon (vertex-coloured geometry from obstacleStyles.js) */}
       {OBSTACLE_STYLE_IDS.map((id) => {
         const { geo } = styles[id];
+        if (id === 'rock') {
+          // Rock pillars (500 to 1000 m): grey-scale geometry tinted by the theme; shards glow in the theme's cap colour.
+          const stone = <meshStandardMaterial vertexColors color={scene.column.color} emissive={scene.column.emissive} emissiveIntensity={0.6} roughness={0.9} flatShading />;
+          const scree = <meshStandardMaterial vertexColors color={scene.rock.color} emissive={scene.rock.emissive} emissiveIntensity={0.55} roughness={0.9} flatShading />;
+          const glow = <meshBasicMaterial vertexColors color={scene.column.cap} toneMapped={false} />;
+          return (
+            <group key={id}>
+              <instancedMesh ref={reg(id, 'column')} args={[geo.column, undefined, MAX.column]} frustumCulled={false}>{stone}</instancedMesh>
+              <instancedMesh ref={reg(id, 'base')} args={[geo.base, undefined, MAX.column]} frustumCulled={false}>{scree}</instancedMesh>
+              <instancedMesh ref={reg(id, 'capUp')} args={[geo.capUp, undefined, MAX.column]} frustumCulled={false}>{glow}</instancedMesh>
+              <instancedMesh ref={reg(id, 'capDown')} args={[geo.capDown, undefined, MAX.column]} frustumCulled={false}>{glow}</instancedMesh>
+              {geo.deco.map((g, i) => (
+                <instancedMesh key={i} ref={reg(id, `deco${i}`)} args={[g, undefined, MAX.deco]} frustumCulled={false}>{stone}</instancedMesh>
+              ))}
+            </group>
+          );
+        }
         const lit = <meshStandardMaterial vertexColors emissive="#2a1c10" emissiveIntensity={0.45} roughness={0.85} flatShading side={DoubleSide} />;
         return (
           <group key={id}>

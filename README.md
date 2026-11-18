@@ -216,3 +216,18 @@ outline is broken up and the pole reads as a living tree. Sundarbans: leafy mang
 Amazon: bromeliads, liana curtains with leaves and bracket-fungus shelves. They are modest (under 1.3 m out) and only ever start at the trunk or beyond
 the gap end, never in the gap, so they never hide where it is safe to fly.
 `gallery.html` (dev server only, not built) shows every model close up: `/gallery.html?set=sund` or `?set=amazon` (add `&only=createTiger`, `&z=6`).
+
+## Tree-trunk and rock poles
+
+Poles (the tall columns) now have a look per stretch of the track:
+
+| Track | Pole |
+| --- | --- |
+| 0 to 500 m (Sundarbans) | ridged mangrove trunk: 14 bark ridges shaded dark to light, knots with broken branch stubs and leaf tufts, branches, honeycombs, aerial roots, stilt roots at the water line |
+| 500 to 1000 m | **rock pillar**: a faceted stone column with strata shading, glowing crystal shards at the gap end, scree at the foot of a rising pillar, and angular outcrops and stone spikes jutting from the sides. Tinted by the theme (red embers or blue ice) |
+| 1000 to 1500 m (Amazon) | ridged rainforest trunk: bark ridges, knots with stubs and leaf tufts, bromeliads, lianas, bracket fungi, buttress roots, toucan / tree boa on the end |
+| elsewhere | the original columns |
+
+Between the zones only the poles change; slabs and floating rocks keep the original look. `obstacleStyleAt(x)` (in `systems/world/biomes.js`) picks the look from the
+obstacle's own position. Ridges and facets only ever push outwards (or barely in), the narrowest face of every pole is wider than the 0.4 collider half-width, and
+`npm run test:obstacles` checks that for all three looks.

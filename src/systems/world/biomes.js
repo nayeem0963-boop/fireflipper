@@ -117,3 +117,19 @@ export function zoneStrength(distance) {
 export function biomeAt(distance) {
   return ZONES.find((z) => distance >= z.start && distance < z.end) ?? null;
 }
+
+/**
+ * The stretch between the two scenery zones (500 to 1000 m). The scenery there is the original Ember Valley / Frost Cavern,
+ * but its poles are drawn as rock pillars (an obstacle look only: see obstacleStyleAt).
+ */
+export const ROCK_RANGE = Object.freeze({ id: 'rock', start: SUNDARBANS_END, end: BIOMES.amazon.start });
+
+/**
+ * Which obstacle look applies at a track position: 'sundarbans', 'amazon', 'rock' (poles only, 500 to 1000 m) or null
+ * (the original look). Decided by the obstacle's own position, so it is the same however the camera sees it.
+ */
+export function obstacleStyleAt(x) {
+  const zone = biomeAt(x);
+  if (zone) return zone.id;
+  return x >= ROCK_RANGE.start && x < ROCK_RANGE.end ? ROCK_RANGE.id : null;
+}

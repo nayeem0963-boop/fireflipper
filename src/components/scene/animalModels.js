@@ -423,3 +423,14 @@ export function createBracketFungi() {
   parts.push(ball(0.14, '#8ccc50', { p: [0.32, -0.62, -0.04], s: [1.2, 0.8, 1.1] }));
   return merge(parts);
 }
+
+/** A knot on a trunk: a burl bump, a broken-off branch stub, and a small tuft of leaves. Spills out along +x. */
+export function createTrunkKnot(bark = '#5a3d2a', leaf = '#4f8a3a') {
+  return merge([
+    ball(0.26, bark, { p: [0.12, 0, 0], s: [0.8, 1.2, 1.1] }), // the burl
+    cyl(0.07, 0.11, 0.55, 5, bark, { p: [0.38, 0.08, 0.02], r: [0, 0, -1.25] }), // the stub
+    ball(0.07, '#d8c49a', { p: [0.64, 0.17, 0.02], s: [0.5, 1, 1] }), // pale break where it snapped
+    part(new DodecahedronGeometry(0.16, 0), leaf, { p: [0.5, 0.36, 0.06], r: [0.4, 0.7, 0], s: [1.2, 0.6, 1] }),
+    part(new DodecahedronGeometry(0.12, 0), leaf, { p: [0.3, -0.2, 0.12], r: [0.2, 1.4, 0], s: [1.2, 0.6, 1] }),
+  ]);
+}
