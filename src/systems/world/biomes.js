@@ -13,12 +13,14 @@
  *  - Arctic Ice Shelf (1500 to 2000 m): a pale ice shelf and snowfield under an aurora and a peach horizon, from three more paintings.
  *  - Celestial Realm (2000 to 3000 m): a night of floating crystal cities among galaxies, a ringed planet and nebulae, from three
  *    cosmic paintings; the view slowly rises from the floating cities up into the cosmos.
- *  - After 3000 m the original scenery (Ember Valley / Frost Cavern, per theme) shows. (It shows nowhere before that:
- *    the five zones join up, so there is no gap between them.)
+ *  - Rose Sky Palace (3000 to 5000 m): a pink-and-gold sunset over white filigree palaces, floating islands with waterfalls and a
+ *    mirror-still pool, from three more paintings.
+ *  - After 5000 m the original scenery (Ember Valley / Frost Cavern, per theme) shows. (It shows nowhere before that:
+ *    the six zones join up, so there is no gap between them.)
  *
- * Changes are gradual. Where two zones meet (500, 1000, 1500 and 2000 m) they cross-fade over CROSSFADE metres centred on the border,
+ * Changes are gradual. Where two zones meet (500, 1000, 1500, 2000 and 3000 m) they cross-fade over CROSSFADE metres centred on the border,
  * so the weights always add up to 1 and the original scenery never flashes in between. The outer edges (the start of the run
- * and 3000 m) fade over FADE metres, so scenery sinks away while the mountains rise instead of popping.
+ * and 5000 m) fade over FADE metres, so scenery sinks away while the mountains rise instead of popping.
  */
 export const SUNDARBANS_END = 500;
 export const FADE = 80;
@@ -160,6 +162,7 @@ export const BIOMES = Object.freeze({
     start: 2000,
     end: 3000,
     joinsPrev: true,
+    joinsNext: true,
     lavaCopy: 'Fell through the clouds',
     orbStyle: 'night',
     scene: Object.freeze({
@@ -187,9 +190,46 @@ export const BIOMES = Object.freeze({
       backdrops: Object.freeze(['#26314d', '#5b6685', '#cfd1d9', '#73a6b4', '#5b5480', '#e7dae2', '#c4d2e2', '#4c556c']),
     }),
   }),
+  palace: Object.freeze({
+    id: 'palace',
+    name: 'Rose Sky Palace',
+    start: 3000,
+    end: 5000,
+    joinsPrev: true,
+    lavaCopy: 'Splashed into the palace pool',
+    orbStyle: 'day',
+    scene: Object.freeze({
+      // Taken from the paintings: a violet-to-pink sunset, a golden horizon, white stone with pink glow, a mirror-still lavender pool.
+      skyTop: '#8d729e',
+      skyMid: '#cb85a8',
+      skyBottom: '#e4b4a3',
+      fog: '#c89bb4',
+      bg: '#8d729e',
+      ambient: '#ffe6ef',
+      hemiSky: '#e8a6c8',
+      hemiGround: '#a07890',
+      key: '#fff0d8',
+      pool: '#b48aa8',
+      poolLight: '#f2c4d6',
+      glow: '#ffe6a8',
+      island: '#c9b2c8',
+      grass: ['#6a9a50', '#d86a9a', '#e8a0c0'],
+      crystal: ['#fff0e0', '#ffd0e0', '#ffe9b0'],
+      /** Deep teal bodies with white caps (the colours opposite pink): they read against the pink sky, the white stone, the dark wood and the crimson trees alike. */
+      column: Object.freeze({ color: '#0a3f52', emissive: '#052633', cap: '#ffffff' }),
+      block: Object.freeze({ color: '#0a3f52', emissive: '#052633', cap: '#ffffff' }),
+      /** `rim` is a glowing outline round each floating rock, so it reads against the dark wood and crimson foliage too. */
+      rock: Object.freeze({ color: '#0a3f52', emissive: '#0c4a5e', rim: '#ffffff' }),
+      /** What the obstacles are tested against (see biome-test.mjs): the colours the player sees behind them. */
+      backdrops: Object.freeze(['#8d729e', '#cb85a8', '#e4b4a3', '#fbc5ca', '#bb8b9f', '#552921', '#8a1a3a']),
+    }),
+  }),
 });
 
-const ZONES = Object.freeze([BIOMES.sundarbans, BIOMES.volcano, BIOMES.amazon, BIOMES.arctic, BIOMES.celestial]);
+const ZONES = Object.freeze([BIOMES.sundarbans, BIOMES.volcano, BIOMES.amazon, BIOMES.arctic, BIOMES.celestial, BIOMES.palace]);
+
+/** Zone ids in order (the order lights and fog blend in). */
+export const ZONE_IDS = Object.freeze(ZONES.map((z) => z.id));
 
 const smoothstep = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -214,7 +254,7 @@ export function biomeWeight(distance) {
   return zoneWeight(BIOMES.sundarbans, distance);
 }
 
-/** { sundarbans, volcano, amazon, arctic, celestial } weights at a distance. They add up to 1 from the start to 2920 m, then fade to 0 by 3000 m. */
+/** One weight per zone ({ sundarbans, volcano, amazon, arctic, celestial, palace }) at a distance. They add up to 1 from the start to 4920 m, then fade to 0 by 5000 m. */
 export function biomeWeights(distance) {
   return {
     sundarbans: zoneWeight(BIOMES.sundarbans, distance),
@@ -222,13 +262,14 @@ export function biomeWeights(distance) {
     amazon: zoneWeight(BIOMES.amazon, distance),
     arctic: zoneWeight(BIOMES.arctic, distance),
     celestial: zoneWeight(BIOMES.celestial, distance),
+    palace: zoneWeight(BIOMES.palace, distance),
   };
 }
 
 /** Combined strength of every zone at a distance: how far the original scenery has been replaced (0 to 1). */
 export function zoneStrength(distance) {
   const w = biomeWeights(distance);
-  return Math.min(1, w.sundarbans + w.volcano + w.amazon + w.arctic + w.celestial);
+  return Math.min(1, w.sundarbans + w.volcano + w.amazon + w.arctic + w.celestial + w.palace);
 }
 
 /** The zone a distance belongs to (by its border, not its fade), or null for the original scenery. */
@@ -244,7 +285,7 @@ export const ROCK_RANGE = Object.freeze({ id: 'rock', start: BIOMES.volcano.star
 
 /**
  * Which obstacle look applies at a track position: 'sundarbans', 'amazon', 'rock' (poles only, 500 to 1000 m) or null
- * (the original look, including the Arctic stretch). 'celestial' is the original shapes in the realm's own colours. Decided by the obstacle's own position, so it is the same however the camera sees it.
+ * (the original look, including the Arctic stretch). 'celestial' and 'palace' are the original shapes in the zone's own colours. Decided by the obstacle's own position, so it is the same however the camera sees it.
  */
 export function obstacleStyleAt(x) {
   const zone = biomeAt(x);

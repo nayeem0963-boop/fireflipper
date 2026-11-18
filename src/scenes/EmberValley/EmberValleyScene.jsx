@@ -19,7 +19,8 @@ import AmazonBackdrop from './AmazonBackdrop.jsx';
 import VolcanoBackdrop from './VolcanoBackdrop.jsx';
 import ArcticBackdrop from './ArcticBackdrop.jsx';
 import CelestialBackdrop from './CelestialBackdrop.jsx';
-import { BIOMES, biomeWeights } from '../../systems/world/biomes.js';
+import PalaceBackdrop from './PalaceBackdrop.jsx';
+import { BIOMES, ZONE_IDS, biomeWeights } from '../../systems/world/biomes.js';
 
 /**
  * Ember Valley: the first level. Composition only. Gameplay lives in the
@@ -33,26 +34,27 @@ export default function EmberValleyScene() {
   const portrait = useThree((s) => s.size.width < s.size.height);
   useGameLoop(game);
 
-  // Lights, fog and background blend from the theme's colours to each zone's daylight colours (Sundarbans 0-500 m, Volcanic
-  // Coast 500-1000 m, Amazon 1000-1500 m, Arctic 1500-2000 m, Celestial 2000-3000 m): a weighted mix, base * (1 - total) + zone * weight, so a cross-fade between two zones is exact.
+  // Lights, fog and background blend from the theme's colours to each zone's colours: a weighted mix, base * (1 - total) + sum(zone * weight), so a
+  // cross-fade between two zones is exact. It loops over every zone (systems/world/biomes.js), so a new zone needs nothing here.
   const fog = useRef();
   const ambient = useRef();
   const hemi = useRef();
   const key = useRef();
   const colors = useMemo(() => {
     const c = (hex) => new Color(hex);
-    const Z = [BIOMES.sundarbans.scene, BIOMES.volcano.scene, BIOMES.amazon.scene, BIOMES.arctic.scene, BIOMES.celestial.scene];
-    const set = (theme, k) => ({ base: c(theme), zones: Z.map((z) => c(z[k])) });
+    const set = (theme, k) => ({ base: c(theme), zones: ZONE_IDS.map((id) => c(BIOMES[id].scene[k])) });
     return {
       fog: set(scene.fog, 'fog'), bg: set(scene.bg, 'bg'), amb: set(scene.ambient, 'ambient'),
       sky: set(scene.hemiSky, 'hemiSky'), gnd: set(scene.hemiGround, 'hemiGround'), key: set(scene.key, 'key'),
     };
   }, [scene]);
   const tmp = useMemo(() => new Color(), []);
-  const mix = (target, { base, zones }, w) => {
-    const total = Math.min(1, w[0] + w[1] + w[2] + w[3] + w[4]);
-    target.copy(base).multiplyScalar(1 - total);
-    for (let i = 0; i < 5; i++) if (w[i] > 0) target.add(tmp.copy(zones[i]).multiplyScalar(w[i]));
+  const weights = useMemo(() => new Array(ZONE_IDS.length).fill(0), []);
+  const mix = (target, { base, zones }) => {
+    let total = 0;
+    for (let i = 0; i < weights.length; i++) total += weights[i];
+    target.copy(base).multiplyScalar(1 - Math.min(1, total));
+    for (let i = 0; i < weights.length; i++) if (weights[i] > 0) target.add(tmp.copy(zones[i]).multiplyScalar(weights[i]));
   };
   const lastKey = useRef(-1);
   useEffect(() => {
@@ -60,18 +62,21 @@ export default function EmberValleyScene() {
   }, [colors]);
   useFrame((state) => {
     const bw = biomeWeights(game.renderDistance());
-    const w = [bw.sundarbans, bw.volcano, bw.amazon, bw.arctic, bw.celestial];
-    const k = w[0] * 1000 + w[1] * 3000 + w[2] * 9000 + w[3] * 27000 + w[4] * 81000 + 1;
+    let k = 1;
+    for (let i = 0; i < ZONE_IDS.length; i++) {
+      weights[i] = bw[ZONE_IDS[i]];
+      k += weights[i] * (i + 1) * 997;
+    }
     if (Math.abs(k - lastKey.current) < 2 && lastKey.current !== -1) return;
     lastKey.current = k;
-    if (fog.current) mix(fog.current.color, colors.fog, w);
-    if (state.scene.background?.isColor) mix(state.scene.background, colors.bg, w);
-    if (ambient.current) mix(ambient.current.color, colors.amb, w);
+    if (fog.current) mix(fog.current.color, colors.fog);
+    if (state.scene.background?.isColor) mix(state.scene.background, colors.bg);
+    if (ambient.current) mix(ambient.current.color, colors.amb);
     if (hemi.current) {
-      mix(hemi.current.color, colors.sky, w);
-      mix(hemi.current.groundColor, colors.gnd, w);
+      mix(hemi.current.color, colors.sky);
+      mix(hemi.current.groundColor, colors.gnd);
     }
-    if (key.current) mix(key.current.color, colors.key, w);
+    if (key.current) mix(key.current.color, colors.key);
   });
 
   return (
@@ -89,6 +94,7 @@ export default function EmberValleyScene() {
       <AmazonBackdrop sim={game} />
       <ArcticBackdrop sim={game} />
       <CelestialBackdrop sim={game} />
+      <PalaceBackdrop sim={game} />
       <ObstacleField sim={game} />
       <OrbField sim={game} />
       <PlayerBird sim={game} />

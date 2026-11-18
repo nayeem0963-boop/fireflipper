@@ -363,3 +363,61 @@ export function createStarSeaTexture(s) {
   tex.anisotropy = 4;
   return tex;
 }
+
+/**
+ * The Rose Sky Palace's floor: a mirror-still lavender-pink pool with soft glowing reflections of the palaces' golden lights, long pale
+ * vertical streaks and a few ripples. Tiles in both directions (one tile = 4 world units).
+ */
+export function createPalacePoolTexture(s) {
+  const size = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const rnd = seededRnd(71);
+  // a flat base with soft darker and lighter blotches drawn at every wrap offset, so the tile has no visible seam
+  ctx.fillStyle = s.pool;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 10; i++) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    const r = 50 + rnd() * 70;
+    const light = i % 2 === 0;
+    for (const dx of [-size, 0, size]) {
+      for (const dy of [-size, 0, size]) {
+        const g = ctx.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
+        g.addColorStop(0, light ? 'rgba(255,214,228,0.35)' : 'rgba(120,80,140,0.28)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x + dx - r, y + dy - r, r * 2, r * 2);
+      }
+    }
+  }
+  // long pale reflection streaks (seamless across both edges)
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < 9; i++) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    const w = 3 + rnd() * 8;
+    const h = 40 + rnd() * 90;
+    for (const dx of [-size, 0, size]) for (const dy of [-size, 0, size]) ctx.fillRect(x + dx, y + dy, w, h);
+  }
+  // golden lantern glints
+  for (let i = 0; i < 26; i++) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    ctx.globalAlpha = 0.5 + rnd() * 0.4;
+    ctx.fillStyle = s.glow;
+    for (const dx of [-size, 0, size]) for (const dy of [-size, 0, size]) {
+      ctx.beginPath();
+      ctx.ellipse(x + dx, y + dy, 5 + rnd() * 4, 1.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = tex.wrapT = RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}

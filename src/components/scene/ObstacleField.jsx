@@ -27,8 +27,11 @@ const MAX = { column: 48, block: 12, rock: 112, up: 16, down: 48, deco: 192 };
 /** How much of a pole is dressed (metres from the gap end): the rest is off screen or under the water / ground. */
 const DECO_REACH = 9;
 const CAP_THICKNESS = 0.14;
-/** The Celestial Realm's obstacle colours (the original shapes, recoloured: see systems/world/biomes.js). */
-const CEL = BIOMES.celestial.scene;
+/**
+ * Zones that keep the original obstacle shapes but recolour them (see systems/world/biomes.js): zone id -> the id of its 'tinted' mesh set.
+ * Each set is the six original meshes in the zone's own colours.
+ */
+const TINTED_ZONES = Object.freeze({ celestial: BIOMES.celestial.scene, palace: BIOMES.palace.scene });
 /** Zone caps are a little taller than the flat original ones so their shapes read; still inside the corridor edge. */
 const ZONE_CAP = 1.0;
 
@@ -61,10 +64,10 @@ export default function ObstacleField({ sim }) {
       // In the Celestial Realm (2000 to 3000 m) the original shapes are drawn in the realm's own colours ('tinted').
       let style = obstacleStyleAt(o.x) ?? 'default';
       if (style === 'rock' && o.kind !== 'column') style = 'default';
-      if (style === 'celestial') style = 'tinted';
+      if (TINTED_ZONES[style]) style = `tinted-${style}`;
       if (!refs.current[style]) style = 'default';
       const set = refs.current[style];
-      const zoned = style !== 'default' && style !== 'tinted'; // zone looks with their own shapes (animals, plants, pillars)
+      const zoned = style !== 'default' && !style.startsWith('tinted-'); // zone looks with their own shapes (animals, plants, pillars)
       const L = zoned ? styles[style].layout : null;
 
       if (o.kind === 'rock') {
@@ -243,32 +246,10 @@ export default function ObstacleField({ sim }) {
         <meshStandardMaterial color={scene.rock.color} emissive={scene.rock.emissive} emissiveIntensity={0.55} roughness={0.8} flatShading />
       </instancedMesh>
 
-      {/* The Celestial Realm (2000 to 3000 m): the same shapes in dark indigo with glowing cyan caps */}
-      <instancedMesh ref={reg('tinted', 'column')} args={[undefined, undefined, MAX.column]} frustumCulled={false}>
-        <cylinderGeometry args={[0.5, 0.5, 1, 6]} />
-        <meshStandardMaterial color={CEL.column.color} emissive={CEL.column.emissive} emissiveIntensity={0.7} roughness={0.7} flatShading />
-      </instancedMesh>
-      <instancedMesh ref={reg('tinted', 'cap')} args={[undefined, undefined, MAX.column]} frustumCulled={false}>
-        <cylinderGeometry args={[0.5, 0.5, 1, 6]} />
-        <meshBasicMaterial color={CEL.column.cap} toneMapped={false} />
-      </instancedMesh>
-      <instancedMesh ref={reg('tinted', 'block')} args={[undefined, undefined, MAX.block]} frustumCulled={false}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color={CEL.block.color} emissive={CEL.block.emissive} emissiveIntensity={0.7} roughness={0.7} flatShading />
-      </instancedMesh>
-      <instancedMesh ref={reg('tinted', 'blockCap')} args={[undefined, undefined, MAX.block]} frustumCulled={false}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial color={CEL.block.cap} toneMapped={false} />
-      </instancedMesh>
-      <instancedMesh ref={reg('tinted', 'rock')} args={[undefined, undefined, MAX.rock]} frustumCulled={false}>
-        <icosahedronGeometry args={[1, 1]} />
-        <meshStandardMaterial color={CEL.rock.color} emissive={CEL.rock.emissive} emissiveIntensity={0.9} roughness={0.5} metalness={0.2} flatShading />
-      </instancedMesh>
-      {/* A glowing outline round each floating rock (a slightly larger back-face shell), so it reads against the black void too */}
-      <instancedMesh ref={reg('tinted', 'rim')} args={[undefined, undefined, MAX.rock]} frustumCulled={false}>
-        <icosahedronGeometry args={[1, 1]} />
-        <meshBasicMaterial color={CEL.rock.rim} side={BackSide} transparent opacity={0.9} toneMapped={false} depthWrite={false} />
-      </instancedMesh>
+      {/* Recoloured zones (Celestial Realm, Rose Sky Palace): the same shapes in the zone's own colours */}
+      {Object.entries(TINTED_ZONES).map(([id, Z]) => (
+        <TintedSet key={id} id={`tinted-${id}`} reg={reg} Z={Z} />
+      ))}
 
       {/* Zone looks: animals and plants of the Sundarbans and the Amazon (vertex-coloured geometry from obstacleStyles.js) */}
       {OBSTACLE_STYLE_IDS.map((id) => {
@@ -312,6 +293,38 @@ export default function ObstacleField({ sim }) {
           </group>
         );
       })}
+    </group>
+  );
+}
+
+/** The six original obstacle meshes in one zone's colours: dark bodies with bright caps, and a glowing outline round floating rocks. */
+function TintedSet({ id, reg, Z }) {
+  return (
+    <group>
+      <instancedMesh ref={reg(id, 'column')} args={[undefined, undefined, MAX.column]} frustumCulled={false}>
+        <cylinderGeometry args={[0.5, 0.5, 1, 6]} />
+        <meshStandardMaterial color={Z.column.color} emissive={Z.column.emissive} emissiveIntensity={0.7} roughness={0.7} flatShading />
+      </instancedMesh>
+      <instancedMesh ref={reg(id, 'cap')} args={[undefined, undefined, MAX.column]} frustumCulled={false}>
+        <cylinderGeometry args={[0.5, 0.5, 1, 6]} />
+        <meshBasicMaterial color={Z.column.cap} toneMapped={false} />
+      </instancedMesh>
+      <instancedMesh ref={reg(id, 'block')} args={[undefined, undefined, MAX.block]} frustumCulled={false}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color={Z.block.color} emissive={Z.block.emissive} emissiveIntensity={0.7} roughness={0.7} flatShading />
+      </instancedMesh>
+      <instancedMesh ref={reg(id, 'blockCap')} args={[undefined, undefined, MAX.block]} frustumCulled={false}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshBasicMaterial color={Z.block.cap} toneMapped={false} />
+      </instancedMesh>
+      <instancedMesh ref={reg(id, 'rock')} args={[undefined, undefined, MAX.rock]} frustumCulled={false}>
+        <icosahedronGeometry args={[1, 1]} />
+        <meshStandardMaterial color={Z.rock.color} emissive={Z.rock.emissive} emissiveIntensity={0.9} roughness={0.5} metalness={0.2} flatShading />
+      </instancedMesh>
+      <instancedMesh ref={reg(id, 'rim')} args={[undefined, undefined, MAX.rock]} frustumCulled={false}>
+        <icosahedronGeometry args={[1, 1]} />
+        <meshBasicMaterial color={Z.rock.rim} side={BackSide} transparent opacity={0.9} toneMapped={false} depthWrite={false} />
+      </instancedMesh>
     </group>
   );
 }

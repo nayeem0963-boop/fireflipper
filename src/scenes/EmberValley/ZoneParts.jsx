@@ -79,6 +79,9 @@ export function GradientSky({ wRef, top, bottom }) {
  * Props: zone, paintings [{ file, aspect }], cuts (metres where painting i+1 dissolves in), dissolve (metres), preloadAt, pan (world
  * units per metre), fadeRgb ([r, g, b] of the sky colour at the top of every painting, used to melt its top edge into the sky).
  *
+ * A painting may set `horizon` (the row, as a fraction from its top, that sits on the horizon line) to hold still instead of sliding. `rise.cover` (default 1.5)
+ * is how many times taller than the visible window the picture is scaled.
+ *
  * `rise` switches to "sky" mode for a painting that is a whole scene rather than a horizon band (the Celestial Realm): the picture is scaled to
  * cover the view and slides down as you fly, from `rise.from` to `rise.to` (the fraction of the picture, from its top, that sits on the horizon),
  * so the view climbs from the floating cities up into the cosmos. No top fade is needed there.
@@ -149,10 +152,10 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
     // Large enough to cover the view and reach the sky, but on a tall (portrait) screen no more than ~2.6 views wide, so the scenery stays in frame.
     const needH = cam.position.y - WORLD.groundY + viewH * 0.58;
     // Sky mode: cover the view both ways (at least 1.5x the visible height, so there is room to slide); band mode as before.
-    const W = rise ? Math.max(viewW * 1.12, needH * 1.5 * refAspect) : Math.max(viewW * 1.12, Math.min(needH * refAspect, viewW * 2.6));
+    const W = rise ? Math.max(viewW * 1.12, needH * (rise.cover ?? 1.5) * refAspect) : Math.max(viewW * 1.12, Math.min(needH * refAspect, viewW * 2.6));
     const slack = (W - viewW) / 2;
     const x = cam.position.x + clamp(slack - (d - zone.start) * pan, -slack, slack);
-    paintings.forEach(({ aspect }, i) => {
+    paintings.forEach(({ aspect, horizon }, i) => {
       const alpha = i === 0 ? w : w * smooth(cuts[i - 1] - dissolve / 2, cuts[i - 1] + dissolve / 2, d);
       const m = meshes.current[i];
       const f = fades.current[i];
@@ -167,7 +170,7 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
         // the row v of the picture on the horizon slides from rise.from to rise.to, kept inside the picture so no edge ever shows
         const t = smooth(0, 1, (d - zone.start) / (zone.end - zone.start));
         const vMin = Math.min(0.99, needH / H);
-        const v = clamp(rise.from + (rise.to - rise.from) * t, vMin, 1);
+        const v = clamp(horizon ?? rise.from + (rise.to - rise.from) * t, vMin, 1);
         y = WORLD.groundY + H * (v - 0.5);
       }
       m.position.set(x, y, BAND_Z);

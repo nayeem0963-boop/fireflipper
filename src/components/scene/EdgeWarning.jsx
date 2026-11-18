@@ -65,7 +65,7 @@ export default function EdgeWarning({ sim, enabled }) {
     const mesh = bars.current;
     if (!mesh) return;
     const w = biomeWeights(sim.renderDistance());
-    const day = w.sundarbans + w.volcano + w.arctic > 0.5;
+    const day = w.sundarbans + w.volcano + w.arctic + w.palace > 0.5;
     if (day !== isDay.current && mat.current) {
       isDay.current = day;
       mat.current.blending = day ? NormalBlending : AdditiveBlending;

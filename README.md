@@ -271,3 +271,16 @@ cross-fades into it around 2000 m, and it fades back to the original scenery by 
 Obstacles keep their shapes here but turn dark indigo with glowing cyan caps, and floating rocks get a glowing cyan outline, so they read against the black void, the pastel nebulae
 and the pale crystal spires alike (`npm run test:biome` checks the contrast against every backdrop colour, in the paintings' palette). Colliders are untouched, and a fall reads "Fell through the clouds".
 Nothing in the simulation reads the zones.
+
+## Rose Sky Palace (3000 to 5000 m)
+
+The sixth zone, the longest at 2,000 m, is a pink-and-gold sunset over white filigree palaces with floating islands, waterfalls and a mirror-still pool, from three palace paintings
+(`public/images/backdrop/palace-*.jpg`). Each painting is scaled to about 1.6 times the visible height with its **waterline on the horizon**: the sunset sky and palaces fill the view above it, and a 3D lavender
+pool with golden lantern glints and soft reflection streaks takes over below it. The pictures drift slowly sideways as you fly and dissolve into each other at about 3660 m and 4330 m (over 70 m, longer than
+elsewhere because the scenes differ a lot). Small floating white-stone islands with pink trees bob past at two depths. The Celestial Realm cross-fades into it around 3000 m, and it fades back to the original
+Ember Valley / Frost Cavern scenery by 5000 m. The paintings load only from 2880 m.
+
+Obstacles keep their shapes but turn **deep teal with white caps** (the colours opposite pink), and floating rocks get a white outline, so they read against the pink sky, the white stone, the dark wood and the crimson
+foliage; `npm run test:biome` checks the contrast against every backdrop colour. A fall reads "Splashed into the palace pool". Daytime orbs and the portrait edge warning use their pale-scenery looks here.
+The scene's lights, fog and sky now blend over every zone in a loop (`ZONE_IDS` in `systems/world/biomes.js`), and recoloured obstacle sets are generated per zone (`TINTED_ZONES` in `ObstacleField.jsx`), so adding
+another zone is mostly data. Nothing in the simulation reads the zones.

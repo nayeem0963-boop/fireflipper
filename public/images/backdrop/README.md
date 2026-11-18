@@ -18,3 +18,10 @@ and flagged cairn, and the slate outcrops are drawn in 3D by `src/scenes/EmberVa
 a wider view of the cities; the same with a figure on a balcony), supplied by the project owner for the 2000 to 3000 m stretch. Unlike the horizon-band paintings they are
 whole scenes, so each is used in full (resized from 1408x768 to 1280x698, about 120 to 160 kB each). The picture fills the sky and slides as you fly, from the cities up to the
 planet and nebulae. The cloud-sea floor and the floating crystal islands are drawn in 3D by `src/scenes/EmberValley/CelestialBackdrop.jsx`.
+
+## Rose Sky Palace backdrop
+
+`palace-a.jpg`, `palace-b.jpg` and `palace-c.jpg` are three sunset fantasy paintings (a filigree archway onto a lake of white palaces; a waterfall cascade beside the same arches; a cloud-sea view
+with a great cathedral), supplied by the project owner for the 3000 to 5000 m stretch (originally 1672x941 WebP, 350 to 440 kB each). Each is a whole scene, resized to 1280x720 JPEG (about 175 to 205 kB).
+The waterline of each picture sits on the game's horizon (row 0.62 of the first two, 0.66 of the third); everything below it is replaced by a 3D mirror pool, drawn by
+`src/scenes/EmberValley/PalaceBackdrop.jsx`.
