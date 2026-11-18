@@ -250,5 +250,5 @@ heights and fields of view.
 
 The arctic zone is now **Frosty Polar**, with three sub-scenes from the owner's panoramas: Glacier Valley (1500 to 1665 m), Crystal Ice Canyon (1665 to 1830 m)
 and Aurora Lake (1830 to 2000 m), dissolving over 40 m at 1665 and 1830 m with their horizons aligned. The old arctic paintings and research camp are gone; 3D ice crystals and
-slate outcrops give depth. The images are placeholders until higher-resolution versions arrive (see `public/images/backdrop/README.md`). Because the sub-scenes are only 165 m long and the pictures very wide, the slide
+slate outcrops give depth. The art is the owner's 16:9 set (1408x792 here; see `public/images/backdrop/README.md`). Because the sub-scenes are only 165 m long, the slide
 is capped (`SLIDE_CAP`, 0.2 units per metre) so the backdrop never outruns the 3D layers.

@@ -31,6 +31,11 @@ export function seeded(seed) {
   };
 }
 
+/*
+ * Draw order: a later painting (and its layers) always draws over an earlier one: renderOrder grows with the painting index. (Left to the depth sort, it
+ * depended on each picture's horizon height, which put Aurora Lake under Crystal Ice Canyon.)
+ */
+
 /**
  * Soft alpha masks (grey canvas, used as an alphaMap) that cut a depth layer out of a painting: `mid` keeps the side cliffs (outer
  * ~30% each side, fading towards the centre and the top), `near` keeps the outer ~14% and only the lower part of the picture.
@@ -243,13 +248,13 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
     <>
       {paintings.map(({ file }, i) => (
         <group key={file}>
-          <mesh ref={(m) => (meshes.current[i] = m)} renderOrder={-2} visible={false}>
+          <mesh ref={(m) => (meshes.current[i] = m)} renderOrder={-2 + i * 0.1} visible={false}>
             <planeGeometry args={[1, 1]} />
             <meshBasicMaterial ref={(m) => (mats.current[i] = m)} transparent opacity={0} depthWrite={false} fog={false} toneMapped={false} />
           </mesh>
           {depth &&
             ['mid', 'near'].map((kind, k) => (
-              <mesh key={kind} ref={(m) => ((layerMeshes.current[i] ??= [])[k] = m)} renderOrder={-1.6 + k * 0.1} visible={false}>
+              <mesh key={kind} ref={(m) => ((layerMeshes.current[i] ??= [])[k] = m)} renderOrder={-2 + i * 0.1 + (k + 1) * 0.02} visible={false}>
                 <planeGeometry args={[1, 1]} />
                 <meshBasicMaterial ref={(m) => ((layerMats.current[i] ??= [])[k] = m)} alphaMap={masks[kind]} transparent opacity={0} depthWrite={false} fog={false} toneMapped={false} />
               </mesh>

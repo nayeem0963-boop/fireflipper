@@ -6,10 +6,10 @@
 
 ## Frosty Polar backdrop
 
-`frosty-glacier-valley.jpg`, `frosty-crystal-canyon.jpg` and `frosty-aurora-lake.jpg` are three wide panoramas (1672x321, 1672x300, 1672x301; about 150 kB each) supplied by the project owner for the
-1500 to 2000 m stretch: Glacier Valley (1500 to 1665 m), Crystal Ice Canyon (1665 to 1830 m) and Aurora Lake (1830 to 2000 m). **These are placeholders**: the low vertical resolution makes them soft when
-enlarged, and higher-resolution versions are expected; replacing the files (same names, any aspect ratio, update `aspect` in the backdrop) is all that is needed. The row where the far shore meets the lake
-(0.64, 0.80, 0.71) sits on the game's horizon; the snowfield, slate outcrops and ice crystals are drawn in 3D by `src/scenes/EmberValley/ArcticBackdrop.jsx`.
+`frosty-glacier-valley.jpg`, `frosty-crystal-canyon.jpg` and `frosty-aurora-lake.jpg` are three 16:9 paintings supplied by the project owner (originally 1672x941 WebP) for the 1500 to 2000 m stretch: Glacier Valley
+(a sunset glacier valley with an ice waterfall; 1500 to 1665 m), Crystal Ice Canyon (ice arches and frozen waterfalls; 1665 to 1830 m) and Aurora Lake (an aurora over a frozen lake; 1830 to 2000 m). Each is resized to
+1408x792 JPEG (233 to 317 kB). The row where the far shore meets the lake (0.63, 0.65 and 0.50) sits on the game's horizon; the snowfield, slate outcrops and ice crystals are drawn in 3D by
+`src/scenes/EmberValley/ArcticBackdrop.jsx`. (The owner sent the glacier valley image twice; it is used once.)
 
 ## Celestial Realm backdrop
 

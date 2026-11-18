@@ -102,6 +102,9 @@ for (const id of ['canyon', 'arctic', 'celestial', 'palace']) ok(/\bdepth\s*\/>/
   ok(/createDepthMask\('mid'\)/.test(p) && /masks\?\.mid\.dispose\(\)/.test(p), 'depth masks are created and disposed');
 }
 
+// a later painting always draws over an earlier one, whatever their horizons (explicit renderOrder by painting index)
+ok(/renderOrder=\{-2 \+ i \* 0\.1\}/.test(read('ZoneParts.jsx')) && /renderOrder=\{-2 \+ i \* 0\.1 \+ \(k \+ 1\) \* 0\.02\}/.test(read('ZoneParts.jsx')), 'painting draw order follows the painting index (far, mid, near within each)');
+
 // no wall-clock time in the painted-backdrop path or the driver
 const parts = read('ZoneParts.jsx');
 const horizon = parts.slice(parts.indexOf('export function PaintedHorizon'), parts.indexOf('export function ParallaxLayer'));

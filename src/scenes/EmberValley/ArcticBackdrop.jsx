@@ -12,13 +12,13 @@ const GROUND_WIDTH = 200;
 const GROUND_REPEAT = 50; // 4 world units per tile
 /**
  * The three Frosty Polar paintings, one per sub-scene: Glacier Valley (1500 to 1665 m), Crystal Ice Canyon (1665 to 1830 m) and Aurora Lake (1830 to 2000 m).
- * Each is a wide panorama; `horizon` is the row of the picture (from its top) where the far shore meets the lake, which sits on the game's horizon line (the 3D
- * snow floor takes over below it). Each loads about 150 m before it is needed (`loadAt`). Placeholders at 1672 px wide: sharper art can replace the files unchanged.
+ * Each is a whole 16:9 scene; `horizon` is the row of the picture (from its top) where the far shore meets the lake, which sits on the game's horizon line (the 3D
+ * snow floor takes over below it). Each loads about 150 m before it is needed (`loadAt`).
  */
 const PAINTINGS = [
-  { file: 'frosty-glacier-valley.jpg', aspect: 1672 / 321, horizon: 0.64, loadAt: 1350 },
-  { file: 'frosty-crystal-canyon.jpg', aspect: 1672 / 300, horizon: 0.8, loadAt: 1515 },
-  { file: 'frosty-aurora-lake.jpg', aspect: 1672 / 301, horizon: 0.71, loadAt: 1680 },
+  { file: 'frosty-glacier-valley.jpg', aspect: 1408 / 792, horizon: 0.63, loadAt: 1350 },
+  { file: 'frosty-crystal-canyon.jpg', aspect: 1408 / 792, horizon: 0.65, loadAt: 1515 },
+  { file: 'frosty-aurora-lake.jpg', aspect: 1408 / 792, horizon: 0.5, loadAt: 1680 },
 ];
 /** Where each next sub-scene dissolves in over the one before it (metres), over DISSOLVE metres centred on the cut. */
 const CUTS = [1665, 1830];

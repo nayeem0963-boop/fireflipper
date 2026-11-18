@@ -137,7 +137,7 @@ const PAINTINGS = {
   celestial: ['celestial-a.jpg', 'celestial-b.jpg', 'celestial-c.jpg'],
   palace: ['palace-a.jpg', 'palace-b.jpg', 'palace-c.jpg'],
 };
-const LIMIT_KB = { canyon: 180, arctic: 200, celestial: 180, palace: 220 };
+const LIMIT_KB = { canyon: 180, arctic: 340, celestial: 180, palace: 220 };
 for (const [zone, files] of Object.entries(PAINTINGS)) {
   for (const f of files) {
     const path = new URL(`../public/images/backdrop/${f}`, import.meta.url);
