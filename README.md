@@ -210,4 +210,9 @@ Only the drawing changes. Colliders are untouched and stay honest: floating crea
 (the bee swarm's core is never inside it, and a test samples the morpho's wings to prove they cover the whole disc), a trunk body covers its
 hitbox, and everything that reaches into a gap stays under 1.2 m. The morpho always faces you and never spins. Looks with nothing on screen are
 hidden, so they cost nothing; gameplay stays around 50 to 60 draw calls per frame. `npm run test:obstacles` checks all of this.
+
+**Dressed poles.** The columns (poles) are not plain bars: growths spill out of the trunk all along its visible length, on both sides, so the
+outline is broken up and the pole reads as a living tree. Sundarbans: leafy mangrove branches, honeycomb clusters with bees and hanging aerial roots.
+Amazon: bromeliads, liana curtains with leaves and bracket-fungus shelves. They are modest (under 1.3 m out) and only ever start at the trunk or beyond
+the gap end, never in the gap, so they never hide where it is safe to fly.
 `gallery.html` (dev server only, not built) shows every model close up: `/gallery.html?set=sund` or `?set=amazon` (add `&only=createTiger`, `&z=6`).

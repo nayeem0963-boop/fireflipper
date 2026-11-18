@@ -332,3 +332,94 @@ export function createMorpho() {
   parts.push(cyl(0.008, 0.008, 0.4, 3, '#10161e', { p: [0.1, 0.5, 0.03], r: [0, 0, -0.5] }));
   return merge(parts);
 }
+
+/* ===================================================== POLE DECORATION ===
+ * Pieces that grow ALONG a trunk, so a pole is a living tree and not a plain bar. Each is modelled to start at the trunk's
+ * surface (x = 0) and spill outwards along +x (the renderer mirrors it for the other side); about 1 m out, 1 m tall.
+ */
+
+/** Sundarbans: a mangrove branch reaching out, ending in a tuft of lime leaves. */
+export function createMangroveBranch() {
+  return merge([
+    cyl(0.04, 0.07, 0.8, 5, '#4a3322', { p: [0.35, 0.12, 0], r: [0, 0, -1.2] }),
+    cyl(0.025, 0.04, 0.45, 4, '#4a3322', { p: [0.5, 0.42, 0.06], r: [0.3, 0, -0.5] }), // a twig
+    part(new DodecahedronGeometry(0.3, 0), '#c4f27a', { p: [0.78, 0.32, 0], r: [0.3, 0.9, 0], s: [1.15, 0.6, 1.05] }),
+    part(new DodecahedronGeometry(0.22, 0), '#9fd95a', { p: [0.55, 0.55, 0.1], r: [0.5, 0.2, 0], s: [1.1, 0.6, 1] }),
+    part(new DodecahedronGeometry(0.2, 0), '#c4f27a', { p: [0.95, 0.12, -0.08], r: [0.1, 1.4, 0], s: [1.1, 0.6, 1] }),
+    ball(0.05, '#d36a7a', { p: [0.68, 0.18, 0.2] }), // a propagule
+  ]);
+}
+
+/** Sundarbans: wild honeycomb clusters on the trunk, with bees. */
+export function createCombCluster() {
+  const parts = [
+    ball(0.3, '#d9a441', { p: [0.22, 0.1, 0], s: [0.9, 1.25, 1.0] }),
+    ball(0.22, '#e8b852', { p: [0.4, -0.25, 0.05], s: [0.9, 1.2, 1.0] }),
+    ball(0.17, '#d9a441', { p: [0.3, 0.45, -0.04], s: [0.9, 1.1, 1.0] }),
+  ];
+  for (let i = 0; i < 4; i++) parts.push(box(0.5 - i * 0.05, 0.035, 0.42, '#8a5a1a', { p: [0.22, 0.32 - i * 0.2, 0] }));
+  for (let i = 0; i < 6; i++) {
+    const a = i * 2.1;
+    parts.push(ball(0.04, i % 2 ? '#2a2010' : '#f2c230', { p: [0.3 + Math.cos(a) * 0.38, 0.1 + Math.sin(a * 1.7) * 0.4, 0.22 + Math.sin(a) * 0.1], s: [1.4, 1, 1] }));
+  }
+  return merge(parts);
+}
+
+/** Sundarbans: aerial roots hanging in a pale-brown bundle beside the trunk. */
+export function createAerialRoots() {
+  const parts = [];
+  for (let i = 0; i < 6; i++) {
+    const len = 0.7 + (i % 3) * 0.18;
+    parts.push(cone(0.05, len, 4, i % 2 ? '#8a6a46' : '#a07c52', { p: [0.15 + (i % 3) * 0.17, 0.35 - len / 2, (i - 2.5) * 0.07], r: [Math.PI, 0, (i - 2.5) * 0.04] }));
+  }
+  parts.push(ball(0.12, '#9fd95a', { p: [0.25, 0.4, 0], s: [1.6, 0.7, 1.2] })); // a mossy knot where they sprout
+  return merge(parts);
+}
+
+/** Amazon: a bromeliad rosette of red-orange leaves growing from the trunk, with a pale-yellow heart. */
+export function createBromeliad() {
+  const parts = [ball(0.16, '#6a4a2a', { p: [0.1, 0, 0], s: [1, 1.2, 1.2] })]; // the bump it grows on
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    parts.push(
+      cone(0.1, 0.7, 4, i % 2 ? '#ff6a2a' : '#ff8a3a', {
+        p: [0.42 + Math.cos(a) * 0.1, Math.sin(a) * 0.3, Math.sin(a * 2) * 0.12],
+        r: [0, Math.cos(a) * 0.3, Math.PI / 2 - Math.sin(a) * 0.9],
+      }),
+    );
+  }
+  parts.push(ball(0.12, '#fff08a', { p: [0.52, 0, 0], s: [1, 1, 1.2] }));
+  return merge(parts);
+}
+
+/** Amazon: a curtain of lianas hanging beside the trunk, with small leaves along them. */
+export function createLianaCurtain() {
+  const parts = [];
+  for (let i = 0; i < 5; i++) {
+    const x = 0.12 + i * 0.12;
+    const len = 1.3 + (i % 3) * 0.25;
+    parts.push(cyl(0.022, 0.022, len, 3, '#4f8a3a', { p: [x, 0.5 - len / 2, (i % 2 ? 1 : -1) * 0.08] }));
+    for (let k = 0; k < 3; k++) {
+      parts.push(
+        part(new DodecahedronGeometry(0.075, 0), i % 2 ? '#5fa83a' : '#3f7d3a', {
+          p: [x + (k % 2 ? 0.06 : -0.06), 0.35 - k * 0.42 - (i % 2) * 0.1, (i % 2 ? 1 : -1) * 0.1],
+          s: [1.2, 0.7, 1.2],
+        }),
+      );
+    }
+  }
+  parts.push(ball(0.14, '#fff08a', { p: [0.4, -0.5, 0.1] })); // a pale orchid among them
+  return merge(parts);
+}
+
+/** Amazon: stacked bracket fungi shelves on the trunk, with a cushion of moss. */
+export function createBracketFungi() {
+  const parts = [];
+  for (let i = 0; i < 3; i++) {
+    parts.push(cyl(0.3 - i * 0.04, 0.3 - i * 0.04, 0.06, 7, i % 2 ? '#e8a05a' : '#f2d6a0', { p: [0.3 + i * 0.03, 0.3 - i * 0.26, 0], s: [1, 1, 0.9] }));
+    parts.push(cyl(0.28 - i * 0.04, 0.3 - i * 0.04, 0.03, 7, '#7a4a2a', { p: [0.3 + i * 0.03, 0.27 - i * 0.26, 0], s: [1, 1, 0.9] })); // dark underside
+  }
+  parts.push(ball(0.2, '#6aa044', { p: [0.18, -0.55, 0.05], s: [1.2, 0.8, 1.1] }));
+  parts.push(ball(0.14, '#8ccc50', { p: [0.32, -0.62, -0.04], s: [1.2, 0.8, 1.1] }));
+  return merge(parts);
+}

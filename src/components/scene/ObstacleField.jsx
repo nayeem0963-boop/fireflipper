@@ -23,7 +23,9 @@ const hash = (n) => {
  * drawing differs: colliders never change.
  * Meshes with nothing to draw are hidden, so a look costs nothing when it is not on screen.
  */
-const MAX = { column: 48, block: 12, rock: 112, up: 16, down: 48 };
+const MAX = { column: 48, block: 12, rock: 112, up: 16, down: 48, deco: 192 };
+/** How much of a pole is dressed (metres from the gap end): the rest is off screen or under the water / ground. */
+const DECO_REACH = 9;
 const CAP_THICKNESS = 0.14;
 /** Zone caps are a little taller than the flat original ones so their shapes read; still inside the corridor edge. */
 const ZONE_CAP = 1.0;
@@ -114,6 +116,27 @@ export default function ObstacleField({ sim }) {
           dummy.scale.set(k, k, k);
           dummy.updateMatrix();
           set[part].setMatrixAt(ci, dummy.matrix);
+        }
+        // growths spilling out of the trunk all along the pole, so it is a living tree and not a plain bar
+        const reach = Math.min(o.h - 0.6, DECO_REACH);
+        const nDeco = styles[style].geo.deco.length;
+        for (let k = 0, along = 0.75; along < reach; k++, along += L.decoSpacing) {
+          const yy = capY - o.cap * along;
+          if (rising ? yy < WORLD.groundY - 0.3 : yy > 9) break;
+          // one growth on a side that alternates, and a second on the other side every other step: the pole is wrapped
+          const first = hash(o.x * 5.1) > 0.5 ? 1 : -1;
+          for (let j = 0; j < (k % 2 === 0 ? 2 : 1); j++) {
+            const side = (k + j) % 2 === 0 ? first : -first;
+            const variant = (k + j * 2 + Math.floor(o.x * 2.3)) % nDeco;
+            const di = next(style, `deco${variant}`);
+            if (di >= MAX.deco) continue;
+            const yj = yy + (j ? -o.cap * 0.45 : 0);
+            dummy.position.set(x + side * o.w * 0.38, yj, (hash(o.x + k * 2.9 + j) - 0.3) * 0.55);
+            dummy.rotation.set(0, side > 0 ? 0 : Math.PI, 0);
+            dummy.scale.setScalar(o.w * 1.05);
+            dummy.updateMatrix();
+            set[`deco${variant}`].setMatrixAt(di, dummy.matrix);
+          }
         }
         if (rising && set.base) {
           // roots flaring at the water / ground line
@@ -223,6 +246,9 @@ export default function ObstacleField({ sim }) {
             </instancedMesh>
             {geo.up.map((u, i) => (
               <instancedMesh key={i} ref={reg(id, `up${i}`)} args={[u.geometry, undefined, MAX.up]} frustumCulled={false}>{lit}</instancedMesh>
+            ))}
+            {geo.deco.map((g, i) => (
+              <instancedMesh key={i} ref={reg(id, `deco${i}`)} args={[g, undefined, MAX.deco]} frustumCulled={false}>{lit}</instancedMesh>
             ))}
             <instancedMesh ref={reg(id, 'down')} args={[geo.down, undefined, MAX.down]} frustumCulled={false}>{lit}</instancedMesh>
             <instancedMesh ref={reg(id, 'rock')} args={[geo.rock, undefined, MAX.rock]} frustumCulled={false}>{lit}</instancedMesh>

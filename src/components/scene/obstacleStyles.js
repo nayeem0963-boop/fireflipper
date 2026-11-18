@@ -20,7 +20,8 @@ import * as A from './animalModels.js';
  * `geo`    the geometries: column (trunk body), base (roots at the water / ground line, rising columns only), capUp (on
  *          the top end of a rising column), capDown (on the bottom end of a hanging column), block (slab body),
  *          blockCap (the slab's gap-facing edge), up[] (animals on top of a lower slab; `len` is how long each is),
- *          down (a creature hanging from an upper slab), rock (a floating obstacle).
+ *          down (a creature hanging from an upper slab), rock (a floating obstacle), deco[] (plants and growths that spill
+ *          out of the trunk all along a pole: branches, combs, roots / bromeliads, lianas, fungi).
  * `layout` how the renderer places them.
  */
 
@@ -62,8 +63,9 @@ function sundarbansStyle() {
       up: [animal(A.createTiger()), animal(A.createCrocodile())],
       down: A.createFruitBat(),
       rock: A.createBeeSwarm(),
+      deco: [A.createMangroveBranch(), A.createCombCluster(), A.createAerialRoots()],
     },
-    layout: { baseScale: 1.0, capUpScale: 1.0, capDownScale: 0.55, downSpacing: 2.3, rockSpin: true },
+    layout: { baseScale: 1.0, capUpScale: 1.0, capDownScale: 0.55, downSpacing: 2.3, rockSpin: true, decoSpacing: 1.05 },
   };
 }
 
@@ -80,8 +82,9 @@ function amazonStyle() {
       up: [animal(A.createJaguar()), animal(A.createAnaconda())],
       down: A.createSloth(),
       rock: A.createMorpho(),
+      deco: [A.createBromeliad(), A.createLianaCurtain(), A.createBracketFungi()],
     },
-    layout: { baseScale: 1.0, capUpScale: 0.6, capDownScale: 0.95, downSpacing: 3.4, rockSpin: false },
+    layout: { baseScale: 1.0, capUpScale: 0.6, capDownScale: 0.95, downSpacing: 3.4, rockSpin: false, decoSpacing: 1.1 },
   };
 }
 
@@ -102,8 +105,8 @@ export function createObstacleStyle(zoneId) {
 
 /** Every geometry in a style (for disposal). */
 export function styleGeometries(style) {
-  const { up, ...rest } = style.geo;
-  return [...Object.values(rest), ...up.map((u) => u.geometry)];
+  const { up, deco, ...rest } = style.geo;
+  return [...Object.values(rest), ...up.map((u) => u.geometry), ...deco];
 }
 
 export const OBSTACLE_STYLE_IDS = Object.freeze(Object.keys(BUILDERS));

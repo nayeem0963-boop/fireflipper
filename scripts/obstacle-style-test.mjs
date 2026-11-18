@@ -81,6 +81,14 @@ for (const [id, st] of Object.entries(styles)) {
   check(`${label}: what hangs from a trunk reaches under 1.2 m`, -down.min.y * layout.capDownScale * W_MAX <= 1.2, (-down.min.y * layout.capDownScale * W_MAX).toFixed(2));
   const roots = extent(geo.base);
   check(`${label}: root flare stays low`, roots.max.y * layout.baseScale * W_MAX <= 2.0 && roots.min.y >= -0.2);
+  // Growths along the pole: three kinds per zone, starting at the trunk's surface and spilling out a modest way.
+  check(`${label}: three kinds of pole growth`, geo.deco.length === 3);
+  for (const [i, g] of geo.deco.entries()) {
+    const b = extent(g);
+    check(`${label}: growth ${i} starts at the trunk and spills out under 1.3 m`, b.min.x >= -0.35 && b.max.x <= 1.3, `${b.min.x.toFixed(2)}..${b.max.x.toFixed(2)}`);
+    check(`${label}: growth ${i} is under 1.8 m tall`, b.max.y - b.min.y <= 1.8, (b.max.y - b.min.y).toFixed(2));
+  }
+  check(`${label}: growths are dense enough to dress a pole`, layout.decoSpacing <= 1.2);
   geo.column.computeBoundingBox();
   const wx = geo.column.boundingBox.max.x - geo.column.boundingBox.min.x;
   check(`${label}: trunk body is full width`, wx >= 0.9 && wx <= 1.01, wx.toFixed(2));
@@ -110,6 +118,7 @@ check('look follows position', biomeAt(250)?.id === 'sundarbans' && biomeAt(750)
 const field = read('src/components/scene/ObstacleField.jsx');
 check('renderer picks the look from the obstacle position', /biomeAt\(o\.x\)/.test(field));
 check('unused looks are hidden (no draw cost)', /mesh\.visible = count > 0/.test(field));
+check('the renderer dresses poles with the growths', /deco\$\{variant\}/.test(field) && /DECO_REACH/.test(field));
 check('simulation does not import obstacle looks', !/obstacleStyles|animalModels|ObstacleField/.test(read('src/systems/game/createGameSim.js') + read('src/systems/obstacles/spawner.js') + read('src/systems/obstacles/patterns.js') + read('src/systems/physics/collision.js')));
 
 console.log(failures ? `\n${failures} failed` : '\nobstacle tests passed');
