@@ -31,6 +31,11 @@ export const useGameStore = create((set, get) => ({
   // --- navigation ---
   screen: SCREENS.HOME,
   settingsOpen: false,
+  /**
+   * Auto-play (watch-only): a bot plays and the viewer learns by watching. Nothing is scored, banked or
+   * saved in this mode, and the game-over screen is skipped (the demo just starts again).
+   */
+  demo: false,
 
   // --- current run ---
   status: STATUS.IDLE,
@@ -63,9 +68,16 @@ export const useGameStore = create((set, get) => ({
   startGame: () =>
     set((s) => ({
       screen: SCREENS.GAME,
+      demo: false,
       ...freshRun(s),
     })),
-  exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE }),
+  startDemo: () =>
+    set((s) => ({
+      screen: SCREENS.GAME,
+      demo: true,
+      ...freshRun(s),
+    })),
+  exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE, demo: false }),
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
 
@@ -77,6 +89,11 @@ export const useGameStore = create((set, get) => ({
     const s = get();
     // Guard: a run can only end once.
     if (s.status !== STATUS.DYING && s.status !== STATUS.RUNNING) return;
+    // Auto-play never counts: no best score, no gems banked, no streak record, no session stats.
+    if (s.demo) {
+      set({ status: STATUS.OVER, overAt: performance.now(), lastResult: null });
+      return;
+    }
     const isNewBest = score > s.bestScore;
     if (isNewBest) saveValue('bestScore', score);
     // Gems are the progression currency: bank them the moment the run ends.

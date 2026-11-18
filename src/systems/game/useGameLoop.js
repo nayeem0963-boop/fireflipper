@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGameStore, STATUS } from '../../store/useGameStore.js';
 import { createStepper } from './fixedStep.js';
+import { demoBot } from '../bot/demo.js';
 import { GAME_EVENTS, gameEvents } from '../events/gameEvents.js';
 
 const HUD_INTERVAL = 0.1; // seconds; the HUD only needs ~10 updates/s
@@ -25,6 +26,7 @@ const PLAY_EVENTS = new Set([
  */
 export function useGameLoop(sim) {
   const runId = useGameStore((s) => s.runId);
+  const demo = useGameStore((s) => s.demo);
   const stepper = useMemo(() => createStepper(sim), [sim]);
   const hudTimer = useRef(0);
   const wasPaused = useRef(false);
@@ -33,7 +35,17 @@ export function useGameLoop(sim) {
     sim.reset();
     stepper.reset();
     hudTimer.current = 0;
+    demoBot.reset();
   }, [runId, sim, stepper]);
+
+  // In auto-play the bot presses the inputs, at the start of every fixed step.
+  useEffect(() => {
+    sim.controller = demo ? () => demoBot.control() : null;
+    demoBot.reset();
+    return () => {
+      sim.controller = null;
+    };
+  }, [demo, sim]);
 
   useFrame((_, rawDelta) => {
     const store = useGameStore.getState();
@@ -49,6 +61,9 @@ export function useGameLoop(sim) {
     }
 
     stepper.advance(rawDelta);
+    // A little planning each frame (never more than a few ms, so a phone never hitches).
+    // More when frames are slow (there is spare time in a long frame), never less than one layer.
+    if (store.demo) demoBot.think(Math.min(12, Math.max(3, rawDelta * 250)), rawDelta);
 
     if (sim.events.length) {
       let playDirty = false;

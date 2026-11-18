@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test:sim": "node scripts/sim-test.mjs",
     "test:route": "node scripts/route-test.mjs 8 2000",
-    "balance": "node scripts/balance-model.mjs"
+    "balance": "node scripts/balance-model.mjs",
+    "test:bot": "node scripts/autopilot-test.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

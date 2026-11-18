@@ -27,6 +27,7 @@ npm run build     # production build to dist/
 npm run preview   # serve the production build
 npm run test:sim  # headless gameplay tests (physics, collisions, scoring, track generation), ~10 s
 npm run test:route # real-flight-physics proof that generated tracks are survivable, ~2 min
+npm run test:bot  # the auto play bot survives thousands of metres at 60/30/20 fps, ~8 min
 npm run balance   # scoring balance model: how much of a score comes from distance
 ```
 
@@ -61,6 +62,8 @@ src/
     physics/            constants, flight model, 2D collision tests
     obstacles/          patterns, procedural spawner, route planner (fairness proof), moving-hazard
                         timeline (dynamics), renderer capacities, ObjectPool
+    bot/                auto play: autopilot (search planner over the real flight model), demo
+                        instance, per-section tips
     scoring/            pure scoring helpers; streak tiers and multipliers
     world/              the journey: five environments, blending between them, per-environment
                         obstacle mixes, scenery budget (pure data, shared by generator, renderers, tests)
@@ -251,5 +254,18 @@ scripts/
 | Dive          | Down arrow, S      | (release and fall)       |
 | Pause         | Esc, P             | Pause button             |
 | Retry         | Space (game over)  | Retry button             |
+
+## Auto play
+
+"Watch auto play" on the home screen starts a demo where a bot flies and the player only watches.
+Nothing is scored: no best score, gems, streak or stats are saved, and there is no game-over panel
+(the demo restarts itself after a crash). A bar shows the controls (TAP and HOLD keys light up as the
+bot presses them) and a tip about the section ahead, "Next land" skips to the next environment, and
+"Play it yourself" starts a real run.
+
+The bot (`systems/bot/autopilot.js`) is a receding-horizon search over the game's own flight model
+(`stepFlight`/`applyFlap`), looking 2.2 s ahead with three actions per 0.1 s (nothing, tap, tap and
+hold). It plans in small slices per frame, compensates for planning latency, and uses the route
+planner as a long-range check. It only presses the same inputs a player can.
 
 The run also pauses automatically when the tab is hidden or the window loses focus.

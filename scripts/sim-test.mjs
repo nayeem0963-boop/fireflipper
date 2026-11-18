@@ -14,6 +14,7 @@ import { BIOMES, BOUNDARIES, SCENERY_BUDGET, biomeIndexAt, createEnvState, envir
 import { RENDER_CAPS } from '../src/systems/obstacles/renderCaps.js';
 import { PHYSICS, WORLD, SCORING, STREAK, POWERUPS } from '../src/systems/physics/constants.js';
 import { modelScores } from './balance-model.mjs';
+import { SECTION_TIPS, describeAhead } from '../src/systems/bot/commentary.js';
 import { computeScore } from '../src/systems/scoring/scoring.js';
 
 const DT = PHYSICS.fixedStep;
@@ -961,6 +962,80 @@ section('Scenery is cheap enough for phones');
   // Each environment on its own draws only its own scenery.
   const alone = BIOMES.map((b) => Object.keys(per).filter((k) => b.scenery[k] >= B.minWeight).reduce((a, k) => a + per[k], 0));
   check('each environment on its own is within budget', alone.every((c) => c <= 6), alone.join());
+}
+
+// ---------------------------------------------------------------- auto play (watch-only)
+section('Auto play never counts');
+{
+  // A fake localStorage lets us see exactly what a finished run would write.
+  const writes = [];
+  const data = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (k) => (data.has(k) ? data.get(k) : null),
+      setItem: (k, v) => {
+        writes.push(k);
+        data.set(k, v);
+      },
+      removeItem: (k) => data.delete(k),
+    },
+  };
+  const { useGameStore, STATUS } = await import('../src/store/useGameStore.js');
+  const store = useGameStore;
+  const result = { score: 4321, distance: 1800, orbs: 90, gems: 7, rings: 3, nearMisses: 12, bestStreak: 40, maxMult: 4, shieldsUsed: 1, points: { distance: 1800, orbs: 180, gems: 84, rings: 24, nearMiss: 40, other: 0 } };
+
+  store.getState().startDemo();
+  check('auto play starts in demo mode on the game screen', store.getState().demo === true && store.getState().screen === 'game' && store.getState().status === STATUS.READY);
+  store.getState().beginRun();
+  store.getState().endRun(result);
+  const d = store.getState();
+  check('a finished demo run leaves the best score alone', d.bestScore === 0, `${d.bestScore}`);
+  check('it banks no gems', d.gemsBanked === 0, `${d.gemsBanked}`);
+  check('it records no streak', d.bestStreak === 0);
+  check('it counts toward no session stats', d.sessionBest === 0 && d.runsThisSession === 0);
+  check('it keeps no result to show', d.lastResult === null);
+  check('and writes nothing to storage', writes.length === 0, writes.join());
+  check('the run still ends cleanly so the demo can start again', d.status === STATUS.OVER);
+  store.getState().restart();
+  check('restarting keeps it in demo mode', store.getState().demo === true && store.getState().status === STATUS.READY);
+
+  // Control: a normal run does save, so the checks above are meaningful.
+  store.getState().startGame();
+  check('a normal game is not a demo', store.getState().demo === false);
+  store.getState().beginRun();
+  store.getState().endRun(result);
+  const n = store.getState();
+  check('control: a normal run does save its best score, gems and streak', n.bestScore === 4321 && n.gemsBanked === 7 && n.bestStreak === 40 && writes.length >= 3, `${n.bestScore} ${n.gemsBanked} ${writes.join()}`);
+
+  store.getState().startDemo();
+  store.getState().exitToMenu();
+  check('leaving to the menu ends demo mode', store.getState().demo === false && store.getState().screen === 'home');
+  delete globalThis.window;
+}
+
+section('Auto play: tips and warping');
+{
+  const missing = Object.keys(PATTERNS).filter((t) => !SECTION_TIPS[t]);
+  check('every obstacle section has a plain-language tip', missing.length === 0, missing.join());
+  const sim = createGameSim();
+  sim.reset(4);
+  const tip = describeAhead(sim, 200);
+  check('the tip names the next section and how far away it is', tip && tip.title && tip.text && tip.distance > 0, JSON.stringify(tip));
+  check('no tip when the road ahead is clear', describeAhead(sim, 1) === null);
+
+  // Warping ahead lands at a sane place with a consistent timeline and the right environment.
+  const w = createGameSim();
+  w.reset(5);
+  w.flap();
+  w.step(DT);
+  const landed = w.warpTo(1470);
+  check('warping lands near the target', landed > 1400 && landed < 1520, `${landed}`);
+  check('the bird is in the flight band, at rest', w.bird.y > WORLD.groundY + 1 && w.bird.y < WORLD.ceilingY && w.bird.vy === 0);
+  check('the clock matches the new position', Math.abs(w.runTime - timeAtDistance(w.distance)) < 1e-6);
+  w.step(DT);
+  w.step(DT);
+  check('the run is still alive right after a warp', w.phase === PHASE.RUNNING);
+  check('and the new environment is reported when it is reached', biomeIndexAt(w.distance) === 2 || biomeIndexAt(w.distance) === 3);
 }
 
 section('Difficulty progression');

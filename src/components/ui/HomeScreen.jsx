@@ -12,6 +12,7 @@ export default function HomeScreen() {
   const bestScore = useGameStore((s) => s.bestScore);
   const gemsBanked = useGameStore((s) => s.gemsBanked);
   const startGame = useGameStore((s) => s.startGame);
+  const startDemo = useGameStore((s) => s.startDemo);
   const openSettings = useGameStore((s) => s.openSettings);
   const settingsOpen = useGameStore((s) => s.settingsOpen);
 
@@ -54,6 +55,17 @@ export default function HomeScreen() {
         >
           <PlayIcon />
           <span>Play</span>
+        </button>
+        <button
+          type="button"
+          className="ghost-btn home__demo"
+          onClick={() => {
+            unlockAudio();
+            startDemo();
+          }}
+        >
+          Watch auto play
+          <small>A bot plays so you can see how. Nothing is scored.</small>
         </button>
 
         <div className="home__cards">

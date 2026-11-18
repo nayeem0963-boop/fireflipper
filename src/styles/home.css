@@ -214,3 +214,17 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.home__demo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 22px;
+}
+.home__demo small {
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}

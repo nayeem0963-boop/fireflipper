@@ -3,7 +3,7 @@ import { applyFlap, stepFlight } from '../physics/flight.js';
 import { circleHitsObstacle, clearanceToObstacle } from '../physics/collision.js';
 import { ObjectPool } from '../obstacles/ObjectPool.js';
 import { createTrack, fillTrack, resetTrack, speedAt } from '../obstacles/spawner.js';
-import { BOULDER, RING, SPINNER, applyTime, fillRingNodes } from '../obstacles/dynamics.js';
+import { BOULDER, RING, SPINNER, applyTime, fillRingNodes, timeAtDistance } from '../obstacles/dynamics.js';
 import { BIOMES, biomeIndexAt } from '../world/environments.js';
 import { computeScore, toMetres } from '../scoring/scoring.js';
 import { bonusPoints, multiplierFor, nearMissBase } from '../scoring/streak.js';
@@ -292,6 +292,8 @@ export function createGameSim() {
     track,
     /** Events produced since the last drain. */
     events: [],
+    /** Optional: called at the start of every step to press inputs (see systems/bot/autopilot.js). */
+    controller: null,
 
     get metres() {
       return toMetres(sim.phase === PHASE.RUNNING || sim.phase === PHASE.READY ? sim.distance : sim.scoredDistance);
@@ -368,6 +370,8 @@ export function createGameSim() {
     },
 
     step(dt) {
+      // An optional controller (the autopilot) presses inputs at the start of every fixed step.
+      if (sim.controller) sim.controller(sim);
       const b = sim.bird;
       b.prevY = b.y;
       sim.prevDistance = sim.distance;
@@ -388,6 +392,35 @@ export function createGameSim() {
       }
       if (sim.phase === PHASE.RUNNING) stepRunning(dt);
       else stepDying(dt);
+    },
+
+    /**
+     * Jump ahead to just after the last section that ends before `target` metres, with the bird at the
+     * middle of that section's corridor (a place the track guarantees is reachable). Used by the demo
+     * to show a later environment. Returns the distance actually landed at.
+     */
+    warpTo(target) {
+      if (sim.phase !== PHASE.RUNNING && sim.phase !== PHASE.READY) return sim.distance;
+      sim.phase = PHASE.RUNNING;
+      fillTrack(track, builder, target, rng);
+      let prev = null;
+      for (const c of track.corridors) if (c.x1 + 1 <= target) prev = c;
+      const d = prev ? prev.x1 + 1 : target;
+      for (const o of obstacles.active) if (o.x + o.extent < d - WORLD.despawnBehind) obstacles.release(o);
+      for (const orb of orbs.active) if (orb.x < d - WORLD.despawnBehind) orbs.release(orb);
+      sim.distance = sim.prevDistance = d;
+      sim.speed = speedAt(d);
+      sim.runTime = timeAtDistance(d);
+      const b = sim.bird;
+      b.y = b.prevY = clamp(prev ? prev.center : WORLD.birdStartY, WORLD.groundY + 1.4, WORLD.ceilingY - 0.8);
+      b.vy = 0;
+      b.lastVy = 0;
+      sim.input.holding = sim.input.dive = sim.input.flapQueued = false;
+      sim.streak.count = 0;
+      sim.streak.mult = 1;
+      sim.streak.timeLeft = 0;
+      for (const o of obstacles.active) if (o.dyn) applyTime(o, sim.runTime);
+      return d;
     },
 
     /** Interpolated values for smooth rendering between fixed steps. */

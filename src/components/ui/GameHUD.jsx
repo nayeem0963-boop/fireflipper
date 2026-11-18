@@ -14,6 +14,7 @@ export default function GameHUD() {
   const distance = useGameStore((s) => s.distance);
   const orbs = useGameStore((s) => s.orbs);
   const gems = useGameStore((s) => s.gems);
+  const demo = useGameStore((s) => s.demo);
   const status = useGameStore((s) => s.status);
   const togglePause = useGameStore((s) => s.togglePause);
   const restart = useGameStore((s) => s.restart);
@@ -45,14 +46,17 @@ export default function GameHUD() {
         <>
           <div className="hud__center">
             <div className="hud__stats" aria-live="off">
-              <div className="stat">
-                <span className="stat__label">Score</span>
-                <span className="stat__value">{formatScore(score)}</span>
-              </div>
+              {!demo && (
+                <div className="stat">
+                  <span className="stat__label">Score</span>
+                  <span className="stat__value">{formatScore(score)}</span>
+                </div>
+              )}
               <div className="stat">
                 <span className="stat__label">Distance</span>
                 <span className="stat__value">{formatDistance(distance)}</span>
               </div>
+              {!demo && (
               <div className="stat stat--orbs">
                 <span className="stat__label">Orbs</span>
                 {/* key re-mounts the value so the pop animation replays on each pickup */}
@@ -61,8 +65,9 @@ export default function GameHUD() {
                   {orbs}
                 </span>
               </div>
+              )}
               {/* Gems are rare: the counter only appears once the first one is found */}
-              {gems > 0 && (
+              {!demo && gems > 0 && (
                 <div className="stat stat--gems">
                   <span className="stat__label">Gems</span>
                   <span className="stat__value" key={gems}>
@@ -74,10 +79,12 @@ export default function GameHUD() {
             </div>
           </div>
           {/* Kept out of the flight band: top-left on wide screens (behind the bird), a slim strip above the band on phones */}
-          <div className="hud__streak">
-            <StreakMeter />
-            <GainFeed />
-          </div>
+          {!demo && (
+            <div className="hud__streak">
+              <StreakMeter />
+              <GainFeed />
+            </div>
+          )}
         </>
       )}
 
