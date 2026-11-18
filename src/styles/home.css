@@ -42,8 +42,15 @@
   gap: 10px;
 }
 
-.home__stage {
+.home__stagewrap {
   grid-area: stage;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.home__stage {
+  flex: 1 1 auto;
   position: relative;
   min-height: 0;
   border-radius: var(--radius);
@@ -255,4 +262,63 @@
   font-size: 0.7rem;
   font-weight: 400;
   color: var(--text-muted);
+}
+
+/* Bird strip under the preview: all seven birds visible and selectable */
+.home__birds {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.birdchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 12px 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(11, 9, 7, 0.6);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.birdchip:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.birdchip.is-active {
+  border-color: var(--fire-300);
+  background: rgba(255, 150, 50, 0.16);
+  color: var(--fire-100);
+  box-shadow: var(--glow-sm);
+}
+.birdchip:focus-visible {
+  outline: 2px solid var(--fire-300);
+  outline-offset: 2px;
+}
+.birdchip__dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--skin), var(--skin-2));
+  box-shadow: 0 0 8px var(--skin);
+}
+/* Phones: one swipeable row instead of a wrapped block, so the menu stays short */
+@media (max-width: 720px) {
+  .home__birds {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .birdchip {
+    flex: none;
+  }
 }

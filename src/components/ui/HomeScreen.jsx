@@ -6,7 +6,7 @@ import SoundToggle from './SoundToggle.jsx';
 import { FlameIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
 import { useSkin } from '../../hooks/useSkin.js';
 import { ACHIEVEMENTS, achievementProgress, dailyGoalFor } from '../../systems/progression/progression.js';
-import { collectionProgress } from '../../systems/avatars/avatars.js';
+import { AVATAR_SPECIES, avatarFor, collectionProgress, isAvatarUnlocked } from '../../systems/avatars/avatars.js';
 import { formatScore } from '../../systems/scoring/scoring.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
 import '../../styles/home.css';
@@ -21,6 +21,7 @@ export default function HomeScreen() {
   const openAvatars = useGameStore((s) => s.openAvatars);
   const flown = useGameStore((s) => s.flown);
   const skin = useSkin();
+  const selectSkin = useGameStore((s) => s.selectSkin);
   const stats = useGameStore((s) => s.stats);
   const daily = useGameStore((s) => s.daily);
   const openAchievements = useGameStore((s) => s.openAchievements);
@@ -40,12 +41,38 @@ export default function HomeScreen() {
         </div>
       </header>
 
-      <section className="home__stage" aria-label="Firebird preview">
-        {/* Stop rendering the preview while the settings modal covers it */}
-        <SceneCanvas camera={{ position: [0, 0.25, 6], fov: 45 }} frameloop={settingsOpen || avatarsOpen || achievementsOpen ? 'demand' : 'always'}>
-          <ShowcaseScene />
-        </SceneCanvas>
-      </section>
+      <div className="home__stagewrap">
+        <section className="home__stage" aria-label="Bird preview">
+          {/* Stop rendering the preview while a modal covers it */}
+          <SceneCanvas camera={{ position: [0, 0.25, 6], fov: 45 }} frameloop={settingsOpen || avatarsOpen || achievementsOpen ? 'demand' : 'always'}>
+            <ShowcaseScene />
+          </SceneCanvas>
+        </section>
+
+        {/* Every bird is one tap away: the seven species, in the colour you have chosen when it is unlocked */}
+        <div className="home__birds" role="radiogroup" aria-label="Choose your bird">
+          {AVATAR_SPECIES.map((sp) => {
+            const shown = avatarFor(sp.id, skin.color);
+            const pick = isAvatarUnlocked(shown, bestScore) ? shown : avatarFor(sp.id, 'fire');
+            const active = skin.species === sp.id;
+            const p = pick.kind === 'firebird' ? [pick.palette.wing ?? '#ff6a1a', pick.palette.belly ?? '#ffb347'] : [pick.palette.mid, pick.palette.high];
+            return (
+              <button
+                key={sp.id}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                className={`birdchip${active ? ' is-active' : ''}`}
+                style={{ '--skin': p[0], '--skin-2': p[1] }}
+                onClick={() => selectSkin(pick.id)}
+              >
+                <span className="birdchip__dot" aria-hidden="true" />
+                <span className="birdchip__name">{sp.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <section className="home__brand">
         <h1 className="logo">
@@ -113,7 +140,7 @@ export default function HomeScreen() {
         <button type="button" className="ghost-btn home__bird" onClick={openAvatars}>
           <FlameIcon />
           <span>
-            Your bird: {skin.name} ({skin.colorName}) · {progress.unlocked}/{progress.total} skins
+            Skins &amp; trails · {progress.unlocked}/{progress.total}
           </span>
         </button>
         </div>
