@@ -236,3 +236,12 @@ With the `depth` prop, `PaintedHorizon` draws each painting three times through 
 soft alpha mask (mid) and the near edges (near). The layers slide at 0.05 / 0.08 / 0.10 units per metre (`DEPTH_SLIDE`), aligned at the middle
 of each painting's stretch, so any ghosting is largest at the ends of the stretch, where the painting is dissolving anyway. On for the canyon,
 celestial and palace zones; the arctic zone is replaced in step 4. Cost: two extra draw calls per visible painting, no extra textures.
+
+### Step 3: foreground layer
+
+`ForegroundLayer.jsx` adds a thin strip of low props (canyon rocks, snow mounds, crystals, blossom bushes) standing on the floor 8 units in front of the
+camera, along the bottom edge of the screen. Placement maths is in `src/systems/world/foreground.js`: a prop's top is always kept below the screen position
+of the ground at the front of the gameplay plane (minus a margin), so nothing can cover the bird, an obstacle, an orb or an edge warning. When the camera rides
+high the strip falls off-screen and nothing is drawn. Props are world-fixed (they move with the track), instanced (one draw call per live zone, at most two
+during a cross-fade), non-colliding, and read only `renderDistance()`. `npm run test:foreground` checks the safety rule with a real camera across aspects,
+heights and fields of view.

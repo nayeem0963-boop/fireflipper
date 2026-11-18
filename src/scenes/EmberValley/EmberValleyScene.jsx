@@ -18,6 +18,7 @@ import CanyonBackdrop from './CanyonBackdrop.jsx';
 import ArcticBackdrop from './ArcticBackdrop.jsx';
 import CelestialBackdrop from './CelestialBackdrop.jsx';
 import PalaceBackdrop from './PalaceBackdrop.jsx';
+import ForegroundLayer from './ForegroundLayer.jsx';
 import { BIOMES, ZONE_IDS, biomeWeights } from '../../systems/world/biomes.js';
 
 /**
@@ -93,6 +94,7 @@ export default function EmberValleyScene() {
       <PalaceBackdrop sim={game} />
       <ObstacleField sim={game} />
       <OrbField sim={game} />
+      <ForegroundLayer sim={game} />
       <PlayerBird sim={game} />
       <BurstParticles sim={game} />
       {/* Narrow screens see less track ahead, so warn about obstacles just off-screen */}
