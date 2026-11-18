@@ -186,6 +186,19 @@
   font-size: 0.85rem;
   color: var(--text-dim);
 }
+.start-prompt__run-goal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+.start-prompt__run-goal strong {
+  color: var(--fire-200);
+  font-weight: 600;
+}
 .start-prompt__rotate {
   display: inline-flex;
   align-items: center;

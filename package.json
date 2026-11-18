@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:sim": "node scripts/sim-test.mjs",
-    "test:avatars": "node scripts/avatars-test.mjs"
+    "test:avatars": "node scripts/avatars-test.mjs",
+    "test:progression": "node scripts/progression-test.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

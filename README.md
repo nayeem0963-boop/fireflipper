@@ -134,3 +134,12 @@ each in three skins (Fire, Blue, White): 21 in all. Fire is always free; Blue an
 600 and 1,500. Each skin has its own cosmetic trail colours and tints the orb-pickup sparks. Everything is visual:
 birds share one hitbox and one physics model (`npm run test:avatars` guards against gameplay fields on a bird).
 Bird models are third-party (CC BY 4.0); see `public/models/CREDITS.md` and the in-app credits.
+
+## Progression
+
+Run loop: fly, collect orbs and streaks, dodge for near misses, beat your best, unlock skins, go again with a goal.
+`src/systems/progression` holds 19 achievements (distance, collection, near misses, streaks, records), lifetime stats,
+a deterministic daily goal (same for everyone each UTC day, with a day streak) and the "next goal" picker. The goal is
+shown on the start prompt, new achievements and the daily result appear compactly on the game-over screen, and the
+Achievements panel lists everything, including skin unlock milestones. Local only (no accounts or leaderboard yet),
+and nothing in it affects gameplay. `npm run test:progression` covers the logic.

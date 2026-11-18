@@ -1,0 +1,142 @@
+/* Achievements panel: fixed header/footer, one scrolling list. */
+.prog {
+  display: flex;
+  flex-direction: column;
+  width: min(640px, 100%);
+  height: min(580px, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px));
+  padding: 0;
+  overflow: hidden;
+}
+.prog__header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 22px;
+  border-bottom: 1px solid var(--line);
+}
+.prog__header .panel__title {
+  margin-right: auto;
+}
+.prog__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 12px 22px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.prog__group {
+  margin-top: 14px;
+}
+.prog__daily {
+  padding: 10px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 150, 50, 0.08);
+}
+.prog__daily.is-done {
+  border-color: var(--fire-300);
+}
+.prog__daily .birds__heading {
+  margin-bottom: 4px;
+}
+.prog__daily-text {
+  margin: 0;
+  font-weight: 700;
+  color: var(--fire-200);
+}
+.prog__sub {
+  margin: 2px 0 0;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+.prog__items {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ach {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 110px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(11, 9, 7, 0.5);
+}
+.ach.is-done {
+  border-color: rgba(255, 179, 71, 0.5);
+  background: rgba(255, 150, 50, 0.1);
+}
+.ach__mark {
+  text-align: center;
+  color: var(--text-dim);
+}
+.ach.is-done .ach__mark {
+  color: var(--fire-300);
+}
+.ach__name {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.ach__desc {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+.ach__prog {
+  display: grid;
+  gap: 3px;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-dim);
+}
+.ach__prog i {
+  display: block;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.ach__prog b {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--fire-600), var(--fire-300));
+}
+.prog__footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 22px 12px;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--bg-elevated), var(--bg-raised));
+}
+.prog__footer .birds__note {
+  margin: 0;
+}
+.prog__footer .play-btn {
+  min-width: 140px;
+  min-height: 44px;
+}
+@media (max-width: 480px) {
+  .ach {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+  .ach__prog {
+    grid-column: 2;
+    text-align: left;
+  }
+  .prog__footer .birds__note {
+    display: none;
+  }
+  .prog__footer .play-btn {
+    width: 100%;
+  }
+}

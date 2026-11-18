@@ -1,6 +1,17 @@
 import { create } from 'zustand';
 import { loadValue, saveValue } from '../utils/storage.js';
 import { newlyUnlocked } from '../systems/skins/skins.js';
+import {
+  EMPTY_STATS,
+  applyRun,
+  completeDaily,
+  dailyGoalFor,
+  dailyMet,
+  dayKey,
+  newlyEarned,
+  nextGoal,
+  rollDaily,
+} from '../systems/progression/progression.js';
 import { DEFAULT_AVATAR_ID, getAvatar, isAvatarUnlocked, resolveAvatar } from '../systems/avatars/avatars.js';
 
 export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
@@ -34,6 +45,7 @@ export const useGameStore = create((set, get) => ({
   screen: SCREENS.HOME,
   settingsOpen: false,
   avatarsOpen: false,
+  achievementsOpen: false,
   creditsOpen: false,
 
   // --- current run ---
@@ -57,6 +69,13 @@ export const useGameStore = create((set, get) => ({
   /** Completed runs per bird species, for collection progress: { species: runs }. */
   flown: loadValue('flown', {}),
 
+  // --- progression (see systems/progression) ---
+  stats: { ...EMPTY_STATS, ...loadValue('stats', {}) },
+  /** Earned achievements: { id: run number it was earned on }. */
+  earned: loadValue('achievements', {}),
+  /** Today's goal state: { key, done, streakDays, lastDoneKey }. */
+  daily: rollDaily(loadValue('daily', null), dayKey()),
+
   // --- settings ---
   soundEnabled: loadValue('soundEnabled', true),
   quality: loadValue('quality', QUALITY.AUTO),
@@ -70,6 +89,8 @@ export const useGameStore = create((set, get) => ({
   exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE }),
   openAvatars: () => set({ avatarsOpen: true }),
   closeAvatars: () => set({ avatarsOpen: false }),
+  openAchievements: () => set({ achievementsOpen: true }),
+  closeAchievements: () => set({ achievementsOpen: false }),
   openCredits: () => set({ creditsOpen: true }),
   closeCredits: () => set({ creditsOpen: false }),
   openSettings: () => set({ settingsOpen: true }),
@@ -89,14 +110,45 @@ export const useGameStore = create((set, get) => ({
     const flown = { ...s.flown, [species]: (s.flown[species] ?? 0) + 1 };
     saveValue('flown', flown);
     const unlockedSkins = newlyUnlocked(previousBest, score).map((k) => k.name);
+
+    // Progression: lifetime stats, achievements and the daily goal.
+    const run = { score, distance, orbs, bestStreak, nearMisses };
+    const bestAfter = Math.max(previousBest, score);
+    const stats = applyRun(s.stats, run, { isNewBest, hadBest: previousBest > 0 });
+    const earnedNow = newlyEarned(s.stats, previousBest, stats, bestAfter);
+    const earned = { ...s.earned };
+    for (const a of earnedNow) earned[a.id] = stats.runs;
+    const rolled = rollDaily(s.daily, dayKey());
+    const dailyGoal = dailyGoalFor(rolled.key);
+    const dailyJustMet = !rolled.done && dailyMet(dailyGoal, run);
+    const daily = dailyJustMet ? completeDaily(rolled) : rolled;
+    saveValue('stats', stats);
+    saveValue('achievements', earned);
+    saveValue('daily', daily);
     set({
+      stats,
+      earned,
+      daily,
       flown,
       status: STATUS.OVER,
       overAt: performance.now(),
       score,
       distance,
       orbs,
-      lastResult: { score, distance, orbs, bestStreak, nearMisses, cause, isNewBest, previousBest, unlockedSkins },
+      lastResult: {
+        score,
+        distance,
+        orbs,
+        bestStreak,
+        nearMisses,
+        cause,
+        isNewBest,
+        previousBest,
+        unlockedSkins,
+        achievements: earnedNow.map((a) => ({ id: a.id, name: a.name, desc: a.desc })),
+        daily: { text: dailyGoal.text, done: daily.done, justCompleted: dailyJustMet, streakDays: daily.streakDays },
+        nextGoal: nextGoal(stats, bestAfter),
+      },
       bestScore: Math.max(s.bestScore, score),
       sessionBest: Math.max(s.sessionBest, score),
       runsThisSession: s.runsThisSession + 1,

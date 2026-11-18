@@ -92,6 +92,7 @@ export default function GameOverPanel() {
   if (!result) return null;
 
   const { previousBest, distance, orbs, bestStreak, nearMisses, cause, unlockedSkins = [] } = result;
+  const { achievements = [], daily, nextGoal } = result;
   const hasBest = previousBest > 0;
   const personalBest = Math.max(previousBest, score);
   const pct = hasBest ? Math.min(1, score / previousBest) : 1;
@@ -167,6 +168,33 @@ export default function GameOverPanel() {
               {formatScore(sessionBest)}
             </Stat>
           </dl>
+
+          <section className="rewards" aria-label="Rewards and next goal">
+            {achievements.map((a) => (
+              <p key={a.id} className="reward reward--earned" title={a.desc}>
+                <span aria-hidden="true">★</span> Achievement: <strong>{a.name}</strong>
+              </p>
+            ))}
+            {daily?.justCompleted && (
+              <p className="reward reward--earned">
+                <span aria-hidden="true">🔥</span> Daily goal complete
+                {daily.streakDays > 1 ? ` · ${daily.streakDays}-day streak` : ''}
+              </p>
+            )}
+            {daily && !daily.done && (
+              <p className="reward">
+                Daily: <strong>{daily.text}</strong>
+              </p>
+            )}
+            {nextGoal && (
+              <p className="reward reward--goal">
+                Next goal: <strong>{nextGoal.text}</strong>
+                <span className="reward__bar" aria-hidden="true">
+                  <i style={{ width: `${Math.round(nextGoal.ratio * 100)}%` }} />
+                </span>
+              </p>
+            )}
+          </section>
         </div>
 
         <footer className="gameover__footer">
