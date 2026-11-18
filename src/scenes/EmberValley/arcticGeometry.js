@@ -1,4 +1,4 @@
-import { BoxGeometry, ConeGeometry, CylinderGeometry, DodecahedronGeometry, SphereGeometry, TorusGeometry } from 'three';
+import { BoxGeometry, ConeGeometry, CylinderGeometry, DodecahedronGeometry, OctahedronGeometry, SphereGeometry, TorusGeometry } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { paint, place } from './mangroveGeometry.js';
 
@@ -58,5 +58,18 @@ export function createSnowOutcrops(colors) {
   ].forEach(([x, y, z, r, k], i) => {
     parts.push(part(new DodecahedronGeometry(r, 0), colors[k % colors.length], { p: [x, y, z], r: [0.2 * i, 0.9 * i, 0.15 * i], s: [1.4, 0.55 + (i % 2) * 0.15, 1.0] }));
   });
+  return mergeGeometries(parts, false);
+}
+
+/** A cluster of tall pale-blue ice crystals (like the glowing crystals at the lake shores of the paintings), standing on y = 0. */
+export function createIceCrystals() {
+  const parts = [];
+  [
+    [0, 1.1, 0, 0.5, 2.3, '#b8f0ff'],
+    [-0.8, 0.7, 0.2, 0.38, 1.8, '#8fd8f5'],
+    [0.75, 0.8, -0.1, 0.4, 2.0, '#a4e6ff'],
+    [0.3, 0.45, 0.45, 0.3, 1.5, '#7ccaf0'],
+    [-0.35, 0.5, -0.4, 0.3, 1.6, '#c6f4ff'],
+  ].forEach(([x, y, z, r, h, c], i) => parts.push(part(new OctahedronGeometry(r, 0), c, { p: [x, y, z], r: [0, i * 0.9, (i - 2) * 0.12], s: [1, h, 1] })));
   return mergeGeometries(parts, false);
 }

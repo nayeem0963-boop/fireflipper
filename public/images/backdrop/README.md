@@ -4,12 +4,12 @@
 (originally 1672x941 WebP, 230 to 340 kB each). Each is a whole scene, resized to 1280x720 JPEG (about 110 to 140 kB). The valley floor of each picture (row 0.66) sits on the game's horizon; everything below it is replaced by a 3D canyon floor, drawn by
 `src/scenes/EmberValley/CanyonBackdrop.jsx`.
 
-## Arctic Ice Shelf backdrop
+## Frosty Polar backdrop
 
-`arctic-a.jpg`, `arctic-b.jpg` and `arctic-c.jpg` are three arctic paintings (an ice shelf under an aurora with a research camp, the same shelf beside a
-canyon and a research station, and a finer render of the second), supplied by the project owner for the 1500 to 2000 m stretch. Each is cropped at its own
-horizon (the top 440 rows of the first, the top 350 of the others, out of 824) and resized to 1600 px wide. The snowfield, the camp's tents, snowmobile, mast
-and flagged cairn, and the slate outcrops are drawn in 3D by `src/scenes/EmberValley/ArcticBackdrop.jsx`.
+`frosty-glacier-valley.jpg`, `frosty-crystal-canyon.jpg` and `frosty-aurora-lake.jpg` are three wide panoramas (1672x321, 1672x300, 1672x301; about 150 kB each) supplied by the project owner for the
+1500 to 2000 m stretch: Glacier Valley (1500 to 1665 m), Crystal Ice Canyon (1665 to 1830 m) and Aurora Lake (1830 to 2000 m). **These are placeholders**: the low vertical resolution makes them soft when
+enlarged, and higher-resolution versions are expected; replacing the files (same names, any aspect ratio, update `aspect` in the backdrop) is all that is needed. The row where the far shore meets the lake
+(0.64, 0.80, 0.71) sits on the game's horizon; the snowfield, slate outcrops and ice crystals are drawn in 3D by `src/scenes/EmberValley/ArcticBackdrop.jsx`.
 
 ## Celestial Realm backdrop
 

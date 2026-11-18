@@ -6,7 +6,7 @@
  *  - Red Rock Canyon (0 to 1500 m): a sunset over towering red sandstone cliffs, natural arches and a misty canyon, from three
  *    paintings, one for each 500 m (0 to 500, 500 to 1000, 1000 to 1500). The far scenery is the painting; the floor is a dusty,
  *    faceted canyon floor, and red mesas stand at two depths for parallax.
- *  - Arctic Ice Shelf (1500 to 2000 m): a pale ice shelf and snowfield under an aurora and a peach horizon, from three more paintings.
+ *  - Frosty Polar (1500 to 2000 m): Glacier Valley (to 1665 m), Crystal Ice Canyon (to 1830 m) and Aurora Lake, from three paintings.
  *  - Celestial Realm (2000 to 3000 m): a night of floating crystal cities among galaxies, a ringed planet and nebulae, from three
  *    cosmic paintings; the view slowly rises from the floating cities up into the cosmos.
  *  - Rose Sky Palace (3000 to 5000 m): a pink-and-gold sunset over white filigree palaces, floating islands with waterfalls and a
@@ -130,7 +130,7 @@ export const BIOMES = Object.freeze({
   }),
   arctic: Object.freeze({
     id: 'arctic',
-    name: 'Arctic Ice Shelf',
+    name: 'Frosty Polar',
     start: 1500,
     end: 2000,
     joinsPrev: true,

@@ -62,3 +62,12 @@ export const DEPTH_SLIDE = { far: 0.05, mid: 0.08, near: 0.1 };
 
 /** Slack (units each side) a layer slides: the fastest layer uses all of it, slower layers a proportional part. */
 export const layerSlack = (slack, layer) => slack * (DEPTH_SLIDE[layer] / DEPTH_SLIDE.near);
+
+/**
+ * Upper limit (units per metre) on how fast a painted backdrop's slack is used, so a short stretch with a very wide picture (the 165 m Frosty
+ * scenes) never makes the far backdrop move faster than the 3D mid layer (0.25).
+ */
+export const SLIDE_CAP = 0.2;
+
+/** Slack actually used across the stretch [start, end]: the picture's own slack, limited by SLIDE_CAP. */
+export const effectiveSlack = (slack, start, end) => Math.min(slack, (SLIDE_CAP * (end - start)) / 2);

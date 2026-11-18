@@ -245,3 +245,10 @@ of the ground at the front of the gameplay plane (minus a margin), so nothing ca
 high the strip falls off-screen and nothing is drawn. Props are world-fixed (they move with the track), instanced (one draw call per live zone, at most two
 during a cross-fade), non-colliding, and read only `renderDistance()`. `npm run test:foreground` checks the safety rule with a real camera across aspects,
 heights and fields of view.
+
+### Step 4: Frosty Polar (1500 to 2000 m)
+
+The arctic zone is now **Frosty Polar**, with three sub-scenes from the owner's panoramas: Glacier Valley (1500 to 1665 m), Crystal Ice Canyon (1665 to 1830 m)
+and Aurora Lake (1830 to 2000 m), dissolving over 40 m at 1665 and 1830 m with their horizons aligned. The old arctic paintings and research camp are gone; 3D ice crystals and
+slate outcrops give depth. The images are placeholders until higher-resolution versions arrive (see `public/images/backdrop/README.md`). Because the sub-scenes are only 165 m long and the pictures very wide, the slide
+is capped (`SLIDE_CAP`, 0.2 units per metre) so the backdrop never outruns the 3D layers.

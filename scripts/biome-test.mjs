@@ -25,7 +25,7 @@ const P = BIOMES.palace;
 
 // ------------------------------------------------------------------ ranges
 check('Red Rock Canyon covers 0 to 1500 m', K.start === 0 && K.end === 1500);
-check('Arctic Ice Shelf covers 1500 to 2000 m', R.start === 1500 && R.end === 2000);
+check('Frosty Polar covers 1500 to 2000 m', R.start === 1500 && R.end === 2000);
 check('Celestial Realm covers 2000 to 3000 m', C.start === 2000 && C.end === 3000);
 check('Rose Sky Palace covers 3000 to 5000 m', P.start === 3000 && P.end === 5000);
 check('four live zones, in order; the retired scenes are not among them', ZONE_IDS.join() === 'canyon,arctic,celestial,palace' && BIOMES.sundarbans.retired && BIOMES.amazon.retired);
@@ -133,11 +133,11 @@ for (const theme of THEME_LIST) {
 // ------------------------------------------------------------------ paintings
 const PAINTINGS = {
   canyon: ['canyon-a.jpg', 'canyon-b.jpg', 'canyon-c.jpg'],
-  arctic: ['arctic-a.jpg', 'arctic-b.jpg', 'arctic-c.jpg'],
+  arctic: ['frosty-glacier-valley.jpg', 'frosty-crystal-canyon.jpg', 'frosty-aurora-lake.jpg'],
   celestial: ['celestial-a.jpg', 'celestial-b.jpg', 'celestial-c.jpg'],
   palace: ['palace-a.jpg', 'palace-b.jpg', 'palace-c.jpg'],
 };
-const LIMIT_KB = { canyon: 180, arctic: 120, celestial: 180, palace: 220 };
+const LIMIT_KB = { canyon: 180, arctic: 200, celestial: 180, palace: 220 };
 for (const [zone, files] of Object.entries(PAINTINGS)) {
   for (const f of files) {
     const path = new URL(`../public/images/backdrop/${f}`, import.meta.url);
@@ -155,10 +155,16 @@ check('only the first canyon painting loads at start-up; the others load as the 
 check('one canyon painting per 500 m', /CUTS = \[500, 1000\]/.test(canyon));
 const loadAtOf = (f) => Number(new RegExp(`${f}[^}]*loadAt: (-?\\d+)`).exec(canyon)?.[1]);
 check('canyon paintings load before they are needed', loadAtOf('canyon-b') < 500 && loadAtOf('canyon-c') < 1000 && 500 - loadAtOf('canyon-b') <= 300 && 1000 - loadAtOf('canyon-c') <= 300);
-const loadNear = { arctic: ['ArcticBackdrop.jsx', 1380, R], celestial: ['CelestialBackdrop.jsx', 1880, C], palace: ['PalaceBackdrop.jsx', 2880, P] };
+const loadNear = { celestial: ['CelestialBackdrop.jsx', 1880, C], palace: ['PalaceBackdrop.jsx', 2880, P] };
 for (const [id, [file, at, z]] of Object.entries(loadNear)) {
   const src = read(`src/scenes/EmberValley/${file}`);
   check(`${id} paintings load lazily, just before the zone`, new RegExp(`PRELOAD_AT = ${at}`).test(src) && at < z.start && z.start - at <= 200);
+}
+const arcticSrc = read('src/scenes/EmberValley/ArcticBackdrop.jsx');
+check('Frosty Polar sub-scenes cut at 1665 and 1830 m, with about 35-40 m of overlap', /CUTS = \[1665, 1830\]/.test(arcticSrc) && Number(/DISSOLVE = (\d+)/.exec(arcticSrc)?.[1]) >= 30 && Number(/DISSOLVE = (\d+)/.exec(arcticSrc)?.[1]) <= 45);
+{
+  const loads = [...arcticSrc.matchAll(/frosty-[a-z-]+\.jpg[^}]*loadAt: (\d+)/g)].map((m) => Number(m[1]));
+  check('Frosty paintings load about 150 m before they are needed', loads.length === 3 && loads[0] < 1500 && 1665 - loads[1] <= 200 && 1830 - loads[2] <= 200 && loads[1] < 1665 && loads[2] < 1830, loads.join());
 }
 check('every horizon-painted zone sets its waterline / valley on the horizon', /horizon: 0\.6/.test(canyon) && /horizon: 0\.6/.test(read('src/scenes/EmberValley/PalaceBackdrop.jsx')));
 check('the picture never slides past its own edges (the view always stays inside it)', /vMin/.test(zoneParts));

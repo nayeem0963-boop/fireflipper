@@ -1,6 +1,6 @@
 // Scenery scroll driver tests: distance-driven, frame-rate independent, pause-safe, seamless, correctly layered.
 import { readFileSync, readdirSync } from 'node:fs';
-import { DEPTH_SLIDE, SCROLL_SPEED, layerSlack, loopOffset, paintingSlide, paintingSpan, progress, slideWidth, wrap } from '../src/systems/world/scrollDriver.js';
+import { DEPTH_SLIDE, SCROLL_SPEED, SLIDE_CAP, effectiveSlack, layerSlack, loopOffset, paintingSlide, paintingSpan, progress, slideWidth, wrap } from '../src/systems/world/scrollDriver.js';
 import { BIOMES, CROSSFADE, ZONE_IDS } from '../src/systems/world/biomes.js';
 
 let failed = 0;
@@ -87,9 +87,16 @@ for (const id of ZONE_IDS) {
   ok(!/\bpan=\{/.test(src), `${id}: no leftover static pan prop`);
 }
 
+// the slide cap: however wide the picture, the backdrop never moves faster than SLIDE_CAP and always stays slower than the 3D mid layer
+for (const [a, b] of [[1460, 1685], [1645, 1850], [0, 560]]) {
+  const eff = effectiveSlack(1e6, a, b);
+  ok((2 * eff) / (b - a) <= SLIDE_CAP + 1e-12 && SLIDE_CAP < SCROLL_SPEED.mid, `slide cap holds on a huge picture over ${a}-${b} m (${((2 * eff) / (b - a)).toFixed(3)} u/m)`);
+}
+ok(effectiveSlack(3, 0, 560) === 3, 'a picture with little slack is not stretched by the cap');
+
 // depth layers: ordered speeds, masks created and disposed, enabled on the zones that have been reviewed
 ok(DEPTH_SLIDE.far < DEPTH_SLIDE.mid && DEPTH_SLIDE.mid < DEPTH_SLIDE.near && DEPTH_SLIDE.near < SCROLL_SPEED.mid, 'painted depth layers slide slower than the 3D mid layer');
-for (const id of ['canyon', 'celestial', 'palace']) ok(/\bdepth\s*\/>/.test(read(zoneFiles[id])), `${id} uses painted depth layers`);
+for (const id of ['canyon', 'arctic', 'celestial', 'palace']) ok(/\bdepth\s*\/>/.test(read(zoneFiles[id])), `${id} uses painted depth layers`);
 {
   const p = read('ZoneParts.jsx');
   ok(/createDepthMask\('mid'\)/.test(p) && /masks\?\.mid\.dispose\(\)/.test(p), 'depth masks are created and disposed');

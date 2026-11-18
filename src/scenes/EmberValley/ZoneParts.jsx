@@ -3,10 +3,10 @@ import { useFrame } from '@react-three/fiber';
 import { CanvasTexture, Color, Object3D, SRGBColorSpace, TextureLoader } from 'three';
 import { WORLD } from '../../systems/physics/constants.js';
 import { CROSSFADE, zoneWeight } from '../../systems/world/biomes.js';
-import { DEPTH_SLIDE, layerSlack, loopOffset, paintingSlide, paintingSpan, slideWidth } from '../../systems/world/scrollDriver.js';
+import { DEPTH_SLIDE, effectiveSlack, layerSlack, loopOffset, paintingSlide, paintingSpan, slideWidth } from '../../systems/world/scrollDriver.js';
 
 /**
- * Parts shared by the painted scenery zones (Volcanic Coast, Arctic Ice Shelf): the per-frame zone weight, a gradient sky, the
+ * Parts shared by the painted scenery zones (Canyon, Frosty Polar, Celestial City, Palace): the per-frame zone weight, a gradient sky, the
  * painted horizon bands, and a layer of low scenery that scrolls with parallax. All purely visual.
  */
 
@@ -206,7 +206,8 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
       if (!show) return;
       // distance-driven slide across this painting's own stretch of the run (no wall clock, no per-frame accumulation)
       const [a, b] = paintingSpan(zone, cuts, dissolve, i, paintings.length, CROSSFADE);
-      const x = cam.position.x + paintingSlide(d, a, b, depth ? layerSlack(slack, 'far') : slack);
+      const sl = effectiveSlack(slack, a, b);
+      const x = cam.position.x + paintingSlide(d, a, b, depth ? layerSlack(sl, 'far') : sl);
       const H = W / aspect;
       let y = WORLD.groundY + H / 2 - 0.05;
       if (rise) {
@@ -223,7 +224,7 @@ export function PaintedHorizon({ sim, wRef, zone, paintings, cuts, dissolve = 30
         layerMeshes.current[i]?.forEach((lm, k) => {
           if (!lm) return;
           lm.visible = true;
-          lm.position.set(cam.position.x + paintingSlide(d, a, b, layerSlack(slack, k === 0 ? 'mid' : 'near')), y, BAND_Z + 0.002 * (k + 1));
+          lm.position.set(cam.position.x + paintingSlide(d, a, b, layerSlack(sl, k === 0 ? 'mid' : 'near')), y, BAND_Z + 0.002 * (k + 1));
           lm.scale.set(W, H, 1);
           layerMats.current[i][k].opacity = Math.min(1, alpha * 1.5);
         });
