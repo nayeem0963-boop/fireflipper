@@ -19,7 +19,7 @@ import { RING } from './dynamics.js';
  *   b.column(xCenter, yBottom, yTop, width, cap)  cap: +1 glow on top end, -1 on bottom end
  *   b.block(x0, x1, yBottom, yTop, cap)
  *   b.rock(x, y, radius)
- *   b.orb(x, y)              fire orb (5 pts)
+ *   b.orb(x, y, risky)       fire orb; `risky` marks orbs that need a dangerous line (for balance stats)
  *   b.gem(x, y)              rare gem (25 pts)
  *   b.geyser(x, w, topMin, topMax, period, sArrive, rising, tArrive)
  *   b.boulder(x, r, yCross, tArrive)
@@ -192,12 +192,12 @@ function splitGate(b, x, requested, gap, rng, ctx) {
 
   if (rng.chance(0.4)) b.orb(cx, center); // safe route: small reward
   // Risky route: a line of orbs, with a gem at the heart of it now and then.
-  b.orb(cx - 2.2, yh);
-  b.orb(cx - 1.1, yh);
-  b.orb(cx + 1.1, yh);
-  b.orb(cx + 2.2, yh);
+  b.orb(cx - 2.2, yh, true);
+  b.orb(cx - 1.1, yh, true);
+  b.orb(cx + 1.1, yh, true);
+  b.orb(cx + 2.2, yh, true);
   if (rng.chance(0.45)) b.gem(cx, yh);
-  else b.orb(cx, yh);
+  else b.orb(cx, yh, true);
   return { length: w, lo, hi, free: [Math.min(lo, hLo), Math.max(hi, hHi)] };
 }
 
@@ -223,8 +223,8 @@ function geysers(b, x, center, gap, rng, ctx) {
   // Low route: orbs just above the vents.
   for (let i = 0; i < n - 1; i++) {
     const ox = x + 0.6 + i * pitch + pitch / 2;
-    b.orb(ox, topMin + 1.05);
-    b.orb(ox + 0.0, topMin + 1.05 + 0.9);
+    b.orb(ox, topMin + 1.05, true);
+    b.orb(ox, topMin + 1.05 + 0.9, true);
   }
   if (rng.chance(0.3)) b.gem(x + 0.6 + (n - 2) * pitch + pitch / 2, topMin + 1.5);
   // High route: one orb on the safe line.
@@ -243,8 +243,8 @@ function spinner(b, x, center, gap, rng, ctx) {
   const omega = (rng.chance(0.5) ? 1 : -1) * lerp(1.15, 1.8, ctx.t);
   b.spinner(px, py, omega, rng() * Math.PI, ctx.timeAt(px));
   // Risky orbs at the spinner's height, either side of it.
-  b.orb(px - 2.3, py);
-  b.orb(px + 2.3, py);
+  b.orb(px - 2.3, py, true);
+  b.orb(px + 2.3, py, true);
   if (rng.chance(0.3)) b.gem(px + 3.0, py);
   return { length: 4.2, lo: py - 0.4, hi: py + 0.4, free: [WORLD.groundY + 0.4, WORLD.ceilingY] };
 }
@@ -262,7 +262,7 @@ function boulders(b, x, center, gap, rng, ctx) {
     const yCross = clamp(center + rng.range(-1.2, 1.2), -0.8, 3.0);
     b.boulder(bx, rng.range(0.8, 0.9), yCross, ctx.timeAt(bx));
     // Risky orb in the lane, just behind where the boulder crosses.
-    b.orb(bx + 1.7, yCross);
+    b.orb(bx + 1.7, yCross, true);
   }
   return { length: 2.4 + (n - 1) * pitch, lo: center - 0.4, hi: center + 0.4, free: [WORLD.groundY + 0.4, WORLD.ceilingY] };
 }
@@ -273,7 +273,7 @@ function boulders(b, x, center, gap, rng, ctx) {
  */
 export function fireRing(b, x, yc, rng) {
   b.ring(x, yc);
-  b.orb(x, yc);
+  b.orb(x, yc, true);
   if (rng.chance(0.25)) b.gem(x, yc);
   return { halfWidth: RING.radius + RING.nodeRadius };
 }

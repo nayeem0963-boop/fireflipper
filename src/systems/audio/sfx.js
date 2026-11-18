@@ -73,10 +73,43 @@ export const sfx = {
     if (!ready()) return;
     noiseBurst({ duration: 0.12, filter: 'bandpass', from: 1300, to: 450, q: 0.9, peak: 0.22 });
   },
-  orb() {
+  /** Fire orb. The pitch climbs a little with the streak, so a long chain sounds like it is building. */
+  orb(streak = 0) {
     if (!ready()) return;
-    tone({ type: 'triangle', from: 880, to: 1760, duration: 0.16, peak: 0.16 });
-    tone({ type: 'sine', from: 1320, to: 2640, duration: 0.2, peak: 0.08, delay: 0.05 });
+    const k = 1 + 0.035 * Math.min(streak, 24);
+    tone({ type: 'triangle', from: 880 * k, to: 1760 * k, duration: 0.16, peak: 0.16 });
+    tone({ type: 'sine', from: 1320 * k, to: 2640 * k, duration: 0.2, peak: 0.08, delay: 0.05 });
+  },
+  /** The multiplier went up: a rising run of notes, one more note (and a bit more weight) per tier. */
+  multiplier(mult = 2) {
+    if (!ready()) return;
+    const scale = [1, 1.25, 1.5, 1.875, 2.25, 2.5];
+    const notes = Math.min(scale.length, mult + 1);
+    for (let i = 0; i < notes; i++) {
+      tone({ type: 'triangle', from: 523 * scale[i], to: 523 * scale[i] * 1.01, duration: 0.14, peak: 0.13 + mult * 0.012, delay: i * 0.065 });
+    }
+    tone({ type: 'sine', from: 1046 * scale[notes - 1], to: 1046 * scale[notes - 1] * 1.02, duration: 0.3, peak: 0.07, delay: notes * 0.065 });
+  },
+  /** A streak of some size ran out or was cut: a short falling blip. */
+  streakBreak() {
+    if (!ready()) return;
+    tone({ type: 'triangle', from: 440, to: 200, duration: 0.22, peak: 0.12 });
+  },
+  shieldGet() {
+    if (!ready()) return;
+    tone({ type: 'sine', from: 660, to: 1320, duration: 0.2, peak: 0.14 });
+    tone({ type: 'triangle', from: 990, to: 1980, duration: 0.26, peak: 0.09, delay: 0.08 });
+  },
+  /** The shield took a hit: glassy crack. */
+  shieldBreak() {
+    if (!ready()) return;
+    noiseBurst({ duration: 0.3, filter: 'highpass', from: 3000, to: 1400, q: 0.7, peak: 0.3 });
+    tone({ type: 'triangle', from: 1500, to: 260, duration: 0.3, peak: 0.18 });
+  },
+  magnetGet() {
+    if (!ready()) return;
+    tone({ type: 'sawtooth', from: 180, to: 540, duration: 0.3, peak: 0.07 });
+    tone({ type: 'sine', from: 360, to: 1080, duration: 0.3, peak: 0.1, delay: 0.04 });
   },
   /** Rare gem: a quick rising sparkle. */
   gem() {

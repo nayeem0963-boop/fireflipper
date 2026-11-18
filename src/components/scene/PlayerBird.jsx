@@ -30,6 +30,8 @@ export default function PlayerBird({ sim }) {
     const u = bird.dead ? 1 : Math.min(1, bird.sinceFlap / SQUASH_TIME);
     const pulse = Math.sin(u * Math.PI) * (1 - u);
     body.current.scale.set(1 + pulse * 0.1, 1 - pulse * 0.07, 1);
+    // After a shield takes a hit the bird flickers while it ignores collisions.
+    body.current.visible = !(sim.invuln > 0 && Math.sin(sim.time * 80) > 0);
   });
 
   return (

@@ -7,6 +7,7 @@ import OrbField from '../../components/scene/OrbField.jsx';
 import HazardField from '../../components/scene/HazardField.jsx';
 import BurstParticles from '../../components/scene/BurstParticles.jsx';
 import FlightFx from '../../components/scene/FlightFx.jsx';
+import BirdAuras from '../../components/scene/BirdAuras.jsx';
 import { useRenderSettings } from '../../hooks/useRenderSettings.js';
 import { useGameLoop } from '../../systems/game/useGameLoop.js';
 import { game } from '../../systems/game/gameInstance.js';
@@ -39,6 +40,7 @@ export default function EmberValleyScene() {
       <HazardField sim={game} />
       <OrbField sim={game} />
       <PlayerBird sim={game} />
+      <BirdAuras sim={game} />
       <BurstParticles sim={game} />
       <FlightFx sim={game} />
       {/* Narrow screens see less track ahead, so warn about obstacles just off-screen */}

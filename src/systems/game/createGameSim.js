@@ -1,10 +1,11 @@
-import { DYING_DURATION, PHYSICS, WORLD } from '../physics/constants.js';
+import { DYING_DURATION, PHYSICS, POWERUPS, SCORING, STREAK, WORLD } from '../physics/constants.js';
 import { applyFlap, stepFlight } from '../physics/flight.js';
 import { circleHitsObstacle, clearanceToObstacle } from '../physics/collision.js';
 import { ObjectPool } from '../obstacles/ObjectPool.js';
 import { createTrack, fillTrack, resetTrack, speedAt } from '../obstacles/spawner.js';
 import { BOULDER, RING, SPINNER, applyTime, fillRingNodes } from '../obstacles/dynamics.js';
 import { computeScore, toMetres } from '../scoring/scoring.js';
+import { bonusPoints, multiplierFor, nearMissBase } from '../scoring/streak.js';
 import { GAME_EVENTS } from '../events/gameEvents.js';
 import { createRng, randomSeed } from '../../utils/random.js';
 
@@ -52,7 +53,7 @@ function freshObstacle(o) {
   o.rr = 0;
 }
 function createOrb() {
-  return { x: 0, y: 0, phase: 0, kind: 0 };
+  return { x: 0, y: 0, phase: 0, kind: 0, risk: false };
 }
 
 function createBird() {
@@ -80,6 +81,7 @@ export function createGameSim() {
   function acquireOrb(kind) {
     const orb = orbs.acquire();
     orb.kind = kind;
+    orb.risk = kind === 1; // gems only ever sit on risky routes
     orb.phase = rng() * Math.PI * 2;
     built.orbs.push(orb);
     return orb;
@@ -234,8 +236,15 @@ export function createGameSim() {
       o.cap = 0;
       o.extent = r;
     },
-    orb(x, y) {
+    orb(x, y, risky = false) {
       const orb = acquireOrb(0);
+      orb.x = x;
+      orb.y = y;
+      orb.risk = risky;
+    },
+    /** Shield (kind 2) or magnet (kind 3): rare power-ups on the safe line. */
+    powerup(x, y, kind) {
+      const orb = acquireOrb(kind === 'shield' ? 2 : 3);
       orb.x = x;
       orb.y = y;
     },
@@ -253,6 +262,18 @@ export function createGameSim() {
     orbsCollected: 0,
     gemsCollected: 0,
     ringsPassed: 0,
+    nearMisses: 0,
+    /** Bonus points earned so far by source (already multiplied when earned). Distance is separate. */
+    points: { orbs: 0, gems: 0, rings: 0, nearMiss: 0, other: 0 },
+    /** Orb streak: see STREAK in constants. */
+    streak: { count: 0, mult: 1, timeLeft: 0, best: 0, maxMult: 1, stamp: 0 },
+    shield: false,
+    /** Seconds of ignored collisions left after a shield took a hit. */
+    invuln: 0,
+    magnetTime: 0,
+    shieldsGot: 0,
+    shieldsUsed: 0,
+    magnetsGot: 0,
     /** Seconds since the first flap: the clock every moving hazard runs on. */
     runTime: 0,
     deathTime: 0,
@@ -272,8 +293,12 @@ export function createGameSim() {
     get metres() {
       return toMetres(sim.phase === PHASE.RUNNING || sim.phase === PHASE.READY ? sim.distance : sim.scoredDistance);
     },
+    get bonus() {
+      const p = sim.points;
+      return p.orbs + p.gems + p.rings + p.nearMiss + p.other;
+    },
     get score() {
-      return computeScore(sim.metres, sim.orbsCollected, sim.gemsCollected, sim.ringsPassed);
+      return computeScore(sim.metres, sim.bonus);
     },
     results() {
       return {
@@ -282,6 +307,12 @@ export function createGameSim() {
         orbs: sim.orbsCollected,
         gems: sim.gemsCollected,
         rings: sim.ringsPassed,
+        nearMisses: sim.nearMisses,
+        bestStreak: sim.streak.best,
+        maxMult: sim.streak.maxMult,
+        shieldsUsed: sim.shieldsUsed,
+        /** Where every point came from. Distance is never multiplied. */
+        points: { distance: sim.metres * SCORING.pointsPerMetre, ...sim.points },
       };
     },
 
@@ -297,6 +328,12 @@ export function createGameSim() {
       sim.orbsCollected = 0;
       sim.gemsCollected = 0;
       sim.ringsPassed = 0;
+      sim.nearMisses = 0;
+      Object.assign(sim.points, { orbs: 0, gems: 0, rings: 0, nearMiss: 0, other: 0 });
+      Object.assign(sim.streak, { count: 0, mult: 1, timeLeft: 0, best: 0, maxMult: 1, stamp: 0 });
+      sim.shield = false;
+      sim.invuln = sim.magnetTime = 0;
+      sim.shieldsGot = sim.shieldsUsed = sim.magnetsGot = 0;
       sim.runTime = 0;
       sim.deathTime = 0;
       sim.alpha = 1;
@@ -378,10 +415,23 @@ export function createGameSim() {
     const R = PHYSICS.birdRadius;
     const behind = bx - WORLD.despawnBehind;
 
-    // Ground is lava: touching it ends the run.
+    if (sim.invuln > 0) sim.invuln = Math.max(0, sim.invuln - dt);
+    if (sim.magnetTime > 0) {
+      sim.magnetTime -= dt;
+      if (sim.magnetTime <= 0) {
+        sim.magnetTime = 0;
+        sim.events.push({ type: GAME_EVENTS.MAGNET_END });
+      }
+    }
+    // Streak: the timer is the "missed opportunity" rule.
+    if (sim.streak.count > 0) {
+      sim.streak.timeLeft -= dt;
+      if (sim.streak.timeLeft <= 0) breakStreak('timeout');
+    }
+
+    // Ground is lava: touching it ends the run (a shield or grace period turns it into a bounce).
     if (b.y - R <= WORLD.groundY) {
-      die('lava');
-      return;
+      if (tryDie('lava')) return;
     }
 
     for (const o of obstacles.active) {
@@ -403,6 +453,7 @@ export function createGameSim() {
         if (Math.abs(b.y - o.y) < o.rr) {
           sim.ringsPassed += 1;
           sim.fx.fovKick += 1.2;
+          award('rings', SCORING.ringPoints, o.x, o.y, true);
           sim.events.push({ type: GAME_EVENTS.RING, x: o.x, y: o.y });
         }
       }
@@ -414,8 +465,8 @@ export function createGameSim() {
       }
       // Hit decisions use only the exact collider test, as before.
       if (Math.abs(dx) <= reachX && circleHitsObstacle(bx, b.y, R, o)) {
-        die('obstacle');
-        return;
+        if (tryDie('obstacle')) return;
+        continue; // absorbed by the shield, or inside the grace period
       }
       const clear = clearanceToObstacle(bx, b.y, R, o);
       if (clear < o.minClear) {
@@ -427,32 +478,135 @@ export function createGameSim() {
     }
 
     const reach = R + ORB_RADIUS;
+    const magnet = sim.magnetTime > 0;
+    const MR = POWERUPS.magnetRadius;
     for (const orb of orbs.active) {
-      const dx = orb.x - bx;
+      let dx = orb.x - bx;
       if (dx < -WORLD.despawnBehind) {
         orbs.release(orb);
         continue;
+      }
+      // Magnet: orbs (not gems or power-ups) inside the field are drawn toward the bird.
+      if (magnet && orb.kind === 0 && dx < MR && dx > -MR) {
+        const ddx = bx - orb.x;
+        const ddy = b.y - orb.y;
+        const d = Math.hypot(ddx, ddy);
+        if (d < MR && d > 1e-6) {
+          const k = 1 - d / MR;
+          const pull = (POWERUPS.magnetPullFar + (POWERUPS.magnetPullNear - POWERUPS.magnetPullFar) * k) * dt;
+          const move = Math.min(d, pull);
+          orb.x += (ddx / d) * move;
+          orb.y += (ddy / d) * move;
+          dx = orb.x - bx;
+        }
       }
       if (dx > reach) continue;
       const dy = orb.y - b.y;
       if (dx * dx + dy * dy < reach * reach) {
         // Released immediately, so it can never be collected twice.
         orbs.release(orb);
-        const gem = orb.kind === 1;
-        if (gem) sim.gemsCollected += 1;
-        else sim.orbsCollected += 1;
-        sim.fx.fovKick += gem ? 2 : 1.4;
-        sim.events.push({ type: GAME_EVENTS.ORB, x: orb.x, y: orb.y, gem });
+        collect(orb);
       }
     }
   }
 
+  /** A pickup was touched: score it, or apply its power-up. */
+  function collect(orb) {
+    const { x, y } = orb;
+    switch (orb.kind) {
+      case 0:
+      case 1: {
+        const gem = orb.kind === 1;
+        if (gem) sim.gemsCollected += 1;
+        else sim.orbsCollected += 1;
+        sim.fx.fovKick += gem ? 2 : 1.4;
+        award(gem ? 'gems' : 'orbs', gem ? SCORING.gemPoints : SCORING.orbPoints, x, y, true);
+        sim.events.push({ type: GAME_EVENTS.ORB, x, y, gem, mult: sim.streak.mult, streak: sim.streak.count });
+        break;
+      }
+      case 2:
+        sim.shieldsGot += 1;
+        if (sim.shield) {
+          sim.points.other += SCORING.shieldDuplicate;
+          sim.events.push({ type: GAME_EVENTS.SCORE, points: SCORING.shieldDuplicate, source: 'other', mult: 1, x, y });
+        }
+        sim.shield = true;
+        sim.events.push({ type: GAME_EVENTS.POWERUP, kind: 'shield', x, y });
+        break;
+      default:
+        sim.magnetsGot += 1;
+        sim.magnetTime = POWERUPS.magnetTime;
+        sim.events.push({ type: GAME_EVENTS.POWERUP, kind: 'magnet', x, y });
+    }
+  }
+
+  /** Add to the streak (if the source counts), then pay the bonus at the multiplier it now has. */
+  function award(source, base, x, y, extendsStreak) {
+    if (extendsStreak) {
+      const s = sim.streak;
+      s.count += 1;
+      s.stamp += 1;
+      s.timeLeft = STREAK.window;
+      s.best = Math.max(s.best, s.count);
+      const m = multiplierFor(s.count);
+      if (m > s.mult) {
+        s.mult = m;
+        s.maxMult = Math.max(s.maxMult, m);
+        sim.fx.fovKick += 0.9;
+        sim.events.push({ type: GAME_EVENTS.MULTIPLIER, mult: m, count: s.count, x, y });
+      }
+    }
+    const points = bonusPoints(base, sim.streak.mult);
+    sim.points[source] += points;
+    sim.events.push({ type: GAME_EVENTS.SCORE, points, source, mult: sim.streak.mult, streak: sim.streak.count, x, y });
+  }
+
+  function breakStreak(reason) {
+    const s = sim.streak;
+    if (s.count > 0) sim.events.push({ type: GAME_EVENTS.STREAK_BREAK, count: s.count, mult: s.mult, reason });
+    s.count = 0;
+    s.mult = 1;
+    s.timeLeft = 0;
+  }
+
+  /** A hit. Returns true if it ended the run; false if a shield or the grace period absorbed it. */
+  function tryDie(cause) {
+    const b = sim.bird;
+    if (sim.invuln > 0) {
+      if (cause === 'lava') bounceFromLava();
+      return false;
+    }
+    if (sim.shield) {
+      sim.shield = false;
+      sim.shieldsUsed += 1;
+      sim.invuln = POWERUPS.shieldGrace;
+      breakStreak('shield');
+      sim.fx.shake = 0.22;
+      sim.fx.fovKick += 1;
+      sim.events.push({ type: GAME_EVENTS.SHIELD_BREAK, x: sim.distance, y: b.y, cause });
+      if (cause === 'lava') bounceFromLava();
+      else b.vy = Math.max(b.vy, 4);
+      return false;
+    }
+    die(cause);
+    return true;
+  }
+
+  function bounceFromLava() {
+    const b = sim.bird;
+    b.y = WORLD.groundY + PHYSICS.birdRadius + 0.02;
+    b.vy = Math.max(b.vy, 8);
+  }
+
   function finishPass(o) {
     o.nearDone = true;
-    if (o.minClear >= NEAR_CLEARANCE || sim.time - sim.lastNearTime < NEAR_COOLDOWN) return;
+    // A pass that touched the collider (inside a shield's grace period) is not a daring pass.
+    if (o.minClear < 0 || o.minClear >= NEAR_CLEARANCE || sim.time - sim.lastNearTime < NEAR_COOLDOWN) return;
     sim.lastNearTime = sim.time;
     sim.fx.fovKick += 0.5;
+    sim.nearMisses += 1;
     sim.events.push({ type: GAME_EVENTS.NEAR_MISS, x: o.nearX, y: o.nearY, clearance: o.minClear, side: o.nearSide });
+    award('nearMiss', nearMissBase(1 - o.minClear / NEAR_CLEARANCE, SCORING.nearMissMin, SCORING.nearMissMax), o.nearX, o.nearY, false);
   }
 
   function die(cause) {

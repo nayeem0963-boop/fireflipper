@@ -66,14 +66,54 @@ export const WORLD = Object.freeze({
   obstacleDepth: 1.6,
 });
 
+/**
+ * Scoring. Distance is always worth pointsPerMetre and is NEVER multiplied: surviving is the
+ * backbone of every score. Everything else is a bonus, worth its base value times the current
+ * streak multiplier at the moment it is earned.
+ */
 export const SCORING = Object.freeze({
   pointsPerMetre: 1,
-  /** Tuned so orbs are ~35-40% of a skilled player's score: a bonus, not the main source. */
-  orbPoints: 5,
-  /** Gems are rare and only sit on difficult routes. */
-  gemPoints: 25,
+  orbPoints: 2,
+  /** Gems are rare, only sit on risky routes, and are banked as currency as well. */
+  gemPoints: 12,
   /** Flying through the middle of an optional fire ring. */
-  ringPoints: 15,
+  ringPoints: 8,
+  /** A near miss pays between these, by how tight it was. */
+  nearMissMin: 2,
+  nearMissMax: 5,
+  /** A second shield picked up while one is held. Flat: never multiplied. */
+  shieldDuplicate: 10,
+});
+
+/**
+ * Orb streak. Every orb, gem or fire ring collected adds 1 and restarts a timer. If the timer runs
+ * out before the next one, or a shield takes a hit for you, the streak ends and the multiplier
+ * drops back to x1. Tiers: the multiplier is the highest `mult` whose `at` the streak has reached.
+ */
+export const STREAK = Object.freeze({
+  window: 2.6, // seconds allowed between collections
+  tiers: Object.freeze([
+    Object.freeze({ at: 0, mult: 1 }),
+    Object.freeze({ at: 5, mult: 2 }),
+    Object.freeze({ at: 14, mult: 3 }),
+    Object.freeze({ at: 28, mult: 4 }),
+    Object.freeze({ at: 45, mult: 5 }),
+  ]),
+});
+
+export const POWERUPS = Object.freeze({
+  /** After a shield absorbs a hit, collisions are ignored for this long so the bird can get clear. */
+  shieldGrace: 1.5,
+  /** Magnet: how long it lasts and how far away it pulls orbs. */
+  magnetTime: 8,
+  magnetRadius: 3.4,
+  /** Pull speed (units/s) at the edge and at the centre of the field. */
+  magnetPullFar: 7,
+  magnetPullNear: 16,
+  /** Roughly how far apart (m) power-ups are placed along the track. */
+  spacingMin: 260,
+  spacingMax: 420,
+  firstAt: 150,
 });
 
 export const DYING_DURATION = 1.1; // seconds of crash animation before the game-over screen

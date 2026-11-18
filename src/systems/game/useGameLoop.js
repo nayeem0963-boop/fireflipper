@@ -5,6 +5,15 @@ import { createStepper } from './fixedStep.js';
 import { GAME_EVENTS, gameEvents } from '../events/gameEvents.js';
 
 const HUD_INTERVAL = 0.1; // seconds; the HUD only needs ~10 updates/s
+/** Events after which the HUD's streak / power-up readout must be refreshed. */
+const PLAY_EVENTS = new Set([
+  GAME_EVENTS.SCORE,
+  GAME_EVENTS.MULTIPLIER,
+  GAME_EVENTS.STREAK_BREAK,
+  GAME_EVENTS.POWERUP,
+  GAME_EVENTS.SHIELD_BREAK,
+  GAME_EVENTS.MAGNET_END,
+]);
 
 /**
  * Bridges the pure simulation to React/R3F:
@@ -42,13 +51,37 @@ export function useGameLoop(sim) {
     stepper.advance(rawDelta);
 
     if (sim.events.length) {
+      let playDirty = false;
+      let magnetPicked = false;
+      let streakBroke = false;
+      let lastBreakReason = null;
       for (const e of sim.events) {
+        if (e.type === GAME_EVENTS.POWERUP && e.kind === 'magnet') magnetPicked = true;
+        if (e.type === GAME_EVENTS.STREAK_BREAK) {
+          streakBroke = true;
+          lastBreakReason = e.reason;
+        }
         if (e.type === GAME_EVENTS.START) store.beginRun();
         else if (e.type === GAME_EVENTS.CRASH) store.crash();
         else if (e.type === GAME_EVENTS.OVER) store.endRun(sim.results());
+        if (PLAY_EVENTS.has(e.type)) playDirty = true;
         gameEvents.emit(e.type, e);
       }
       sim.events.length = 0;
+      if (playDirty) {
+        // Streak and power-up state for the HUD: read once, after the whole batch.
+        const p = store.play;
+        store.setPlay({
+          streak: sim.streak.count,
+          mult: sim.streak.mult,
+          stamp: sim.streak.stamp,
+          shield: sim.shield,
+          magnet: sim.magnetTime > 0,
+          magnetStamp: p.magnetStamp + (magnetPicked ? 1 : 0),
+          breakStamp: p.breakStamp + (streakBroke ? 1 : 0),
+          breakReason: streakBroke ? lastBreakReason : p.breakReason,
+        });
+      }
     }
 
     hudTimer.current += rawDelta;

@@ -48,6 +48,12 @@ export const useGameStore = create((set, get) => ({
   /** Best score since the page was opened (not persisted). */
   sessionBest: 0,
   runsThisSession: 0,
+  /** Persistent: gems from every finished run, and the longest streak ever. */
+  gemsBanked: loadValue('gemsBanked', 0),
+  bestStreak: loadValue('bestStreak', 0),
+
+  /** Live play state shown by the HUD (updated from simulation events, not per frame). */
+  play: { streak: 0, mult: 1, stamp: 0, shield: false, magnet: false, magnetStamp: 0, breakStamp: 0, breakReason: null },
 
   // --- settings ---
   soundEnabled: loadValue('soundEnabled', true),
@@ -66,12 +72,18 @@ export const useGameStore = create((set, get) => ({
   // --- run lifecycle (driven by simulation events + UI) ---
   beginRun: () => set((s) => (s.status === STATUS.READY ? { status: STATUS.RUNNING } : s)),
   crash: () => set((s) => (s.status === STATUS.RUNNING ? { status: STATUS.DYING } : s)),
-  endRun: ({ score, distance, orbs, gems = 0, rings = 0 }) => {
+  endRun: (result) => {
+    const { score, distance, orbs, gems = 0 } = result;
     const s = get();
     // Guard: a run can only end once.
     if (s.status !== STATUS.DYING && s.status !== STATUS.RUNNING) return;
     const isNewBest = score > s.bestScore;
     if (isNewBest) saveValue('bestScore', score);
+    // Gems are the progression currency: bank them the moment the run ends.
+    const gemsBanked = s.gemsBanked + gems;
+    if (gems > 0) saveValue('gemsBanked', gemsBanked);
+    const bestStreak = Math.max(s.bestStreak, result.bestStreak ?? 0);
+    if (bestStreak > s.bestStreak) saveValue('bestStreak', bestStreak);
     set({
       status: STATUS.OVER,
       overAt: performance.now(),
@@ -79,7 +91,9 @@ export const useGameStore = create((set, get) => ({
       distance,
       orbs,
       gems,
-      lastResult: { score, distance, orbs, gems, rings, isNewBest },
+      lastResult: { ...result, isNewBest, gemsBankedTotal: gemsBanked },
+      gemsBanked,
+      bestStreak,
       bestScore: Math.max(s.bestScore, score),
       sessionBest: Math.max(s.sessionBest, score),
       runsThisSession: s.runsThisSession + 1,
@@ -94,6 +108,9 @@ export const useGameStore = create((set, get) => ({
     if (status === STATUS.RUNNING) pause();
     else if (status === STATUS.PAUSED) resume();
   },
+
+  /** Streak / power-up state, pushed when a relevant simulation event happens. */
+  setPlay: (patch) => set((s) => ({ play: { ...s.play, ...patch } })),
 
   /** Throttled HUD snapshot from the game loop. Skips no-op updates. */
   setHud: (distance, score, orbs, gems = 0) => {
@@ -114,5 +131,5 @@ export const useGameStore = create((set, get) => ({
 }));
 
 function freshRun(s) {
-  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, gems: 0, lastResult: null, runId: s.runId + 1 };
+  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, gems: 0, play: { streak: 0, mult: 1, stamp: 0, shield: false, magnet: false, magnetStamp: 0, breakStamp: 0, breakReason: null }, lastResult: null, runId: s.runId + 1 };
 }

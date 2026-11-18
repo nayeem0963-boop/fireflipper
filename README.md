@@ -27,6 +27,7 @@ npm run build     # production build to dist/
 npm run preview   # serve the production build
 npm run test:sim  # headless gameplay tests (physics, collisions, scoring, track generation), ~10 s
 npm run test:route # real-flight-physics proof that generated tracks are survivable, ~2 min
+npm run balance   # scoring balance model: how much of a score comes from distance
 ```
 
 To test on a phone or tablet on the same Wi-Fi network: `npm run dev -- --host`, then open the
@@ -45,10 +46,10 @@ src/
   components/
     scene/              3D building blocks: Firebird, PlayerBird, ObstacleField, OrbField,
                         BurstParticles, FlightFx (near-miss streaks, impact ring), HazardField (boulders,
-                        lava columns, spinners, fire rings), EmberParticles, SceneCanvas
+                        lava columns, spinners, fire rings), BirdAuras (shield bubble, magnet rings), EmberParticles, SceneCanvas
     game/               gameplay screen composition (GameScreen)
-    ui/                 2D interface: HomeScreen, GameHUD, StartPrompt, PauseMenu,
-                        GameOverPanel, SettingsPanel, icons
+    ui/                 2D interface: HomeScreen, GameHUD (with StreakMeter and GainFeed), StartPrompt,
+                        PauseMenu, GameOverPanel (score ledger), SettingsPanel, icons
   scenes/
     Showcase/           menu-screen 3D scene
     EmberValley/        first level: composition, camera rig, parallax backdrop
@@ -59,7 +60,7 @@ src/
     physics/            constants, flight model, 2D collision tests
     obstacles/          patterns, procedural spawner, route planner (fairness proof), moving-hazard
                         timeline (dynamics), renderer capacities, ObjectPool
-    scoring/            pure scoring helpers
+    scoring/            pure scoring helpers; streak tiers and multipliers
     input/              input action bus (flap press/release, dive, pause)
     events/             gameplay event bus (start, flap, orb, crash, over)
     audio/              synthesized Web Audio sound effects
@@ -143,10 +144,46 @@ scripts/
   avoidable from *any* height with only 11 u of warning, about what a narrow phone at top speed
   shows (6.7 u of view plus the edge glow). A rejected section is rolled back and re-drawn, and after
   repeated rejections a roomy plain gate replaces it. About 15% of proposals are rejected.
-- **Scoring:** 1 point per metre, 5 per fire orb, 25 per gem, 15 per fire ring. Orb supply is
-  tuned so orbs are a bonus, not the main source of points. Best score is saved locally; session
-  best is kept until the page closes. Crashes and pickups can only register once (orbs leave the
-  pool immediately, and both the simulation and the store guard the end of a run).
+- **Scoring** (all values in `systems/physics/constants.js`):
+
+  | Source | Base points | Multiplied? |
+  | --- | --- | --- |
+  | Distance | 1 per metre | **never** |
+  | Fire orb | 2 | yes |
+  | Gem (rare, risky routes only; also banked as currency) | 12 | yes |
+  | Fire ring (optional) | 8 | yes |
+  | Near miss (passing within 0.3 u; tighter pays more) | 2 to 5 | yes |
+  | A second shield while one is held | 10 | no |
+
+  Distance is the backbone of every score and is never touched by the multiplier. Everything
+  else is a bonus, paid at the streak multiplier at the moment it is earned.
+- **Streak and multiplier:** every orb, gem or fire ring adds 1 to the streak and restarts a
+  2.6 s timer. The multiplier is ×2 at 5, ×3 at 14, ×4 at 28 and ×5 at 45 in a row, and the item
+  that reaches a tier is paid at it. The streak **ends** if the timer runs out before the next
+  collection (a missed opportunity) or if a shield takes a hit for you. Power-ups and near misses
+  neither add to nor break it. The HUD shows the multiplier large, the streak length, how many more
+  reach the next tier, and the timer draining; a rising chime, a spark burst and a pop play on every
+  tier, and a short falling blip when a streak of 3 or more is lost. Orb pickups rise in pitch as
+  the streak grows. Every point earned is listed briefly as "+6 Orb ×3", and the game-over
+  screen shows where the whole score came from.
+- **Collectibles** (each differs in shape as well as colour):
+
+  | Pickup | Look | Effect |
+  | --- | --- | --- |
+  | Fire orb | gold sphere | score, streak |
+  | Gem | cyan diamond | score, streak, banked in your profile (total on the home screen) |
+  | Shield | green hexagonal plate | absorbs one collision, then 1.5 s of grace to get clear; a hit on lava becomes a bounce; costs the streak |
+  | Magnet | magenta ring | for 8 s pulls orbs within 3.4 u toward you (not gems) |
+
+  Shields and magnets appear about every 260 to 420 m on the safe line, never inside an obstacle.
+- **Balance:** `npm run balance` models idealised collectors on real generated tracks with the
+  real streak rules. Share of a 3,000 m score that comes from distance: about 83% for a casual
+  player (70% of safe-line orbs), 65% skilled (plus 40% of risky ones), 48% elite (90% and 70%),
+  and 36% for the impossible every-pickup ceiling. The tests fail if these drop below 75, 60, 42
+  and 33%. It is a model, not telemetry: re-tune against real play.
+- Best score is saved locally; session best is kept until the page closes. Crashes and pickups can
+  only register once (pickups leave the pool immediately, and both the simulation and the store
+  guard the end of a run).
 - **Portrait screens:** the camera pulls back further and leads the bird more (it sits about 16%
   from the left edge), giving about 1.0 s of visible track at starting speed. Obstacles just beyond
   the right edge also glow along that edge up to 0.45 s before they appear, and the dark gaps between

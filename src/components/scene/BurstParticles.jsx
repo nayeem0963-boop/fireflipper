@@ -19,6 +19,9 @@ const LAVA_COLOR = [1.0, 0.55, 0.12];
 const NEAR_COLOR = [1.0, 0.9, 0.62];
 const GEM_COLOR = [0.45, 0.92, 1.0];
 const RING_COLOR = [1.0, 0.78, 0.25];
+const SHIELD_COLOR = [0.35, 1.0, 0.7];
+const MAGNET_COLOR = [1.0, 0.45, 0.9];
+const MULT_COLOR = [1.0, 0.95, 0.7];
 
 export default function BurstParticles({ sim }) {
   const points = useRef();
@@ -61,6 +64,12 @@ export default function BurstParticles({ sim }) {
       e.gem ? emit(e.x, e.y, 22, 4.2, GEM_COLOR, 0.7) : emit(e.x, e.y, 14, 3.2, ORB_COLOR, 0.55),
     );
     const offRing = gameEvents.on(GAME_EVENTS.RING, (e) => emit(e.x, e.y, 26, 4.6, RING_COLOR, 0.65));
+    // Multiplier up: a bright ring of sparks around the bird (more of them at higher tiers).
+    const offMult = gameEvents.on(GAME_EVENTS.MULTIPLIER, (e) => emit(e.x, e.y, 16 + e.mult * 6, 4.4, MULT_COLOR, 0.6));
+    const offPower = gameEvents.on(GAME_EVENTS.POWERUP, (e) =>
+      emit(e.x, e.y, 24, 4.0, e.kind === 'shield' ? SHIELD_COLOR : MAGNET_COLOR, 0.7),
+    );
+    const offShield = gameEvents.on(GAME_EVENTS.SHIELD_BREAK, (e) => emit(e.x, e.y, 34, 6.0, SHIELD_COLOR, 0.8));
     // A boulder smashing into the lava throws embers up.
     const offLand = gameEvents.on(GAME_EVENTS.LANDING, (e) => emit(e.x, e.y - 0.3, 22, 3.6, LAVA_COLOR, 0.8, 0, 2.8));
     const offCrash = gameEvents.on(GAME_EVENTS.CRASH, (e) => {
@@ -79,6 +88,9 @@ export default function BurstParticles({ sim }) {
     );
     return () => {
       offOrb();
+      offMult();
+      offPower();
+      offShield();
       offRing();
       offLand();
       offCrash();

@@ -14,4 +14,6 @@ export const RENDER_CAPS = Object.freeze({
   ring: 12,
   orb: 64,
   gem: 16,
+  shield: 8,
+  magnet: 8,
 });

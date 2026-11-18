@@ -11,7 +11,11 @@ export function useGameAudio() {
     };
     const offs = [
       gameEvents.on(GAME_EVENTS.FLAP, play(sfx.flap)),
-      gameEvents.on(GAME_EVENTS.ORB, (e) => play(e.gem ? sfx.gem : sfx.orb)(e)),
+      gameEvents.on(GAME_EVENTS.ORB, (e) => (e.gem ? play(sfx.gem)() : play(sfx.orb, (ev) => ev.streak)(e))),
+      gameEvents.on(GAME_EVENTS.MULTIPLIER, play(sfx.multiplier, (e) => e.mult)),
+      gameEvents.on(GAME_EVENTS.STREAK_BREAK, (e) => e.count >= 3 && play(sfx.streakBreak)()),
+      gameEvents.on(GAME_EVENTS.POWERUP, (e) => play(e.kind === 'shield' ? sfx.shieldGet : sfx.magnetGet)()),
+      gameEvents.on(GAME_EVENTS.SHIELD_BREAK, play(sfx.shieldBreak)),
       gameEvents.on(GAME_EVENTS.RING, play(sfx.ring)),
       gameEvents.on(GAME_EVENTS.LANDING, play(sfx.landing)),
       gameEvents.on(GAME_EVENTS.CRASH, play(sfx.crash, (e) => e.cause)),

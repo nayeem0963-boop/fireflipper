@@ -3,13 +3,14 @@ import SceneCanvas from '../scene/SceneCanvas.jsx';
 import ShowcaseScene from '../../scenes/Showcase/ShowcaseScene.jsx';
 import IconButton from './IconButton.jsx';
 import SoundToggle from './SoundToggle.jsx';
-import { FlameIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
+import { FlameIcon, GemIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
 import { formatScore } from '../../systems/scoring/scoring.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
 import '../../styles/home.css';
 
 export default function HomeScreen() {
   const bestScore = useGameStore((s) => s.bestScore);
+  const gemsBanked = useGameStore((s) => s.gemsBanked);
   const startGame = useGameStore((s) => s.startGame);
   const openSettings = useGameStore((s) => s.openSettings);
   const settingsOpen = useGameStore((s) => s.settingsOpen);
@@ -63,6 +64,16 @@ export default function HomeScreen() {
             <div>
               <h2 className="card__label">Best score</h2>
               <p className="card__value">{bestScore > 0 ? formatScore(bestScore) : '—'}</p>
+            </div>
+          </article>
+
+          <article className="card card--gems">
+            <div className="card__icon card__icon--gem">
+              <GemIcon />
+            </div>
+            <div>
+              <h2 className="card__label">Gems banked</h2>
+              <p className="card__value">{formatScore(gemsBanked)}</p>
             </div>
           </article>
 

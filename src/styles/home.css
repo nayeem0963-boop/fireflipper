@@ -152,6 +152,14 @@
 .card--challenge {
   border-color: var(--line-strong);
 }
+.card__icon--gem {
+  background: rgba(80, 220, 255, 0.12);
+  color: #8af4ff;
+}
+/* Three cards: the challenge card spans the row on wide screens */
+.home__cards .card--challenge {
+  grid-column: 1 / -1;
+}
 
 @media (max-width: 420px) {
   .home__cards {

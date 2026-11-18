@@ -1,4 +1,4 @@
-import { WORLD } from '../physics/constants.js';
+import { POWERUPS, WORLD } from '../physics/constants.js';
 import { MOVING, PATTERNS, fireRing, gapFor, pickPattern } from './patterns.js';
 import { CELLS, MAX_DROP_RATE, MAX_RISE_RATE, MOVING_MARGIN, ROUTE_MARGIN, SIGHT_DISTANCE, cellOf, createPlanner, hullOf } from './planner.js';
 import { speedAt, timeAtDistance } from './dynamics.js';
@@ -41,6 +41,8 @@ export function createTrack() {
     reachNext: new Uint8Array(CELLS),
     anywhere: new Uint8Array(CELLS).fill(1),
     scratch: new Uint8Array(CELLS),
+    /** Track position at which the next shield/magnet should be placed. */
+    nextPowerX: POWERUPS.firstAt,
     reachX: 0,
     free: [0, 0],
     center: 0,
@@ -59,6 +61,7 @@ export function resetTrack(track, startY) {
   track.free[0] = track.free[1] = startY;
   track.center = startY;
   track.previous = null;
+  track.nextPowerX = POWERUPS.firstAt;
   track.corridors.length = 0;
   const s = track.stats;
   s.sections = s.rejected = s.sightRejected = s.fallbacks = s.unverified = s.rings = 0;
@@ -118,6 +121,13 @@ function generateSection(track, builder, rng) {
     const section = PATTERNS[type](builder, x, center, gap, rng, ctx);
     const xEnd = x + section.length + 0.8;
 
+    // A shield or magnet now and then, on the safe line through the open space before the section.
+    const power = x > track.nextPowerX && !lastResort;
+    if (power) {
+      const line = track.center + (center - track.center) * 0.65;
+      builder.powerup(x - spacing * 0.35, line, rng.chance(0.55) ? 'shield' : 'magnet');
+    }
+
     const mark = builder.mark();
     if (wantRing) {
       const mid = (track.center + center) / 2;
@@ -158,6 +168,7 @@ function generateSection(track, builder, rng) {
       track.reachNext.fill(1);
     }
     if (type !== planned) track.stats.fallbacks++;
+    if (power) track.nextPowerX = x + rng.range(POWERUPS.spacingMin, POWERUPS.spacingMax);
     commit(track, type, section, x, center, xEnd, wantRing);
     return;
   }

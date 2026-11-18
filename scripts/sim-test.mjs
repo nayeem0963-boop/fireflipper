@@ -11,7 +11,8 @@ import { BOULDER, RING, SPINNER, applyTime, fillRingNodes, speedAt, timeAtDistan
 import { PATTERNS, UNLOCK } from '../src/systems/obstacles/patterns.js';
 import { difficultyAt } from '../src/systems/obstacles/spawner.js';
 import { RENDER_CAPS } from '../src/systems/obstacles/renderCaps.js';
-import { PHYSICS, WORLD, SCORING } from '../src/systems/physics/constants.js';
+import { PHYSICS, WORLD, SCORING, STREAK, POWERUPS } from '../src/systems/physics/constants.js';
+import { modelScores } from './balance-model.mjs';
 import { computeScore } from '../src/systems/scoring/scoring.js';
 
 const DT = PHYSICS.fixedStep;
@@ -49,7 +50,8 @@ check('dispatch circle', !circleHitsObstacle(0, 0, 0.4, { shape: 'circle', x: 2,
 
 // ---------------------------------------------------------------- scoring
 section('Scoring');
-check('score formula', computeScore(100, 3) === 100 * SCORING.pointsPerMetre + 3 * SCORING.orbPoints);
+check('score = distance points + bonus points', computeScore(100, 7) === 100 * SCORING.pointsPerMetre + 7);
+check('multipliers never touch distance', computeScore(100, 0) === 100 * SCORING.pointsPerMetre);
 
 // ---------------------------------------------------------------- flight
 section('Flight physics');
@@ -442,8 +444,7 @@ section('Renderer capacity');
         if (x < -20 - o.extent || x > 60) continue;
         c[o.kind] = (c[o.kind] || 0) + 1;
       }
-      let orbs = 0;
-      let gems = 0;
+      const pick = { orb: 0, gem: 0, shield: 0, magnet: 0 };
       for (const o of s.orbs.active) {
         if (o.x < d - 20) {
           s.orbs.release(o);
@@ -451,11 +452,9 @@ section('Renderer capacity');
         }
         const x = o.x - d;
         if (x < -15 || x > 60) continue;
-        if (o.kind === 1) gems++;
-        else orbs++;
+        pick[['orb', 'gem', 'shield', 'magnet'][o.kind]]++;
       }
-      c.orb = orbs;
-      c.gem = gems;
+      Object.assign(c, pick);
       for (const [k, v] of Object.entries(c)) bump(k, v);
       s.bird.y = 0.4;
     }
@@ -465,6 +464,277 @@ section('Renderer capacity');
     if (peak[kind] === undefined) continue;
     check(`never more ${kind}s in view than are drawn (${cap})`, peak[kind] <= cap * 0.8, `${peak[kind]}`);
   }
+}
+
+// ---------------------------------------------------------------- streak & scoring (phase 3)
+const levelStep = (s, n, y = WORLD.birdStartY) => {
+  for (let i = 0; i < n && s.phase === PHASE.RUNNING; i++) {
+    s.bird.y = y;
+    s.bird.vy = 0;
+    s.step(DT);
+  }
+};
+const putOrb = (s, x, y = WORLD.birdStartY, kind = 0) => {
+  const o = s.orbs.acquire();
+  Object.assign(o, { x, y, phase: 0, kind, risk: false });
+  return o;
+};
+const runningSim = (seed) => {
+  const s = freeSim(seed);
+  s.phase = PHASE.RUNNING;
+  return s;
+};
+const eventsOf = (s, type) => s.events.filter((e) => e.type === type);
+
+section('Streak and multiplier');
+{
+  // Tiers: x2 on the 5th collection, x3 on the 14th, and the orb that earns a tier is paid at it.
+  const s = runningSim(61);
+  for (let i = 0; i < 15; i++) putOrb(s, 3 + i * 3);
+  const seen = [];
+  for (let i = 0; i < 120 * 8; i++) {
+    levelStep(s, 1);
+    for (const e of s.events) if (e.type === 'orb') seen.push({ n: e.streak, mult: e.mult });
+    if (s.events.some((e) => e.type === 'multiplier')) s.lastMultEvents = (s.lastMultEvents || 0) + eventsOf(s, 'multiplier').length;
+    s.events.length = 0;
+  }
+  check('15 orbs collected', s.orbsCollected === 15, `${s.orbsCollected}`);
+  check('x1 up to the 4th orb', seen.slice(0, 4).every((e) => e.mult === 1));
+  check('the 5th orb reaches x2', seen[4].mult === 2 && seen[3].mult === 1);
+  check('x2 holds through the 13th, x3 on the 14th', seen[12].mult === 2 && seen[13].mult === 3);
+  // 4 at x1, 9 at x2 (orbs 5-13), 2 at x3 (orbs 14-15)
+  check('each orb is paid at the multiplier it has just reached', s.points.orbs === SCORING.orbPoints * (4 * 1 + 9 * 2 + 2 * 3), `${s.points.orbs}`);
+  check('one multiplier event per tier reached', s.lastMultEvents === 2, `${s.lastMultEvents}`);
+  check('best streak and top multiplier are tracked', s.streak.best === 15 && s.streak.maxMult === 3);
+}
+{
+  // The timer is the missed-opportunity rule: just inside the window keeps it, just outside ends it.
+  const gapUnits = (seconds) => seconds * speedAt(0);
+  const make = (gapSeconds) => {
+    const s = runningSim(62);
+    putOrb(s, 3);
+    putOrb(s, 3 + gapUnits(gapSeconds));
+    levelStep(s, 120 * 8);
+    return s;
+  };
+  const inside = make(STREAK.window - 0.3);
+  check('a gap inside the window keeps the streak', inside.streak.best === 2);
+  const outside = make(STREAK.window + 0.4);
+  check('a gap outside the window ends it', outside.streak.best === 1 && eventsOf(outside, 'streakBreak').length >= 1);
+  const br = eventsOf(outside, 'streakBreak')[0];
+  check('the break reports what happened', br && br.reason === 'timeout' && br.count === 1);
+  check('after a break the multiplier is x1 again', outside.streak.mult === 1 && outside.streak.count === 0);
+}
+{
+  // Which collections count toward the streak.
+  const s = runningSim(63);
+  putOrb(s, 3);
+  putOrb(s, 6, WORLD.birdStartY, 1); // gem
+  putOrb(s, 9, WORLD.birdStartY, 2); // shield: power-ups do not add to the streak
+  putOrb(s, 12, WORLD.birdStartY, 3); // magnet
+  levelStep(s, 120 * 3);
+  check('orbs and gems extend the streak; power-ups do not', s.streak.count === 2, `${s.streak.count}`);
+  check('shield and magnet were picked up', s.shield === true && s.magnetTime > 0);
+}
+{
+  // Near misses pay, at the current multiplier, and do not touch the streak.
+  const pass = (mult) => {
+    const s = freeSim(64);
+    s.phase = PHASE.RUNNING;
+    s.streak.mult = mult;
+    s.streak.count = mult > 1 ? 99 : 0;
+    s.streak.timeLeft = 99;
+    const R = PHYSICS.birdRadius;
+    const o = s.obstacles.acquire();
+    Object.assign(o, { kind: 'column', shape: 'box', x: 6, y: 1.0 + R + 0.1 + 3, hw: 0.5, hh: 3, extent: 0.625, minClear: Infinity, nearDone: false, dyn: '' });
+    levelStep(s, 120 * 3, 1.0);
+    return s;
+  };
+  const x1 = pass(1);
+  const x3 = pass(3);
+  check('a near miss pays', x1.nearMisses === 1 && x1.points.nearMiss >= SCORING.nearMissMin);
+  check('near-miss points are multiplied like every other bonus', x3.points.nearMiss === x1.points.nearMiss * 3, `${x1.points.nearMiss} -> ${x3.points.nearMiss}`);
+  check('a near miss does not add to the streak', x1.streak.count === 0);
+}
+{
+  // Distance is never multiplied, and every point is accounted for in the ledger.
+  const lo = runningSim(65);
+  const hi = runningSim(65);
+  hi.streak.mult = 5;
+  hi.streak.count = 99;
+  hi.streak.timeLeft = 9999;
+  levelStep(lo, 120 * 6);
+  levelStep(hi, 120 * 6);
+  check('distance points ignore the multiplier', lo.score === hi.score && hi.results().points.distance === hi.metres * SCORING.pointsPerMetre, `${lo.score} vs ${hi.score}`);
+  const r = (() => {
+    const s = runningSim(66);
+    for (let i = 0; i < 8; i++) putOrb(s, 3 + i * 3);
+    putOrb(s, 30, WORLD.birdStartY, 1);
+    levelStep(s, 120 * 8);
+    return s.results();
+  })();
+  const sum = r.points.distance + r.points.orbs + r.points.gems + r.points.rings + r.points.nearMiss + r.points.other;
+  check('the ledger adds up to the score', sum === r.score, `${sum} vs ${r.score}`);
+  check('the ledger counts match the pickups', r.orbs === 8 && r.gems === 1);
+}
+
+section('Shield');
+{
+  const wall = (s, x) => {
+    const o = s.obstacles.acquire();
+    Object.assign(o, { kind: 'column', shape: 'box', x, y: 0.4, hw: 0.5, hh: 3, extent: 0.75, minClear: Infinity, nearDone: false, dyn: '' });
+    return o;
+  };
+  const s = runningSim(71);
+  s.shield = true;
+  s.streak.count = 12;
+  s.streak.mult = 3;
+  s.streak.timeLeft = 5;
+  wall(s, 4);
+  levelStep(s, 120 * 2);
+  check('a shield absorbs the hit: no crash', s.phase === PHASE.RUNNING && eventsOf(s, 'crash').length === 0);
+  check('the shield is used up', s.shield === false && s.shieldsUsed === 1);
+  const sb = eventsOf(s, 'shieldBreak');
+  check('the break is announced once, with its cause', sb.length === 1 && sb[0].cause === 'obstacle');
+  const brk = eventsOf(s, 'streakBreak');
+  check('taking a hit ends the streak', brk.length === 1 && brk[0].reason === 'shield' && s.streak.count === 0 && s.streak.mult === 1);
+  {
+    // Right after the hit, the grace period is at its full length.
+    const w = runningSim(76);
+    w.shield = true;
+    wall(w, 4);
+    for (let i = 0; i < 120 * 2 && !w.events.some((e) => e.type === 'shieldBreak'); i++) {
+      w.bird.y = WORLD.birdStartY;
+      w.bird.vy = 0;
+      w.step(DT);
+    }
+    check('right after a shield breaks, the grace period is at full length', w.invuln > POWERUPS.shieldGrace - 0.05, `${w.invuln}`);
+  }
+  // After the grace period the next hit is fatal.
+  const t = runningSim(72);
+  t.shield = true;
+  wall(t, 4);
+  levelStep(t, 120 * 2.2); // hit, then grace runs out (1.5 s) while flying on
+  wall(t, t.distance + 3);
+  levelStep(t, 120 * 2);
+  check('without a shield the next hit ends the run', t.phase !== PHASE.RUNNING && eventsOf(t, 'crash').length === 1);
+  // Collisions are ignored during the grace period.
+  const g = runningSim(73);
+  g.shield = true;
+  wall(g, 4);
+  levelStep(g, 120 * 1.2);
+  wall(g, g.distance + 2);
+  levelStep(g, 120 * 0.8);
+  check('hits inside the grace period are ignored', g.phase === PHASE.RUNNING && g.shieldsUsed === 1);
+  // Lava: a shield turns it into a bounce.
+  const l = runningSim(74);
+  l.shield = true;
+  l.bird.y = WORLD.groundY + PHYSICS.birdRadius - 0.05;
+  l.step(DT);
+  check('a shield turns lava into a bounce', l.phase === PHASE.RUNNING && l.bird.vy > 5 && l.shield === false);
+  const sb2 = eventsOf(l, 'shieldBreak');
+  check('lava break reports its cause', sb2[0] && sb2[0].cause === 'lava');
+  // A second shield picked up while holding one is worth a flat bonus.
+  const d = runningSim(75);
+  putOrb(d, 3, WORLD.birdStartY, 2);
+  putOrb(d, 6, WORLD.birdStartY, 2);
+  levelStep(d, 120 * 3);
+  check('a duplicate shield pays a flat bonus and keeps one shield', d.shield && d.points.other === SCORING.shieldDuplicate, `${d.points.other}`);
+}
+
+section('Magnet');
+{
+  const run = (setup) => {
+    const s = runningSim(81);
+    setup(s);
+    levelStep(s, 120 * 3);
+    return s;
+  };
+  const off = run((s) => putOrb(s, 6, WORLD.birdStartY + 2.2));
+  check('without a magnet an orb 2.2 u off the line is missed', off.orbsCollected === 0);
+  const on = run((s) => {
+    s.magnetTime = POWERUPS.magnetTime;
+    putOrb(s, 6, WORLD.birdStartY + 2.2);
+  });
+  check('a magnet pulls it in', on.orbsCollected === 1);
+  const far = run((s) => {
+    s.magnetTime = POWERUPS.magnetTime;
+    putOrb(s, 6, WORLD.birdStartY + POWERUPS.magnetRadius + 1.2);
+  });
+  check('an orb beyond the pull radius is left alone', far.orbsCollected === 0);
+  const gem = run((s) => {
+    s.magnetTime = POWERUPS.magnetTime;
+    putOrb(s, 6, WORLD.birdStartY + 2.2, 1);
+  });
+  check('gems are not pulled: they stay a reward for the risky line', gem.gemsCollected === 0);
+  const timed = runningSim(82);
+  timed.magnetTime = POWERUPS.magnetTime;
+  levelStep(timed, Math.round(120 * (POWERUPS.magnetTime + 0.5)));
+  check('the magnet runs out on time, announced once', timed.magnetTime === 0 && eventsOf(timed, 'magnetEnd').length === 1);
+  const again = runningSim(83);
+  putOrb(again, 3, WORLD.birdStartY, 3);
+  levelStep(again, 120 * 4);
+  const left = again.magnetTime;
+  putOrb(again, again.distance + 3, WORLD.birdStartY, 3);
+  levelStep(again, 120 * 1);
+  check('a second magnet refreshes the timer', again.magnetTime > left && again.magnetsGot === 2);
+}
+
+section('Power-up placement');
+{
+  let total = 0;
+  const kinds = { 2: 0, 3: 0 };
+  let tooClose = 0;
+  let firstAt = Infinity;
+  let blocked = 0;
+  for (let seed = 1; seed <= 24; seed++) {
+    const s = createGameSim();
+    s.reset(seed);
+    const xs = [];
+    for (let d = 0; d <= 4000; d += 2) {
+      s.distance = s.prevDistance = d;
+      s.phase = PHASE.RUNNING;
+      s.step(0);
+      s.events.length = 0;
+      for (const orb of s.orbs.active) {
+        if (orb.kind >= 2 && !xs.includes(orb.x)) {
+          xs.push(orb.x);
+          kinds[orb.kind]++;
+          total++;
+          firstAt = Math.min(firstAt, orb.x);
+          for (const o of s.obstacles.active) {
+            if (!o.dyn && circleHitsObstacle(orb.x, orb.y, PHYSICS.birdRadius + 0.3, o)) blocked++;
+          }
+        }
+        if (orb.x < d - 12) s.orbs.release(orb);
+      }
+      for (const o of s.obstacles.active) if (o.x + o.extent < d - 12) s.obstacles.release(o);
+      s.bird.y = 0.4;
+    }
+    xs.sort((a, b) => a - b);
+    xs.forEach((x, i) => {
+      if (i && x - xs[i - 1] < POWERUPS.spacingMin - 15) tooClose++;
+    });
+  }
+  console.log(`  ${total} power-ups over 24 tracks of 4000 m: ${kinds[2]} shields, ${kinds[3]} magnets`);
+  check('both power-ups appear', kinds[2] > 20 && kinds[3] > 20, JSON.stringify(kinds));
+  check('power-ups are rare (about one per 340 m)', total / (24 * 4) > 1.5 && total / (24 * 4) < 4.5, `${(total / 96).toFixed(2)} per km`);
+  check('the first one is not before the opening stretch', firstAt >= POWERUPS.firstAt - 30, `${firstAt.toFixed(0)}`);
+  check('power-ups are spaced out', tooClose === 0, `${tooClose}`);
+  check('a power-up is never placed inside a fixed obstacle', blocked === 0, `${blocked}`);
+}
+
+section('Scoring balance (distance stays the backbone)');
+{
+  const model = modelScores({ length: 3000, seeds: 8 });
+  const pct = (r) => (100 * r.share).toFixed(0);
+  console.log(`  distance share of a 3,000 m score: ${model.rows.map((r) => `${r.name.split(':')[0]} ${pct(r)}%`).join(', ')}`);
+  const [casual, skilled, elite, ceiling] = model.rows;
+  check('casual play: distance is at least 75% of the score', casual.share >= 0.75, pct(casual));
+  check('skilled play: distance is at least 60% of the score', skilled.share >= 0.6, pct(skilled));
+  check('elite play: distance is still at least 42%', elite.share >= 0.42, pct(elite));
+  check('even every pickup on every route leaves distance at 33% or more', ceiling.share >= 0.33, pct(ceiling));
+  check('collecting more always scores more', casual.total < skilled.total && skilled.total < elite.total && elite.total < ceiling.total);
 }
 
 section('Difficulty progression');
@@ -620,7 +890,6 @@ section('Pickups, rings and scoring');
   const ev = gemSim.events.find((e) => e.type === 'orb');
   check('gem event is flagged', ev && ev.gem === true);
   check('results report gems and rings', gemSim.results().gems === 1 && gemSim.results().rings === 0);
-  check('score formula includes gems and rings', computeScore(10, 2, 1, 3) === 10 + 2 * SCORING.orbPoints + SCORING.gemPoints + 3 * SCORING.ringPoints);
 
   // Fire ring: flying through the middle pays once; flying through the rim is a crash.
   const ringAt = (yBird) => {
