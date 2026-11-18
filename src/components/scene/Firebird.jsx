@@ -14,9 +14,11 @@ import { getGlowTexture } from '../../utils/textures.js';
  *  - wingSpeed:   base wing-beat speed (radians/sec)
  *  - glow:        halo sprite opacity
  *  - lightIntensity: strength of the warm point light the bird casts
- *  - flight:      optional live flight state { vy, sinceFlap, dead } from the
- *                 simulation. When given, wings perform a real downstroke on
- *                 each flap, tuck back in a dive and go limp after a crash.
+ *  - flight:      optional live flight state { vy, sinceFlap, dead, holding, diveAmt,
+ *                 pitchVel } from the simulation. When given, wings perform a real
+ *                 downstroke on each flap, beat faster while climbing, spread into a
+ *                 glide when falling, tuck back in a dive and go limp after a crash.
+ *                 The tail and crest lag behind body rotation.
  */
 const STROKE_TIME = 0.26; // seconds for one powered wing stroke
 
@@ -81,15 +83,21 @@ export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lig
 
     if (flight) {
       // Gameplay mode: wings are driven by the flight state.
-      const tuck = flight.dead ? 0 : clamp01((-flight.vy - 5) / 7); // fold back in a dive
-      phase.current += dt * wingSpeed * (1 - tuck * 0.6);
+      const alive = flight.dead ? 0 : 1;
+      const tuck = alive * Math.max(flight.diveAmt || 0, clamp01((-flight.vy - 5) / 7)); // fold back in a dive
+      const climbing = alive * clamp01(flight.vy / 7); // beat faster while rising
+      const gliding = alive * clamp01((-flight.vy - 1) / 3) * (1 - tuck); // spread when falling freely
+      const hold = flight.holding && flight.vy > 0 ? 0.3 : 0;
+      phase.current += dt * wingSpeed * (1 - tuck * 0.6 + climbing * 0.7 + hold);
       beat = Math.sin(phase.current);
       if (flight.dead) {
         targetLift = -0.35 + beat * 0.08; // limp
       } else if (flight.sinceFlap < STROKE_TIME) {
         targetLift = flapStroke(flight.sinceFlap / STROKE_TIME);
       } else {
-        targetLift = 0.25 - tuck * 0.2 + beat * 0.5 * (1 - tuck * 0.85);
+        const flutter = 0.25 - tuck * 0.2 + beat * (0.5 + climbing * 0.18) * (1 - tuck * 0.85);
+        const glide = 0.42 + beat * 0.09;
+        targetLift = flutter + (glide - flutter) * gliding;
       }
       sweep = tuck * 0.75;
       if (halo.current) {
@@ -120,12 +128,19 @@ export default function Firebird({ float = 0.12, wingSpeed = 7, glow = 0.55, lig
       root.current.rotation.x = Math.sin(t * 0.8) * 0.04;
     }
     if (tail.current) {
-      tail.current.rotation.z = Math.sin(t * 2.4) * 0.12;
+      // The tail trails the body's rotation, then swings back as it settles.
+      const lag = flight ? Math.max(-0.35, Math.min(0.35, -flight.pitchVel * 0.05)) : 0;
+      tail.current.rotation.z = Math.sin(t * 2.4) * 0.12 + lag;
       tail.current.rotation.y = Math.sin(t * 1.7) * 0.1;
     }
     if (crest.current) {
       const flicker = 1 + Math.sin(t * 13) * 0.08 + Math.sin(t * 21) * 0.05;
       crest.current.scale.set(1, flicker, 1);
+      if (flight) {
+        // Flames stream back when climbing and lean forward when falling.
+        const lean = Math.max(-0.1, Math.min(0.3, 0.08 + flight.vy * 0.015));
+        crest.current.rotation.z += (lean - crest.current.rotation.z) * (1 - Math.exp(-12 * dt));
+      }
     }
   });
 

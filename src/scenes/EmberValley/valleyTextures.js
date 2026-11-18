@@ -1,6 +1,6 @@
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three';
 
-/** Procedural textures for Ember Valley. Created once per scene mount. */
+/** Procedural textures for the journey. Created once per scene mount. (The sky is a shader now: see Sky.jsx.) */
 
 /** Dark ground with faint glowing grid lines (tiles seamlessly). */
 export function createGroundTexture() {
@@ -26,24 +26,5 @@ export function createGroundTexture() {
   tex.colorSpace = SRGBColorSpace;
   tex.wrapS = tex.wrapT = RepeatWrapping;
   tex.anisotropy = 4;
-  return tex;
-}
-
-/** Vertical gradient for the lava-lit horizon sky. */
-export function createSkyTexture() {
-  const c = document.createElement('canvas');
-  c.width = 4;
-  c.height = 256;
-  const ctx = c.getContext('2d');
-  const g = ctx.createLinearGradient(0, 0, 0, 256);
-  g.addColorStop(0, '#0b0907');
-  g.addColorStop(0.45, '#1c0b06');
-  g.addColorStop(0.75, '#5a1a08');
-  g.addColorStop(0.9, '#c2440f');
-  g.addColorStop(1, '#ff8a2a');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 4, 256);
-  const tex = new CanvasTexture(c);
-  tex.colorSpace = SRGBColorSpace;
   return tex;
 }

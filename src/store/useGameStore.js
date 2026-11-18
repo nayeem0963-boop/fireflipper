@@ -31,15 +31,21 @@ export const useGameStore = create((set, get) => ({
   // --- navigation ---
   screen: SCREENS.HOME,
   settingsOpen: false,
+  /**
+   * Auto-play (watch-only): a bot plays and the viewer learns by watching. Nothing is scored, banked or
+   * saved in this mode, and the game-over screen is skipped (the demo just starts again).
+   */
+  demo: false,
 
   // --- current run ---
   status: STATUS.IDLE,
   score: 0,
   distance: 0,
   orbs: 0,
+  gems: 0,
   runId: 0, // bumped on every (re)start; the game loop resets the sim on change
   overAt: 0,
-  /** { score, distance, orbs, isNewBest } of the last finished run. */
+  /** { score, distance, orbs, gems, rings, isNewBest } of the last finished run. */
   lastResult: null,
 
   // --- scores ---
@@ -47,6 +53,12 @@ export const useGameStore = create((set, get) => ({
   /** Best score since the page was opened (not persisted). */
   sessionBest: 0,
   runsThisSession: 0,
+  /** Persistent: gems from every finished run, and the longest streak ever. */
+  gemsBanked: loadValue('gemsBanked', 0),
+  bestStreak: loadValue('bestStreak', 0),
+
+  /** Live play state shown by the HUD (updated from simulation events, not per frame). */
+  play: { streak: 0, mult: 1, stamp: 0, shield: false, magnet: false, magnetStamp: 0, breakStamp: 0, breakReason: null },
 
   // --- settings ---
   soundEnabled: loadValue('soundEnabled', true),
@@ -56,28 +68,49 @@ export const useGameStore = create((set, get) => ({
   startGame: () =>
     set((s) => ({
       screen: SCREENS.GAME,
+      demo: false,
       ...freshRun(s),
     })),
-  exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE }),
+  startDemo: () =>
+    set((s) => ({
+      screen: SCREENS.GAME,
+      demo: true,
+      ...freshRun(s),
+    })),
+  exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE, demo: false }),
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
 
   // --- run lifecycle (driven by simulation events + UI) ---
   beginRun: () => set((s) => (s.status === STATUS.READY ? { status: STATUS.RUNNING } : s)),
   crash: () => set((s) => (s.status === STATUS.RUNNING ? { status: STATUS.DYING } : s)),
-  endRun: ({ score, distance, orbs }) => {
+  endRun: (result) => {
+    const { score, distance, orbs, gems = 0 } = result;
     const s = get();
     // Guard: a run can only end once.
     if (s.status !== STATUS.DYING && s.status !== STATUS.RUNNING) return;
+    // Auto-play never counts: no best score, no gems banked, no streak record, no session stats.
+    if (s.demo) {
+      set({ status: STATUS.OVER, overAt: performance.now(), lastResult: null });
+      return;
+    }
     const isNewBest = score > s.bestScore;
     if (isNewBest) saveValue('bestScore', score);
+    // Gems are the progression currency: bank them the moment the run ends.
+    const gemsBanked = s.gemsBanked + gems;
+    if (gems > 0) saveValue('gemsBanked', gemsBanked);
+    const bestStreak = Math.max(s.bestStreak, result.bestStreak ?? 0);
+    if (bestStreak > s.bestStreak) saveValue('bestStreak', bestStreak);
     set({
       status: STATUS.OVER,
       overAt: performance.now(),
       score,
       distance,
       orbs,
-      lastResult: { score, distance, orbs, isNewBest },
+      gems,
+      lastResult: { ...result, isNewBest, gemsBankedTotal: gemsBanked },
+      gemsBanked,
+      bestStreak,
       bestScore: Math.max(s.bestScore, score),
       sessionBest: Math.max(s.sessionBest, score),
       runsThisSession: s.runsThisSession + 1,
@@ -93,10 +126,13 @@ export const useGameStore = create((set, get) => ({
     else if (status === STATUS.PAUSED) resume();
   },
 
+  /** Streak / power-up state, pushed when a relevant simulation event happens. */
+  setPlay: (patch) => set((s) => ({ play: { ...s.play, ...patch } })),
+
   /** Throttled HUD snapshot from the game loop. Skips no-op updates. */
-  setHud: (distance, score, orbs) => {
+  setHud: (distance, score, orbs, gems = 0) => {
     const s = get();
-    if (s.distance !== distance || s.score !== score || s.orbs !== orbs) set({ distance, score, orbs });
+    if (s.distance !== distance || s.score !== score || s.orbs !== orbs || s.gems !== gems) set({ distance, score, orbs, gems });
   },
 
   // --- settings ---
@@ -112,5 +148,5 @@ export const useGameStore = create((set, get) => ({
 }));
 
 function freshRun(s) {
-  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, lastResult: null, runId: s.runId + 1 };
+  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, gems: 0, play: { streak: 0, mult: 1, stamp: 0, shield: false, magnet: false, magnetStamp: 0, breakStamp: 0, breakReason: null }, lastResult: null, runId: s.runId + 1 };
 }

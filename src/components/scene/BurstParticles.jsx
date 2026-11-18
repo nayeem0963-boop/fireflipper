@@ -14,6 +14,14 @@ import { GAME_EVENTS, gameEvents } from '../../systems/events/gameEvents.js';
 const CAPACITY = 160;
 const ORB_COLOR = [1.0, 0.82, 0.4];
 const CRASH_COLOR = [1.0, 0.42, 0.1];
+const DEBRIS_COLOR = [0.75, 0.42, 0.26];
+const LAVA_COLOR = [1.0, 0.55, 0.12];
+const NEAR_COLOR = [1.0, 0.9, 0.62];
+const GEM_COLOR = [0.45, 0.92, 1.0];
+const RING_COLOR = [1.0, 0.78, 0.25];
+const SHIELD_COLOR = [0.35, 1.0, 0.7];
+const MAGNET_COLOR = [1.0, 0.45, 0.9];
+const MULT_COLOR = [1.0, 0.95, 0.7];
 
 export default function BurstParticles({ sim }) {
   const points = useRef();
@@ -36,7 +44,7 @@ export default function BurstParticles({ sim }) {
   );
 
   useEffect(() => {
-    const emit = (x, y, count, speed, color, life) => {
+    const emit = (x, y, count, speed, color, life, biasX = 0, biasY = 0) => {
       for (let i = 0; i < count; i++) {
         const k = state.next;
         state.next = (state.next + 1) % CAPACITY;
@@ -44,19 +52,49 @@ export default function BurstParticles({ sim }) {
         const s = speed * (0.4 + Math.random() * 0.6);
         state.tx[k] = x;
         state.y[k] = y;
-        state.vx[k] = Math.cos(a) * s;
-        state.vy[k] = Math.sin(a) * s + speed * 0.25;
+        state.vx[k] = Math.cos(a) * s + biasX;
+        state.vy[k] = Math.sin(a) * s + speed * 0.25 + biasY;
         state.maxLife[k] = state.life[k] = life * (0.6 + Math.random() * 0.4);
         state.base[k * 3] = color[0];
         state.base[k * 3 + 1] = color[1];
         state.base[k * 3 + 2] = color[2];
       }
     };
-    const offOrb = gameEvents.on(GAME_EVENTS.ORB, (e) => emit(e.x, e.y, 14, 3.2, ORB_COLOR, 0.55));
-    const offCrash = gameEvents.on(GAME_EVENTS.CRASH, (e) => emit(e.x, e.y, 42, 5.5, CRASH_COLOR, 0.9));
+    const offOrb = gameEvents.on(GAME_EVENTS.ORB, (e) =>
+      e.gem ? emit(e.x, e.y, 22, 4.2, GEM_COLOR, 0.7) : emit(e.x, e.y, 14, 3.2, ORB_COLOR, 0.55),
+    );
+    const offRing = gameEvents.on(GAME_EVENTS.RING, (e) => emit(e.x, e.y, 26, 4.6, RING_COLOR, 0.65));
+    // Multiplier up: a bright ring of sparks around the bird (more of them at higher tiers).
+    const offMult = gameEvents.on(GAME_EVENTS.MULTIPLIER, (e) => emit(e.x, e.y, 16 + e.mult * 6, 4.4, MULT_COLOR, 0.6));
+    const offPower = gameEvents.on(GAME_EVENTS.POWERUP, (e) =>
+      emit(e.x, e.y, 24, 4.0, e.kind === 'shield' ? SHIELD_COLOR : MAGNET_COLOR, 0.7),
+    );
+    const offShield = gameEvents.on(GAME_EVENTS.SHIELD_BREAK, (e) => emit(e.x, e.y, 34, 6.0, SHIELD_COLOR, 0.8));
+    // A boulder smashing into the lava throws embers up.
+    const offLand = gameEvents.on(GAME_EVENTS.LANDING, (e) => emit(e.x, e.y - 0.3, 22, 3.6, LAVA_COLOR, 0.8, 0, 2.8));
+    const offCrash = gameEvents.on(GAME_EVENTS.CRASH, (e) => {
+      if (e.cause === 'lava') {
+        // Splash: embers thrown up out of the lava.
+        emit(e.x, e.y - 0.2, 40, 4.2, LAVA_COLOR, 0.95, 0, 3.2);
+      } else {
+        // Head-on impact: sparks and rock chips kicked back along the flight line.
+        emit(e.x, e.y, 34, 5.5, CRASH_COLOR, 0.9, -2.2, 0);
+        emit(e.x, e.y, 18, 4, DEBRIS_COLOR, 0.8, -1.6, 0.6);
+      }
+    });
+    // A few bright flecks where the bird shaved the rock.
+    const offNear = gameEvents.on(GAME_EVENTS.NEAR_MISS, (e) =>
+      emit(e.x + 0.3, e.y + e.side * 0.34, 7, 2.4, NEAR_COLOR, 0.36, -1.5, 0),
+    );
     return () => {
       offOrb();
+      offMult();
+      offPower();
+      offShield();
+      offRing();
+      offLand();
       offCrash();
+      offNear();
     };
   }, [state]);
 

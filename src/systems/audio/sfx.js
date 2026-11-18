@@ -68,18 +68,128 @@ function tone({ type = 'sine', from, to, duration, peak, delay = 0 }) {
 
 const ready = () => ctx && ctx.state === 'running';
 
+/** Looping wind bed under the game: filtered noise whose level follows the environment. */
+let wind = null;
+function ensureWind() {
+  if (wind || !ctx) return wind;
+  const len = ctx.sampleRate * 2;
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < len; i++) {
+    // Brown-ish noise: smoother and lower than white, so it reads as air, not hiss.
+    last = (last + (Math.random() * 2 - 1) * 0.08) * 0.985;
+    d[i] = last * 4;
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 420;
+  filter.Q.value = 0.5;
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  src.connect(filter).connect(gain).connect(master);
+  src.start();
+  wind = { gain, filter };
+  return wind;
+}
+
 export const sfx = {
+  /** Wind level 0..1: silent in the plains, a steady rush in the ash storm. */
+  setWind(level) {
+    if (!ready()) return;
+    const w = ensureWind();
+    const t = ctx.currentTime;
+    w.gain.gain.setTargetAtTime(level * 0.16, t, 0.6);
+    w.filter.frequency.setTargetAtTime(380 + level * 520, t, 0.6);
+  },
+  /** Entering a new environment: a soft rising swell, not a jingle. */
+  environment() {
+    if (!ready()) return;
+    tone({ type: 'sine', from: 196, to: 294, duration: 0.9, peak: 0.09 });
+    tone({ type: 'triangle', from: 294, to: 440, duration: 0.8, peak: 0.06, delay: 0.12 });
+    noiseBurst({ duration: 0.8, filter: 'bandpass', from: 500, to: 1400, q: 0.5, peak: 0.07 });
+  },
   flap() {
     if (!ready()) return;
     noiseBurst({ duration: 0.12, filter: 'bandpass', from: 1300, to: 450, q: 0.9, peak: 0.22 });
   },
-  orb() {
+  /** Fire orb. The pitch climbs a little with the streak, so a long chain sounds like it is building. */
+  orb(streak = 0) {
     if (!ready()) return;
-    tone({ type: 'triangle', from: 880, to: 1760, duration: 0.16, peak: 0.16 });
-    tone({ type: 'sine', from: 1320, to: 2640, duration: 0.2, peak: 0.08, delay: 0.05 });
+    const k = 1 + 0.035 * Math.min(streak, 24);
+    tone({ type: 'triangle', from: 880 * k, to: 1760 * k, duration: 0.16, peak: 0.16 });
+    tone({ type: 'sine', from: 1320 * k, to: 2640 * k, duration: 0.2, peak: 0.08, delay: 0.05 });
   },
-  crash() {
+  /** The multiplier went up: a rising run of notes, one more note (and a bit more weight) per tier. */
+  multiplier(mult = 2) {
     if (!ready()) return;
+    const scale = [1, 1.25, 1.5, 1.875, 2.25, 2.5];
+    const notes = Math.min(scale.length, mult + 1);
+    for (let i = 0; i < notes; i++) {
+      tone({ type: 'triangle', from: 523 * scale[i], to: 523 * scale[i] * 1.01, duration: 0.14, peak: 0.13 + mult * 0.012, delay: i * 0.065 });
+    }
+    tone({ type: 'sine', from: 1046 * scale[notes - 1], to: 1046 * scale[notes - 1] * 1.02, duration: 0.3, peak: 0.07, delay: notes * 0.065 });
+  },
+  /** A streak of some size ran out or was cut: a short falling blip. */
+  streakBreak() {
+    if (!ready()) return;
+    tone({ type: 'triangle', from: 440, to: 200, duration: 0.22, peak: 0.12 });
+  },
+  shieldGet() {
+    if (!ready()) return;
+    tone({ type: 'sine', from: 660, to: 1320, duration: 0.2, peak: 0.14 });
+    tone({ type: 'triangle', from: 990, to: 1980, duration: 0.26, peak: 0.09, delay: 0.08 });
+  },
+  /** The shield took a hit: glassy crack. */
+  shieldBreak() {
+    if (!ready()) return;
+    noiseBurst({ duration: 0.3, filter: 'highpass', from: 3000, to: 1400, q: 0.7, peak: 0.3 });
+    tone({ type: 'triangle', from: 1500, to: 260, duration: 0.3, peak: 0.18 });
+  },
+  magnetGet() {
+    if (!ready()) return;
+    tone({ type: 'sawtooth', from: 180, to: 540, duration: 0.3, peak: 0.07 });
+    tone({ type: 'sine', from: 360, to: 1080, duration: 0.3, peak: 0.1, delay: 0.04 });
+  },
+  /** Rare gem: a quick rising sparkle. */
+  gem() {
+    if (!ready()) return;
+    tone({ type: 'sine', from: 1320, to: 1980, duration: 0.14, peak: 0.13 });
+    tone({ type: 'sine', from: 1760, to: 2640, duration: 0.16, peak: 0.11, delay: 0.07 });
+    tone({ type: 'triangle', from: 2640, to: 3520, duration: 0.22, peak: 0.08, delay: 0.14 });
+  },
+  /** Through a fire ring: warm whoosh and a bright chime. */
+  ring() {
+    if (!ready()) return;
+    noiseBurst({ duration: 0.3, filter: 'bandpass', from: 700, to: 2200, q: 1.1, peak: 0.16 });
+    tone({ type: 'triangle', from: 660, to: 990, duration: 0.22, peak: 0.14, delay: 0.04 });
+    tone({ type: 'sine', from: 990, to: 1480, duration: 0.28, peak: 0.1, delay: 0.1 });
+  },
+  /** A boulder hitting the lava. */
+  landing() {
+    if (!ready()) return;
+    noiseBurst({ duration: 0.35, filter: 'lowpass', from: 900, to: 90, q: 0.8, peak: 0.28 });
+    tone({ from: 90, to: 40, duration: 0.3, peak: 0.25 });
+  },
+  /** Air rushing past a rock. `tight` is 0..1: the closer the shave, the brighter and louder. */
+  nearMiss(tight = 0.5) {
+    if (!ready()) return;
+    noiseBurst({ duration: 0.26, filter: 'bandpass', from: 2600 + tight * 1800, to: 900, q: 1.4, peak: 0.1 + tight * 0.1 });
+    tone({ type: 'sine', from: 1900 + tight * 500, to: 1100, duration: 0.14, peak: 0.035 + tight * 0.03 });
+  },
+  /** Rock impact: a sharp crack over a low thump. Lava: a long sizzling hiss and a dull plunge. */
+  crash(cause = 'obstacle') {
+    if (!ready()) return;
+    if (cause === 'lava') {
+      noiseBurst({ duration: 0.9, filter: 'highpass', from: 2400, to: 5200, q: 0.6, peak: 0.28 });
+      noiseBurst({ duration: 0.5, filter: 'lowpass', from: 900, to: 90, q: 0.7, peak: 0.45 });
+      tone({ from: 110, to: 34, duration: 0.5, peak: 0.4 });
+      return;
+    }
+    noiseBurst({ duration: 0.07, filter: 'highpass', from: 2200, to: 1500, q: 0.8, peak: 0.4 });
     noiseBurst({ duration: 0.55, filter: 'lowpass', from: 1800, to: 120, q: 0.7, peak: 0.55 });
     tone({ from: 140, to: 38, duration: 0.45, peak: 0.45 });
   },

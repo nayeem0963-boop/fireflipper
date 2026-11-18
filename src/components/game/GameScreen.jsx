@@ -6,6 +6,8 @@ import GameHUD from '../ui/GameHUD.jsx';
 import PauseMenu from '../ui/PauseMenu.jsx';
 import StartPrompt from '../ui/StartPrompt.jsx';
 import GameOverPanel from '../ui/GameOverPanel.jsx';
+import EnvBanner from '../ui/EnvBanner.jsx';
+import DemoOverlay from '../ui/DemoOverlay.jsx';
 import { useGameInput } from '../../hooks/useGameInput.js';
 import { usePauseWhenHidden } from '../../hooks/usePauseWhenHidden.js';
 import { useGameAudio } from '../../hooks/useGameAudio.js';
@@ -24,6 +26,8 @@ const RETRY_GUARD_MS = 450;
  */
 export default function GameScreen() {
   const status = useGameStore((s) => s.status);
+  const demo = useGameStore((s) => s.demo);
+  const restart = useGameStore((s) => s.restart);
   const playSurface = useRef(null);
 
   useGameInput(playSurface);
@@ -35,7 +39,8 @@ export default function GameScreen() {
     const offs = [
       onAction(ACTIONS.FLAP_PRESS, () => {
         unlockAudio();
-        const { status: st, overAt, restart } = store();
+        const { status: st, overAt, restart, demo: watching } = store();
+        if (watching) return; // auto play: the bot is flying, taps do nothing
         if (st === STATUS.OVER) {
           if (performance.now() - overAt > RETRY_GUARD_MS) restart();
           return;
@@ -45,13 +50,20 @@ export default function GameScreen() {
           game.flap();
         }
       }),
-      onAction(ACTIONS.FLAP_RELEASE, () => game.setHolding(false)),
-      onAction(ACTIONS.DIVE_PRESS, () => game.setDive(true)),
-      onAction(ACTIONS.DIVE_RELEASE, () => game.setDive(false)),
+      onAction(ACTIONS.FLAP_RELEASE, () => !store().demo && game.setHolding(false)),
+      onAction(ACTIONS.DIVE_PRESS, () => !store().demo && game.setDive(true)),
+      onAction(ACTIONS.DIVE_RELEASE, () => !store().demo && game.setDive(false)),
       onAction(ACTIONS.PAUSE, () => store().togglePause()),
     ];
     return () => offs.forEach((off) => off());
   }, []);
+
+  // Auto play has no game-over screen: if the bot ever crashes, it simply starts again.
+  useEffect(() => {
+    if (!(demo && status === STATUS.OVER)) return undefined;
+    const id = setTimeout(restart, 1600);
+    return () => clearTimeout(id);
+  }, [demo, status, restart]);
 
   const paused = status === STATUS.PAUSED;
 
@@ -64,11 +76,13 @@ export default function GameScreen() {
       </div>
 
       <GameHUD />
+      <EnvBanner />
 
-      {status === STATUS.READY && <StartPrompt />}
+      {demo && <DemoOverlay />}
+      {status === STATUS.READY && !demo && <StartPrompt />}
       {status === STATUS.DYING && <div className="game__flash" aria-hidden="true" />}
       {paused && <PauseMenu />}
-      {status === STATUS.OVER && <GameOverPanel />}
+      {status === STATUS.OVER && !demo && <GameOverPanel />}
     </main>
   );
 }

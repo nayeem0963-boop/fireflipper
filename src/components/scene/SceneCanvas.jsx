@@ -25,6 +25,10 @@ export default function SceneCanvas({ children, camera, frameloop = 'always', cl
         frameloop={frameloop}
         camera={camera}
         gl={{ antialias, alpha: false, powerPreference: 'high-performance', stencil: false }}
+        // Dev only: expose the renderer so draw calls and triangles can be inspected from the console.
+        onCreated={({ gl }) => {
+          if (import.meta.env.DEV) window.__gl = gl;
+        }}
       >
         <color attach="background" args={[background]} />
         <PerformanceMonitor
