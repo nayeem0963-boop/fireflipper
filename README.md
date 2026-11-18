@@ -193,3 +193,18 @@ wood with bright caps so they stand out against the dark trunks and leaves, and 
 costs nothing elsewhere, and it is about 9 instanced draw calls inside it. Zone data and the blend maths are in
 `systems/world/biomes.js` (`BIOMES`, `zoneWeight`, `biomeWeights`); `AmazonBackdrop.jsx` draws it. Looks only: `npm run test:biome`
 checks both zones' ranges and fades, that they never overlap, obstacle contrast against each backdrop, and that no simulation code reads them.
+
+## Zone obstacles
+
+Obstacles are drawn in the look of the zone they stand in (chosen from the obstacle's own track position, `ObstacleField.jsx`,
+shapes in `obstacleStyles.js`):
+
+| | Column | Slab gate | Rock |
+| --- | --- | --- | --- |
+| **Sundarbans** (0 to 500 m) | mangrove trunk, lime leaf crown on top / pale aerial-root beard hanging | mud bank edged with boardwalk planks | knotted driftwood root-ball with root stubs |
+| **Amazon** (1000 to 1500 m) | rainforest trunk, red-orange bromeliad rosette on top / liana tassels with pale tips hanging | fallen log edged with moss | moss-capped boulder |
+| elsewhere | the original coloured columns, slabs and rocks (themed red / blue) | | |
+
+Only the drawing changes: colliders are untouched, every shape is at least as big as its collider (rock bumps only push outward, trunks cover the
+0.4 hitbox), decorations stay modest, and zone caps stay bright and unlit so the corridor edge reads at a glance. Looks with nothing on screen are
+hidden, so they cost nothing; gameplay stays around 50 to 57 draw calls per frame. `npm run test:obstacles` checks the size guarantees.
