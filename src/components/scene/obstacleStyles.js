@@ -1,60 +1,28 @@
-import { BoxGeometry, BufferAttribute, Color, ConeGeometry, CylinderGeometry, DodecahedronGeometry, IcosahedronGeometry, Matrix4, Quaternion, Vector3 } from 'three';
+import { BoxGeometry, CylinderGeometry, DodecahedronGeometry } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BIOMES } from '../../systems/world/biomes.js';
 import { paint, place } from '../../scenes/EmberValley/mangroveGeometry.js';
+import * as A from './animalModels.js';
 
 /**
- * Obstacle looks for the scenery zones: each zone gets its own shapes, so the Sundarbans and the Amazon feel like
- * different places to fly through. They replace only how an obstacle is DRAWN: the colliders (box hw/hh, circle cr)
- * are untouched, and every shape stays at least as big as its collider so nothing ever hits you before you touch it.
+ * Obstacle looks for the scenery zones: animals and plants of each region instead of plain columns, slabs and rocks.
+ * They replace only how an obstacle is DRAWN: the colliders (box hw/hh, circle cr) are untouched, so physics,
+ * fairness and the track are identical in every zone. Each look is a set of small merged geometries with vertex colours,
+ * built once and instanced per obstacle. Every shape stays at least as big as its collider.
  *
- * Every style is a set of small merged geometries with vertex colours (built once, instanced per obstacle):
- *   column    the body, stretched to the column's height (a plain tapered cylinder, so stretching looks natural)
- *   capUp     the detail at the top end (shown when the gap is above the column: a rising column)
- *   capDown   the detail at the bottom end (a hanging column)
- *   block     a wide slab body
- *   blockCap  the slab's gap-facing edge
- *   rock      a floating rock
- * Caps are unlit and bright, like the original glowing caps, so the corridor edge always reads at a glance.
+ *   Sundarbans   Sundari mangrove (stilt roots, leaf crown) / wild honey hive hanging from a branch /
+ *                Bengal tiger or saltwater crocodile on a mud bank / fruit bats roosting under an overhang /
+ *                a swarm of angry bees.
+ *   Amazon       kapok tree (buttress roots) with a toco toucan perched on top / emerald tree boa coiled round a branch /
+ *                jaguar or green anaconda on a fallen log / three-toed sloths hanging from a branch /
+ *                a blue morpho butterfly.
  *
- *   Sundarbans: mangrove trunks with a lime leaf crown above / a hanging tangle of aerial roots below, mud-bank slabs
- *               edged with boardwalk planks, and knotted driftwood root-balls.
- *   Amazon:     rainforest trunks with a red-orange bromeliad rosette above / hanging liana tassels below, fallen-log
- *               slabs edged with moss, and moss-capped boulders.
+ * `geo`    the geometries: column (trunk body), base (roots at the water / ground line, rising columns only), capUp (on
+ *          the top end of a rising column), capDown (on the bottom end of a hanging column), block (slab body),
+ *          blockCap (the slab's gap-facing edge), up[] (animals on top of a lower slab; `len` is how long each is),
+ *          down (a creature hanging from an upper slab), rock (a floating obstacle).
+ * `layout` how the renderer places them.
  */
-
-/** Deterministic 0..1 from a position (same position, same value, so shared vertices move together). */
-function hash3(x, y, z) {
-  const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453;
-  return s - Math.floor(s);
-}
-
-/** A rough, lumpy ball (like a root-ball or boulder) with vertex colours chosen per vertex by `colorAt`. */
-function lumpyBall({ detail = 1, lump, colorAt }) {
-  const base = new IcosahedronGeometry(1, detail);
-  const p = base.attributes.position;
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i);
-    const y = p.getY(i);
-    const z = p.getZ(i);
-    // Lumps only ever push OUT, so the surface is never inside the rock's hitbox (a hit always looks like a touch).
-    const k = 1 + hash3(x, y, z) * lump;
-    p.setXYZ(i, x * k, y * k, z * k);
-  }
-  const g = base.index ? base.toNonIndexed() : base;
-  const pos = g.attributes.position;
-  const colors = new Float32Array(pos.count * 3);
-  const c = new Color();
-  for (let i = 0; i < pos.count; i++) {
-    c.set(colorAt(pos.getX(i), pos.getY(i), pos.getZ(i)));
-    colors[i * 3] = c.r;
-    colors[i * 3 + 1] = c.g;
-    colors[i * 3 + 2] = c.b;
-  }
-  g.setAttribute('color', new BufferAttribute(colors, 3));
-  g.deleteAttribute('uv');
-  return g;
-}
 
 /** Strips of a slab along x (each a box), coloured one by one: planks, moss patches. */
 function strips(colors, { height = 1, depth = 1 } = {}) {
@@ -74,8 +42,8 @@ function sundarbansStyle() {
   const S = BIOMES.sundarbans.scene;
   const lime = S.column.cap;
   const limeDark = '#9fd95a';
-  // Rising column: a mangrove with a flat leaf crown over its top end (stays within the column's width, plus a little).
-  const capUp = mergeGeometries(
+  // The Sundari's leaf crown: a flat mass of lime leaves over the top of the trunk.
+  const crown = mergeGeometries(
     [
       paint(place(new DodecahedronGeometry(0.5, 0), { position: [0, 0.02, 0], scale: [1.0, 0.5, 1.0] }), lime),
       paint(place(new DodecahedronGeometry(0.34, 0), { position: [-0.2, 0.1, 0.12], rotation: [0.4, 0.9, 0], scale: [1, 0.55, 1] }), limeDark),
@@ -83,111 +51,59 @@ function sundarbansStyle() {
     ],
     false,
   );
-  // Hanging column: aerial roots drooping from its bottom end like a beard of pale spikes.
-  const roots = [];
-  for (let i = 0; i < 7; i++) {
-    const a = (i / 7) * Math.PI * 2;
-    const r = i === 0 ? 0 : 0.3;
-    roots.push(
-      paint(
-        place(new ConeGeometry(0.07, 0.3 + (i % 3) * 0.05, 4), {
-          position: [Math.cos(a) * r, -0.15 - (i % 3) * 0.025, Math.sin(a) * r],
-          rotation: [Math.PI, 0, 0],
-        }),
-        i % 2 ? '#e9d7a0' : '#f4e6b4',
-      ),
-    );
-  }
-  const capDown = mergeGeometries(roots, false);
   return {
-    column: body(7, 0.92, S.column.color),
-    capUp,
-    capDown,
-    block: paint(place(new BoxGeometry(1, 1, 1), {}), S.block.color),
-    blockCap: strips(['#e0b878', '#cfa56a', '#e8c488', '#d4ac70', '#e2bc7c', '#c89c62']),
-    rock: lumpyBall({
-      lump: 0.16,
-      colorAt: (x, y, z) => {
-        const t = hash3(x * 3, y * 3, z * 3);
-        return t > 0.78 ? '#4a3322' : t > 0.4 ? S.rock.color : '#b49266';
-      },
-    }),
-    // dark spikes (root stubs) poke out of the root-ball
-    rockSpikes: true,
+    geo: {
+      column: body(7, 0.92, S.column.color),
+      base: A.createStiltRoots(),
+      capUp: crown,
+      capDown: A.createHoneyHive(),
+      block: paint(place(new BoxGeometry(1, 1, 1), {}), S.block.color),
+      blockCap: strips(['#e0b878', '#cfa56a', '#e8c488', '#d4ac70', '#e2bc7c', '#c89c62']),
+      up: [animal(A.createTiger()), animal(A.createCrocodile())],
+      down: A.createFruitBat(),
+      rock: A.createBeeSwarm(),
+    },
+    layout: { baseScale: 1.0, capUpScale: 1.0, capDownScale: 0.55, downSpacing: 2.3, rockSpin: true },
   };
 }
 
 function amazonStyle() {
   const S = BIOMES.amazon.scene;
-  // Rising column: a bromeliad rosette of red-orange leaves around a pale-yellow heart, perched on the trunk's top.
-  const leaves = [];
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    leaves.push(
-      paint(
-        place(new ConeGeometry(0.11, 0.55, 4), {
-          position: [Math.cos(a) * 0.2, 0.06, Math.sin(a) * 0.2],
-          rotation: [Math.sin(a) * 1.0, 0, -Math.cos(a) * 1.0],
-        }),
-        i % 2 ? '#ff6a2a' : '#ff8a3a',
-      ),
-    );
-  }
-  leaves.push(paint(place(new DodecahedronGeometry(0.2, 0), { position: [0, 0.04, 0], scale: [1, 0.7, 1] }), S.column.cap));
-  const capUp = mergeGeometries(leaves, false);
-  // Hanging column: liana tassels, long green strands with pale-yellow tips.
-  const lianas = [];
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    const r = i === 0 ? 0 : 0.28;
-    const len = 0.28 + (i % 3) * 0.06;
-    lianas.push(paint(place(new CylinderGeometry(0.018, 0.018, len, 3), { position: [Math.cos(a) * r, -len / 2, Math.sin(a) * r] }), '#5aa03a'));
-    lianas.push(paint(place(new DodecahedronGeometry(0.06, 0), { position: [Math.cos(a) * r, -len - 0.03, Math.sin(a) * r] }), S.column.cap));
-  }
-  const capDown = mergeGeometries(lianas, false);
   return {
-    column: body(8, 1.0, S.column.color),
-    capUp,
-    capDown,
-    block: paint(place(new BoxGeometry(1, 1, 1), {}), S.block.color),
-    blockCap: strips(['#7bbf46', '#5fa83a', '#8ccc50', '#6db840', '#9bd45a', '#56a038']),
-    rock: lumpyBall({
-      lump: 0.1,
-      colorAt: (x, y, z) => {
-        const mossy = y / Math.hypot(x, y, z) > 0.62 + (hash3(x * 4, y * 4, z * 4) - 0.5) * 0.2;
-        return mossy ? '#6aa044' : hash3(x * 3, y * 3, z * 3) > 0.7 ? '#8e7e5a' : S.rock.color;
-      },
-    }),
-    rockSpikes: false,
+    geo: {
+      column: body(8, 1.0, S.column.color),
+      base: A.createButtress(),
+      capUp: A.createToucan(),
+      capDown: A.createTreeBoa(),
+      block: paint(place(new BoxGeometry(1, 1, 1), {}), S.block.color),
+      blockCap: strips(['#7bbf46', '#5fa83a', '#8ccc50', '#6db840', '#9bd45a', '#56a038']),
+      up: [animal(A.createJaguar()), animal(A.createAnaconda())],
+      down: A.createSloth(),
+      rock: A.createMorpho(),
+    },
+    layout: { baseScale: 1.0, capUpScale: 0.6, capDownScale: 0.95, downSpacing: 3.4, rockSpin: false },
   };
-}
-
-/** Root stubs around a driftwood ball, merged with the ball so it stays one geometry. */
-function addSpikes(ball) {
-  const spikes = [];
-  const up = new Vector3(0, 1, 0);
-  for (let i = 0; i < 7; i++) {
-    const a = i * 2.399; // golden angle spreads them evenly
-    const y = ((i * 0.37) % 1) * 1.4 - 0.7;
-    const r = Math.sqrt(1 - y * y);
-    const dir = new Vector3(Math.cos(a) * r, y, Math.sin(a) * r);
-    const g = paint(new ConeGeometry(0.1, 0.34, 4), '#3a2616');
-    g.applyMatrix4(new Matrix4().compose(dir.clone().multiplyScalar(1.02), new Quaternion().setFromUnitVectors(up, dir), new Vector3(1, 1, 1)));
-    spikes.push(g);
-  }
-  return mergeGeometries([ball, ...spikes], false);
 }
 
 const BUILDERS = { sundarbans: sundarbansStyle, amazon: amazonStyle };
 
-/** Geometries for a zone's obstacle style, or null for the original look. The caller owns (and disposes) them. */
-export function createObstacleStyle(zoneId, { spikes = true } = {}) {
+/** An animal for the top of a slab: its geometry, how long it is, and where its middle is (so it can be centred). */
+function animal(geometry) {
+  geometry.computeBoundingBox();
+  const { min, max } = geometry.boundingBox;
+  return { geometry, len: max.x - min.x, center: (max.x + min.x) / 2 };
+}
+
+/** Geometries and layout for a zone's obstacle look, or null for the original look. The caller owns (and disposes) the geometries. */
+export function createObstacleStyle(zoneId) {
   const build = BUILDERS[zoneId];
-  if (!build) return null;
-  const s = build();
-  const { rockSpikes, ...geos } = s;
-  if (rockSpikes && spikes) geos.rock = addSpikes(geos.rock);
-  return geos;
+  return build ? build() : null;
+}
+
+/** Every geometry in a style (for disposal). */
+export function styleGeometries(style) {
+  const { up, ...rest } = style.geo;
+  return [...Object.values(rest), ...up.map((u) => u.geometry)];
 }
 
 export const OBSTACLE_STYLE_IDS = Object.freeze(Object.keys(BUILDERS));

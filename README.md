@@ -196,15 +196,18 @@ checks both zones' ranges and fades, that they never overlap, obstacle contrast 
 
 ## Zone obstacles
 
-Obstacles are drawn in the look of the zone they stand in (chosen from the obstacle's own track position, `ObstacleField.jsx`,
-shapes in `obstacleStyles.js`):
+In the two scenery zones the obstacles are animals and plants of the region, drawn in place of the plain columns, slabs and rocks
+(chosen from the obstacle's own track position: `ObstacleField.jsx`, layout in `obstacleStyles.js`, models in `animalModels.js`,
+all built from primitives with vertex colours, so no model files):
 
-| | Column | Slab gate | Rock |
-| --- | --- | --- | --- |
-| **Sundarbans** (0 to 500 m) | mangrove trunk, lime leaf crown on top / pale aerial-root beard hanging | mud bank edged with boardwalk planks | knotted driftwood root-ball with root stubs |
-| **Amazon** (1000 to 1500 m) | rainforest trunk, red-orange bromeliad rosette on top / liana tassels with pale tips hanging | fallen log edged with moss | moss-capped boulder |
-| elsewhere | the original coloured columns, slabs and rocks (themed red / blue) | | |
+| | Rising column | Hanging column | Lower slab (on top) | Upper slab (underside) | Floating |
+| --- | --- | --- | --- | --- | --- |
+| **Sundarbans** (0 to 500 m) | Sundari mangrove: stilt roots at the water line, leaf crown | wild honey hive on a branch | Bengal tiger or saltwater crocodile on a mud bank | roosting fruit bats | swarm of angry bees |
+| **Amazon** (1000 to 1500 m) | kapok tree with buttress roots and a toco toucan on top | emerald tree boa coiled round the end | jaguar or green anaconda on a fallen log | hanging three-toed sloths | blue morpho butterfly |
+| elsewhere | the original columns, slabs and rocks (themed red / blue) | | | | |
 
-Only the drawing changes: colliders are untouched, every shape is at least as big as its collider (rock bumps only push outward, trunks cover the
-0.4 hitbox), decorations stay modest, and zone caps stay bright and unlit so the corridor edge reads at a glance. Looks with nothing on screen are
-hidden, so they cost nothing; gameplay stays around 50 to 57 draw calls per frame. `npm run test:obstacles` checks the size guarantees.
+Only the drawing changes. Colliders are untouched and stay honest: floating creatures are drawn at least as large as the circle collider
+(the bee swarm's core is never inside it, and a test samples the morpho's wings to prove they cover the whole disc), a trunk body covers its
+hitbox, and everything that reaches into a gap stays under 1.2 m. The morpho always faces you and never spins. Looks with nothing on screen are
+hidden, so they cost nothing; gameplay stays around 50 to 60 draw calls per frame. `npm run test:obstacles` checks all of this.
+`gallery.html` (dev server only, not built) shows every model close up: `/gallery.html?set=sund` or `?set=amazon` (add `&only=createTiger`, `&z=6`).
