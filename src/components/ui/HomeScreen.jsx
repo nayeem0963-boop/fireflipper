@@ -140,7 +140,7 @@ export default function HomeScreen() {
         <button type="button" className="ghost-btn home__bird" onClick={openAvatars}>
           <FlameIcon />
           <span>
-            Skins &amp; trails · {progress.unlocked}/{progress.total}
+            Skins · {progress.unlocked}/{progress.total}
           </span>
         </button>
         </div>

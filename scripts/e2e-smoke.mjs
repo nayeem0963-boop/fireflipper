@@ -41,6 +41,15 @@ for (const [name, opts] of CASES) {
   p.on('pageerror', (e) => errors.push(e.message));
   await p.goto(`http://localhost:${PORT}`);
   await p.waitForSelector('.birdchip', { timeout: 20000 });
+  // The welcome page must never be wider than the screen (a wide child once stretched the grid and clipped it).
+  const clipped = await p.evaluate(() => {
+    const vw = innerWidth;
+    return ['.home__topbar', '.logo', '.play-btn', '.home__cards', '.home__links'].filter((q) => {
+      const e = document.querySelector(q);
+      return e && e.getBoundingClientRect().right > vw + 1;
+    });
+  });
+  check(`${name}: welcome page fits the screen width`, clipped.length === 0, clipped.join());
   check(`${name}: seven birds on the menu`, (await p.locator('.birdchip').count()) === 7);
 
   // pick a bird, open the picker and achievements
