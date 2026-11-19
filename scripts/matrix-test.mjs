@@ -21,7 +21,7 @@ const QUERY = process.env.MATRIX_HAZARDS === '0' ? '/?hazards=0' : '';
 const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
 await new Promise((r) => setTimeout(r, 4000));
 
-const DISTANCES = [0, 450, 500, 950, 1000, 1450, 1500, 1665, 1830, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
+const DISTANCES = [0, 667, 1333, 1990, 2000, 2010, 2667, 3333, 3990, 4000, 4010, 4667, 5333, 5990, 6000, 6010, 6667, 7333, 7990, 8000, 8010, 8400, 9200, 9990];
 const SCREENS = [
   ['desktop 1534x630', { viewport: { width: 1534, height: 630 } }],
   ['phone portrait', { ...devices['iPhone 13'] }],

@@ -14,12 +14,14 @@ import {
   rollDaily,
 } from '../systems/progression/progression.js';
 import { avatarFor, getAvatar, isAvatarUnlocked, resolveAvatar } from '../systems/avatars/avatars.js';
+import { reachMilestone, sanitizeJourney } from '../systems/rewards/rewards.js';
+import { WORLD_COUNT } from '../systems/world/worlds.js';
 
 export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
 
 /**
  * Run lifecycle (mirrors the simulation's phases, plus PAUSED):
- *   READY → RUNNING → DYING → OVER, with RUNNING ⇄ PAUSED.
+ *   READY → RUNNING → DYING → OVER, with RUNNING ⇄ PAUSED; or READY → RUNNING → COMPLETE (the finish line at 10,000 m was crossed alive).
  */
 export const STATUS = Object.freeze({
   IDLE: 'idle',
@@ -28,6 +30,7 @@ export const STATUS = Object.freeze({
   PAUSED: 'paused',
   DYING: 'dying',
   OVER: 'over',
+  COMPLETE: 'complete',
 });
 
 export const QUALITY = Object.freeze({ AUTO: 'auto', LOW: 'low', HIGH: 'high' });
@@ -50,6 +53,7 @@ export const useGameStore = create((set, get) => ({
   avatarsOpen: false,
   achievementsOpen: false,
   creditsOpen: false,
+  rewardsOpen: false,
 
   // --- current run ---
   status: STATUS.IDLE,
@@ -58,6 +62,12 @@ export const useGameStore = create((set, get) => ({
   orbs: 0,
   runId: 0, // bumped on every (re)start; the game loop resets the sim on change
   overAt: 0,
+  /** Index (0 to 4) of the last milestone this run has handled, -1 before the first: each is handled once. */
+  milestoneIndex: -1,
+  /** The milestone being announced (a small banner, not persisted): { id, index, name, at, granted: [reward ids] }. */
+  milestone: null,
+  /** Reward ids granted during this run (for the results screens). */
+  runRewards: [],
   /** Stats of the last finished run, plus isNewBest and the previousBest it was measured against. */
   lastResult: null,
 
@@ -80,6 +90,9 @@ export const useGameStore = create((set, get) => ({
   earned: loadValue('achievements', {}),
   /** Today's goal state: { key, done, streakDays, lastDoneKey }. */
   daily: rollDaily(loadValue('daily', null), dayKey()),
+
+  /** The journey record (see systems/rewards): the permanent rewards owned, completions and how often each milestone was reached. Saved the moment a reward is granted. */
+  journey: sanitizeJourney(loadValue('journey', null)),
 
   /** Visual theme id ('red' | 'blue'): looks only, no effect on gameplay. */
   theme: initialTheme(),
@@ -108,25 +121,60 @@ export const useGameStore = create((set, get) => ({
   closeAchievements: () => set({ achievementsOpen: false }),
   openCredits: () => set({ creditsOpen: true }),
   closeCredits: () => set({ creditsOpen: false }),
+  openRewards: () => set({ rewardsOpen: true }),
+  closeRewards: () => set({ rewardsOpen: false }),
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
 
   // --- run lifecycle (driven by simulation events + UI) ---
   beginRun: () => set((s) => (s.status === STATUS.READY ? { status: STATUS.RUNNING } : s)),
   crash: () => set((s) => (s.status === STATUS.RUNNING ? { status: STATUS.DYING } : s)),
-  endRun: ({ score, distance, orbs, bestStreak = 0, nearMisses = 0, cause = null }) => {
+  /**
+   * A milestone (a world completed, 2,000 m apart; not the finish line) was survived: grant what the schedule lists, save it at once and announce it with a small banner.
+   * Handled once per run (`milestoneIndex`), never for Auto play, and only while the run is live: a late event for a crashed run is ignored.
+   */
+  milestoneReached: ({ index, at, name }) => {
+    const s = get();
+    if (s.demo || s.status !== STATUS.RUNNING || !Number.isInteger(index) || index <= s.milestoneIndex || index >= WORLD_COUNT - 1) return;
+    const { journey, granted } = reachMilestone(s.journey, index, s.stats.runs + 1);
+    saveValue('journey', journey);
+    set({
+      journey,
+      milestoneIndex: index,
+      milestone: { id: `${s.runId}:${index}`, index, at, name, granted: granted.map((r) => r.id) },
+      runRewards: [...s.runRewards, ...granted.map((r) => r.id)],
+    });
+  },
+  /** Called when the banner has had its moment (or a new run starts). */
+  clearMilestone: () => set((s) => (s.milestone ? { milestone: null } : s)),
+  /**
+   * Ends the run: a crash (status DYING) or the finish line (`completed`: the journey was won, status COMPLETE). Either way it can only happen once.
+   * A completed journey is also a milestone (the last one): it grants the Celestial Feather and the Trophy the first time.
+   */
+  endRun: ({ score, distance, orbs, bestStreak = 0, nearMisses = 0, cause = null, completed = false, worlds = 0 }) => {
     const s = get();
     // Guard: a run can only end once.
     if (s.status !== STATUS.DYING && s.status !== STATUS.RUNNING) return;
+    // A finish line can only be crossed alive: a run that already crashed (DYING) can never complete.
+    if (completed && s.status !== STATUS.RUNNING) return;
     // Auto play never counts: no best score, stats, achievements or daily progress.
     if (s.demo) {
       set({ status: STATUS.OVER, overAt: performance.now(), lastResult: null });
       return;
     }
+    // The journey: the finish line is the last milestone. (Earlier milestones were granted live, as they were reached.)
+    let journey = s.journey;
+    let runRewards = s.runRewards;
+    if (completed) {
+      const done = reachMilestone(journey, WORLD_COUNT - 1, s.stats.runs + 1);
+      journey = done.journey;
+      runRewards = [...runRewards, ...done.granted.map((r) => r.id)];
+      saveValue('journey', journey);
+    }
     const previousBest = s.bestScore;
     const isNewBest = score > previousBest;
     if (isNewBest) saveValue('bestScore', score);
-    const species = resolveAvatar(s.skinId, s.bestScore, s.theme).species;
+    const species = resolveAvatar(s.skinId, s.bestScore, s.theme, s.journey.rewards).species;
     const flown = { ...s.flown, [species]: (s.flown[species] ?? 0) + 1 };
     saveValue('flown', flown);
     const unlockedSkins = newlyUnlocked(previousBest, score, s.theme).map((k) => k.name);
@@ -150,7 +198,9 @@ export const useGameStore = create((set, get) => ({
       earned,
       daily,
       flown,
-      status: STATUS.OVER,
+      journey,
+      runRewards,
+      status: completed ? STATUS.COMPLETE : STATUS.OVER,
       overAt: performance.now(),
       score,
       distance,
@@ -162,6 +212,9 @@ export const useGameStore = create((set, get) => ({
         bestStreak,
         nearMisses,
         cause,
+        completed,
+        worlds: completed ? WORLD_COUNT : worlds,
+        rewards: runRewards,
         isNewBest,
         previousBest,
         unlockedSkins,
@@ -175,6 +228,8 @@ export const useGameStore = create((set, get) => ({
     });
   },
   restart: () => set((s) => freshRun(s)),
+  /** Fly the journey again from the start (the same as a restart: nothing is carried over but the permanent record). */
+  replayJourney: () => set((s) => freshRun(s)),
 
   pause: () => set((s) => (s.status === STATUS.RUNNING ? { status: STATUS.PAUSED } : s)),
   resume: () => set((s) => (s.status === STATUS.PAUSED ? { status: STATUS.RUNNING } : s)),
@@ -203,7 +258,7 @@ export const useGameStore = create((set, get) => ({
   },
   selectSkin: (id) => {
     const s = get();
-    if (!isAvatarUnlocked(getAvatar(id), s.bestScore, s.theme)) return;
+    if (!isAvatarUnlocked(getAvatar(id), s.bestScore, s.theme, s.journey.rewards)) return;
     const skinsByTheme = { ...s.skinsByTheme, [s.theme]: id };
     saveValue('skinsByTheme', skinsByTheme);
     set({ skinId: id, skinsByTheme });
@@ -236,5 +291,5 @@ function initialSkins() {
 }
 
 function freshRun(s) {
-  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, lastResult: null, runId: s.runId + 1 };
+  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, lastResult: null, runId: s.runId + 1, milestoneIndex: -1, milestone: null, runRewards: [] };
 }

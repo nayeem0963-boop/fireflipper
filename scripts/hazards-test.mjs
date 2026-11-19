@@ -58,7 +58,7 @@ const fx = createHazardFx();
   let teleStart = null;
   let prevActive = false;
   const seen = new Set();
-  for (let d = 0; d < 9000; d += 0.05) {
+  for (let d = 0; d < 10200; d += 0.05) {
     hazardsAt(d, fx, corridorsNone);
     if (![fx.accelY, fx.gravityScale, fx.flapScale, fx.flapCarry, fx.diveRecovery, fx.tele].every(Number.isFinite)) nonFinite++;
     maxAccel = Math.max(maxAccel, Math.abs(fx.accelY));
@@ -117,7 +117,7 @@ const fx = createHazardFx();
     }
   }
   check(`the modifiers change smoothly across every zone border (largest step ${worst.toFixed(4)} per 0.1 m)`, worst < 0.01 && nonFinite === 0);
-  check('zoneAt matches the scenery zones', zoneAt(0)[0] === 'canyon' && zoneAt(1500)[0] === 'frosty' && zoneAt(2999)[0] === 'celestial' && zoneAt(3000)[0] === 'palace' && zoneAt(1e6)[0] === 'sanctuary');
+  check('zoneAt matches the scenery zones', zoneAt(0)[0] === 'canyon' && zoneAt(2000)[0] === 'frosty' && zoneAt(5999)[0] === 'celestial' && zoneAt(6000)[0] === 'palace' && zoneAt(7999)[0] === 'palace' && zoneAt(8000)[0] === 'sanctuary' && zoneAt(1e6)[0] === 'sanctuary');
 }
 {
   // windowsIn (the renderer's list) agrees with hazardsAt
@@ -153,7 +153,7 @@ function flyBot(seed, upto, visit) {
 {
   let near = 0, windowSteps = 0;
   for (const seed of [1, 2, 3]) {
-    flyBot(seed, 6000, (sim) => {
+    flyBot(seed, 10100, (sim) => {
       if (!sim.hazard.kind) return;
       windowSteps++;
       const lead = speedAt(sim.distance) * LEAD_S;
@@ -167,7 +167,7 @@ function flyBot(seed, upto, visit) {
   let acted = 0, snaps = 0, shortest = Infinity, longest = 0, intrusions = 0;
   for (const seed of [1, 2, 3, 4]) {
     let teleFrom = null, prevActive = false;
-    flyBot(seed, 6200, (sim) => {
+    flyBot(seed, 10100, (sim) => {
       const h = sim.hazard;
       if (h.kind && !h.active && teleFrom === null) teleFrom = sim.distance;
       if (h.active && !prevActive) {
@@ -197,7 +197,7 @@ function flyBot(seed, upto, visit) {
 {
   // INFORMATION, not a pass/fail: how much of each zone a bird-modifier window can act on real tracks. The open runway between sections is only about 3 to 7 m, so
   // the windows (10 to 18 m) only fit because the spawner reserves runway for them (see runwayAfter); this reports how much of each zone they now cover.
-  const zones = { canyon: [40, 1500], frosty: [1500, 2000], celestial: [2000, 3000], palace: [3000, 5000], sanctuary: [5000, 6200] };
+  const zones = { canyon: [40, 2000], frosty: [2000, 4000], celestial: [4000, 6000], palace: [6000, 8000], sanctuary: [8000, 10000] };
   const act = {}, tot = {};
   for (const z of Object.keys(zones)) { act[z] = 0; tot[z] = 0; }
   for (const seed of [1, 2]) {
@@ -227,7 +227,7 @@ function flyBot(seed, upto, visit) {
     sim.flap();
     // put the bird in the middle of a window of this kind, away from any section
     let start = null;
-    for (let d = 100; d < 9000 && start === null; d += 0.2) { hazardsAt(d, fx, []); if (fx.kind === kind && fx.active) start = d; }
+    for (let d = 100; d < 10200 && start === null; d += 0.2) { hazardsAt(d, fx, []); if (fx.kind === kind && fx.active) start = d; }
     sim.distance = sim.prevDistance = start + 0.5;
     sim.track.corridors.length = 0;
     sim.bird.y = 0.5; sim.bird.vy = 0;
@@ -267,7 +267,7 @@ function flyBot(seed, upto, visit) {
   check(`the corridor-following bot flies all zones with the hazards on (${ok}/${N} seeds to ${TARGET} m)`, ok === N);
 }
 {
-  const N = 4, TARGET = 5600;
+  const N = 4, TARGET = 10000;
   let ok = 0, orbs = 0, maxMs = 0;
   const crashes = [];
   for (let seed = 1; seed <= N; seed++) {
@@ -275,7 +275,7 @@ function flyBot(seed, upto, visit) {
     sim.reset(seed);
     const bot = createAutopilot(sim);
     let steps = 0;
-    while (sim.phase !== PHASE.DYING && sim.phase !== PHASE.OVER && sim.distance < TARGET && steps++ < 120 * 600) {
+    while (sim.phase !== PHASE.DYING && sim.phase !== PHASE.OVER && sim.distance < TARGET && steps++ < 120 * 1500) {
       bot.control();
       sim.step(DT);
     }
@@ -314,7 +314,7 @@ function flyBot(seed, upto, visit) {
   const fresh = (sim, o, d, y) => { sim.phase = PHASE.RUNNING; sim.distance = sim.prevDistance = d; sim.bird.y = y; sim.bird.vy = 0; sim.bird.dead = false; sim.input.flapQueued = false; sim.crashCause = null; void o; };
 
   // a retracted piston leaves room the original shape would not: the bird sits in the vacated space and lives; the unmoved collider would have killed it
-  const piston = find(3000, 4900, (o) => {
+  const piston = find(6000, 7900, (o) => {
     if (o.kind !== 'column' || o.polys == null) return null;
     for (let d = o.x - 3; d <= o.x + 3; d += 0.5) { obstacleHazard(o, d, ob); if (!ob.dyn || Math.abs(ob.dy) < 0.6) return null; }
     return { d: o.x };
@@ -344,8 +344,10 @@ function flyBot(seed, upto, visit) {
   }
 
   // a phase barrier that is passable does not kill; the same barrier solid does
-  const barrier = find(2000, 3000, (o) => {
+  const barrier = find(4000, 6000, (o) => {
     if (o.kind !== 'column') return null;
+    const yIn = o.cap > 0 ? o.y + o.h / 2 - 0.5 : o.y - o.h / 2 + 0.5; // the test parks the bird here: it must be clear of the floor and ceiling, or it dies of those instead
+    if (yIn < WORLD.groundY + 1 || yIn > WORLD.ceilingY - 0.6) return null;
     obstacleHazard(o, o.x, ob);
     if (!ob.dyn) return null;
     // passable over the whole stretch where the bird could touch it, and solid at some other moment
@@ -364,7 +366,7 @@ function flyBot(seed, upto, visit) {
     check('the bird flies through a barrier while it is translucent (no hit, no near miss)', alive, sim.crashCause ?? '');
   }
   // a phase barrier that is solid when the bird passes it kills, exactly as an ordinary obstacle does
-  const solid = find(2000, 3000, (o) => {
+  const solid = find(4000, 6000, (o) => {
     if (o.kind !== 'column') return null;
     obstacleHazard(o, o.x, ob);
     if (!ob.dyn) return null;
@@ -397,7 +399,7 @@ function flyBot(seed, upto, visit) {
 {
   // brightness curve of a window on real windows: faint from afar, rising over the lead to the active level, steady while it acts, gone after
   let worstStep = 0, nonMono = 0, count = 0, lowActive = Infinity, afterOk = true;
-  windowsIn(100, 9000, (kind, s, len, lead) => {
+  windowsIn(100, 10000, (kind, s, len, lead) => {
     count++;
     let prev = null;
     for (let d = s - lead - 6; d < s + len + 3; d += 0.01) {
@@ -491,7 +493,7 @@ function DYNAMIC_INSET_FOR_TEST() { return 0.15 * PHYSICS.birdRadius; }
   let runs = 0, nonFinite = 0;
   const errors = [];
   const fin = (...v) => v.every(Number.isFinite);
-  for (const border of [1500, 2000, 3000, 5000]) {
+  for (const border of [2000, 4000, 6000, 8000]) {
     for (let off = -130; off <= 130; off += 13) {
       try {
         const sim = createGameSim();
@@ -535,7 +537,7 @@ function DYNAMIC_INSET_FOR_TEST() { return 0.15 * PHYSICS.birdRadius; }
   const H = BIOME_HAZARDS;
   let awayOk = true, maxDy = 0, brittleLead = Infinity, phaseLead = Infinity, pistonLead = Infinity, sawSolid = 0, sawPass = 0, sawRumble = 0, sawPulse = 0, sawPiston = 0;
   const kinds = [['column', 1], ['column', -1], ['block', 1], ['block', -1], ['rock', 0]];
-  for (let x = 20; x < 9000; x += 3.1) {
+  for (let x = 20; x < 10200; x += 3.1) {
     for (const [kind, cap] of kinds) {
       const o = { x, kind, cap };
       const away = cap > 0 ? -1 : 1;
@@ -561,9 +563,9 @@ function DYNAMIC_INSET_FOR_TEST() { return 0.15 * PHYSICS.birdRadius; }
   check(`a brittle cap rumbles ${brittleLead.toFixed(2)} s before it lets go (0.5 to 0.8 s rule)`, sawRumble > 20 && brittleLead >= 0.5 && brittleLead <= 0.8);
   check('a phase barrier pulses before it turns solid, and is passable part of the time', sawPass > 0 && sawSolid > sawPass && sawPulse > 20);
   check('pistons move', sawPiston > 100);
-  check('rocks never phase or move', (() => { for (let d = 3000; d < 3100; d += 1) { obstacleHazard({ x: 3050, kind: 'rock', cap: 0 }, d, out); if (!out.solid || out.dy !== 0) return false; } return true; })());
+  check('rocks never phase or move', (() => { for (let d = 6000; d < 6100; d += 1) { obstacleHazard({ x: 6050, kind: 'rock', cap: 0 }, d, out); if (!out.solid || out.dy !== 0) return false; } return true; })());
   HAZARDS.enabled = false;
-  obstacleHazard({ x: 3050, kind: 'column', cap: 1 }, 3040, out);
+  obstacleHazard({ x: 6050, kind: 'column', cap: 1 }, 6040, out);
   check('with the switch off obstacles are solid and still', out.solid && out.dy === 0 && out.pulse === 0 && out.rumble === 0);
   HAZARDS.enabled = true;
 }

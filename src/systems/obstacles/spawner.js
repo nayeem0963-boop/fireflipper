@@ -2,6 +2,7 @@ import { WORLD } from '../physics/constants.js';
 import { PATTERNS, gapFor, pickPattern } from './patterns.js';
 import { speedAt } from '../physics/speed.js';
 import { HAZARDS, runwayAfter } from '../hazards/biomeHazards.js';
+import { FINISH_CLEAR, JOURNEY_LENGTH } from '../world/worlds.js';
 
 /**
  * Procedural track generation.
@@ -20,15 +21,21 @@ const SECTION_MAX = 12.5;
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
-/** Difficulty 0..1 as a function of distance travelled. */
+/** Where the DIFFICULTY starts to rise (m): the opening runway is always at difficulty 0. */
+const DIFFICULTY_FROM = 40;
+
+/**
+ * Difficulty 0..1 as a function of distance travelled: one smooth, steady climb over the whole journey, from 0 at the start to 1 (the hardest the game has ever been: the gaps, spacing and pattern mix
+ * the old endless run held from about 1,600 m on) at the finish line. It does not depend on the world borders, so nothing jumps at 2,000, 4,000, 6,000 or 8,000 m; each world averages 0.1, 0.3, 0.5, 0.7 and 0.9.
+ */
 export function difficultyAt(distance) {
-  return clamp((distance - 40) / 1600, 0, 1);
+  return clamp((distance - DIFFICULTY_FROM) / (JOURNEY_LENGTH - DIFFICULTY_FROM), 0, 1);
 }
 
 export { speedAt };
 
 export function createTrack() {
-  return { nextX: 0, free: [0, 0], center: 0, previous: null, corridors: [] };
+  return { nextX: 0, free: [0, 0], center: 0, previous: null, corridors: [], finished: false };
 }
 
 export function resetTrack(track, startY) {
@@ -37,11 +44,18 @@ export function resetTrack(track, startY) {
   track.center = startY;
   track.previous = null;
   track.corridors.length = 0;
+  track.finished = false;
 }
 
 /** Generate sections until the track extends `spawnAhead` past `distance`. */
 export function fillTrack(track, builder, distance, rng) {
   while (track.nextX < distance + WORLD.spawnAhead) {
+    // The finish line: no section is built that could reach into the last FINISH_CLEAR metres, so the ending is never an obstacle course and nothing spawns beyond it.
+    // (The shortest gap between sections is 7.5 m, so a section can start no earlier than nextX + 7.5; SECTION_MAX bounds how far it reaches.)
+    if (track.nextX + 7.5 + SECTION_MAX > JOURNEY_LENGTH - FINISH_CLEAR) {
+      track.finished = true;
+      break;
+    }
     const t = difficultyAt(track.nextX);
     const type = pickPattern(track.nextX, t, rng, track.previous);
     const gap = gapFor(type, t, rng);

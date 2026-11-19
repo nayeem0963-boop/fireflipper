@@ -16,6 +16,8 @@ export function useGameAudio() {
       }),
       gameEvents.on(GAME_EVENTS.NEAR, play(sfx.near)),
       gameEvents.on(GAME_EVENTS.CRASH, play(sfx.crash)),
+      gameEvents.on(GAME_EVENTS.MILESTONE, play(sfx.milestone)),
+      gameEvents.on(GAME_EVENTS.COMPLETE, play(sfx.journey)),
     ];
     return () => offs.forEach((off) => off());
   }, []);

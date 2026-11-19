@@ -126,14 +126,20 @@ export function gapFor(type, t, rng) {
   }
 }
 
+/**
+ * Where each pattern type first appears (m): the first world opens with gates and columns, then the odd boulder, then wall formations, and the long narrow tunnel (the hardest pattern, and the
+ * home of the canyon's arches and ledges) joins in the second half of the world, while its gap is still wide. (They used to unlock within the first 320 m.)
+ */
+export const UNLOCK = Object.freeze({ floatingRocks: 250, formation: 600, passage: 1000 });
+
 /** Weighted pattern choice; new pattern types unlock with distance. */
 export function pickPattern(distance, t, rng, previous) {
   const weights = [
     ['gate', 3],
     ['column', 2],
-    ['floatingRocks', distance > 80 ? 1.6 : 0],
-    ['formation', distance > 180 ? 1.2 + t : 0],
-    ['passage', distance > 320 && previous !== 'passage' ? 0.7 + t : 0],
+    ['floatingRocks', distance > UNLOCK.floatingRocks ? 1.6 : 0],
+    ['formation', distance > UNLOCK.formation ? 1.2 + t : 0],
+    ['passage', distance > UNLOCK.passage && previous !== 'passage' ? 0.7 + t : 0],
   ];
   const total = weights.reduce((s, [, w]) => s + w, 0);
   let roll = rng() * total;

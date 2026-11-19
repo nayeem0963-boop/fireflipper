@@ -316,7 +316,7 @@ function make(species, color, extra) {
     ...extra,
     // Skins are visual only and unlock with the best score (the theme's own colour is always free); never a gameplay perk.
     // `unlockScore` is the red-theme value; use colorUnlockScore(color, theme) for the active theme.
-    unlockScore: skin.unlockScore,
+    unlockScore: skin ? skin.unlockScore : Infinity, // a reward skin has no score threshold: it unlocks by its journey reward
     trail: trailFor(species.id, color.id),
     species: species.id,
     id: `${species.id}-${color.id}`,
@@ -349,6 +349,34 @@ export const AVATAR_SPECIES = Object.freeze(
   }),
 );
 
+/**
+ * Reward skins: earned by journey rewards, never by score, and NOT part of the 21-skin collection above (its counts and the picker are unchanged). Purely cosmetic: like every
+ * bird it only changes how the bird LOOKS; the simulation never reads an avatar, so the hitbox, the physics and the scoring are the same.
+ */
+const CELESTIAL_PALETTE = {
+  body: '#ffc93c',
+  bodyEmissive: '#ff9a1f',
+  belly: '#fff3c4',
+  bellyEmissive: '#ffd877',
+  wing: '#ffd25a',
+  wingEmissive: '#ffa52e',
+  wingInner: '#fff8dc',
+  flame: '#fff1a8',
+  beak: '#ffe9a0',
+  beakEmissive: '#ffcf5a',
+  glow: '#ffd870',
+  low: '#d9902a',
+  mid: '#ffd25a',
+  high: '#fff6d0',
+};
+export const REWARD_AVATARS = Object.freeze([
+  Object.freeze({
+    ...make(FLIPPER_SPECIES, { id: 'celestial', name: 'Celestial' }, { palette: CELESTIAL_PALETTE }),
+    reward: 'celestial-skin',
+    trail: Object.freeze({ stops: ['#fffbe0', '#ffd25a', '#e08a1a'], spark: '#fff2a8', style: 'shimmer' }),
+  }),
+]);
+
 export const DEFAULT_AVATAR_ID = AVATARS[0].id;
 
 /** Choices saved before birds had colours, mapped to the nearest bird and colour that exists now. */
@@ -368,7 +396,7 @@ const LEGACY_IDS = {
 
 export function getAvatar(id) {
   const wanted = LEGACY_IDS[id] ?? id;
-  return AVATARS.find((a) => a.id === wanted) ?? AVATARS[0];
+  return AVATARS.find((a) => a.id === wanted) ?? REWARD_AVATARS.find((a) => a.id === wanted) ?? AVATARS[0];
 }
 
 /** The avatar of a species in a colour (or the species' Fire one if that colour does not exist). */
@@ -377,8 +405,9 @@ export function avatarFor(speciesId, colorId) {
   return all.find((a) => a.color === colorId) ?? all[0];
 }
 
-/** Each species is free in the theme's colour; the other warm/cool skin and White unlock with the best score. */
-export function isAvatarUnlocked(avatar, bestScore, themeId = DEFAULT_THEME) {
+/** Each species is free in the theme's colour; the other warm/cool skin and White unlock with the best score; a reward skin unlocks with its journey reward (`rewards`: the owned map). */
+export function isAvatarUnlocked(avatar, bestScore, themeId = DEFAULT_THEME, rewards = null) {
+  if (avatar.reward) return !!rewards?.[avatar.reward];
   return isUnlocked(avatar, bestScore, themeId);
 }
 
@@ -388,9 +417,9 @@ export function avatarUnlockScore(avatar, themeId = DEFAULT_THEME) {
 }
 
 /** The avatar to actually show: the selected one if unlocked, otherwise that bird in the theme's free colour. */
-export function resolveAvatar(id, bestScore, themeId = DEFAULT_THEME) {
+export function resolveAvatar(id, bestScore, themeId = DEFAULT_THEME, rewards = null) {
   const avatar = getAvatar(id);
-  return isAvatarUnlocked(avatar, bestScore, themeId) ? avatar : avatarFor(avatar.species, getTheme(themeId).freeSkin);
+  return isAvatarUnlocked(avatar, bestScore, themeId, rewards) ? avatar : avatarFor(avatar.species, getTheme(themeId).freeSkin);
 }
 
 /**

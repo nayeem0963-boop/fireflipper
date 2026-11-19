@@ -97,8 +97,18 @@
   text-shadow: 0 0 22px rgba(var(--accent-rgb), 0.35);
 }
 
+.edition {
+  margin-top: 0.7em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(0.78rem, 2.6vw, 1.05rem);
+  letter-spacing: 0.22em;
+  margin-right: -0.22em;
+  text-transform: uppercase;
+  color: var(--fire-100);
+}
 .tagline {
-  margin-top: 0.9em;
+  margin-top: 0.5em;
   font-size: clamp(0.8rem, 2.6vw, 1rem);
   font-weight: 600;
   letter-spacing: 0.45em;

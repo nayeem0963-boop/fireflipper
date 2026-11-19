@@ -3,25 +3,26 @@
  * needs it: a zone changes only how the world LOOKS. Obstacle layout, collisions, speed and scoring depend on
  * distance alone and are identical everywhere.
  *
- *  - Red Rock Canyon (0 to 1500 m): a sunset over towering red sandstone cliffs, natural arches and a misty canyon, from three
- *    paintings, one for each 500 m (0 to 500, 500 to 1000, 1000 to 1500). The far scenery is the painting; the floor is a dusty,
- *    faceted canyon floor, and red mesas stand at two depths for parallax.
- *  - Frosty Polar (1500 to 2000 m): Glacier Valley (to 1665 m), Crystal Ice Canyon (to 1830 m) and Aurora Lake, from three paintings.
- *  - Celestial Realm (2000 to 3000 m): a night of floating crystal cities among galaxies, a ringed planet and nebulae, from three
+ * The journey is FIVE worlds of 2,000 m each (see worlds.js, the one place the borders are written; the numbers below follow it):
+ *  - World 1, Red Rock Canyon (0 to 2000 m): a sunset over towering red sandstone cliffs, natural arches and a misty canyon, from three
+ *    paintings that share the world equally. The far scenery is the painting; the floor is a dusty, faceted canyon floor, and red mesas stand at two depths for parallax.
+ *  - World 2, Frosty Polar (2000 to 4000 m): Glacier Valley, Crystal Ice Canyon and Aurora Lake, from three paintings.
+ *  - World 3, Celestial Realm (4000 to 6000 m): a night of floating crystal cities among galaxies, a ringed planet and nebulae, from three
  *    cosmic paintings; the view slowly rises from the floating cities up into the cosmos.
- *  - Rose Sky Palace (3000 to 5000 m): a pink-and-gold sunset over white filigree palaces, floating islands with waterfalls and a
+ *  - World 4, Rose Sky Palace (6000 to 8000 m): a pink-and-gold sunset over white filigree palaces, floating islands with waterfalls and a
  *    mirror-still pool, from three more paintings.
- *  - After 5000 m the original scenery (Ember Valley / Frost Cavern, per theme) shows. (It shows nowhere before that:
- *    the four zones join up, so there is no gap between them.)
+ *  - World 5, Cloud Sanctuary (8000 to 10000 m): the five sanctuary paintings, 400 m each, on a cloud sea. The journey ends at 10,000 m (the scenery itself has no
+ *    edge: `end` is Infinity so it never fades out, and the run's ending is the simulation's job).
  *
  * The Sundarbans and Amazon scenes (and the animal / plant obstacle looks built for them) were retired when the Red Rock Canyon took over
- * the first 1500 m. Their palettes stay in BIOMES below (flagged `retired`, not in the live zone list) because the retired obstacle models,
+ * the first world. Their palettes stay in BIOMES below (flagged `retired`, not in the live zone list) because the retired obstacle models,
  * kept in the repo for reuse, are coloured from them. See ACTIVE_OBSTACLE_LOOKS.
  *
- * Changes are gradual. Where two zones meet (1500, 2000 and 3000 m) they cross-fade over CROSSFADE metres centred on the border,
- * so the weights always add up to 1 and the original scenery never flashes in between. The outer edges (the start of the run
- * and 5000 m) fade over FADE metres, so scenery sinks away while the mountains rise instead of popping.
+ * Changes are gradual. Where two zones meet (at 2000, 4000, 6000 and 8000 m) they cross-fade over CROSSFADE metres centred on the border,
+ * so the weights always add up to 1 and the original scenery never flashes in between. The outer edges (the start of the run) fade over FADE metres, so scenery sinks away while the mountains rise instead of popping.
  */
+import { WORLDS } from './worlds.js';
+
 export const FADE = 80;
 export const CROSSFADE = 80;
 
@@ -62,8 +63,8 @@ export const BIOMES = Object.freeze({
   canyon: Object.freeze({
     id: 'canyon',
     name: 'Red Rock Canyon',
-    start: 0,
-    end: 1500,
+    start: WORLDS[0].start,
+    end: WORLDS[0].end,
     joinsNext: true,
     lavaCopy: 'Fell into the canyon',
     orbStyle: 'day',
@@ -131,8 +132,8 @@ export const BIOMES = Object.freeze({
   arctic: Object.freeze({
     id: 'arctic',
     name: 'Frosty Polar',
-    start: 1500,
-    end: 2000,
+    start: WORLDS[1].start,
+    end: WORLDS[1].end,
     joinsPrev: true,
     joinsNext: true,
     lavaCopy: 'Fell through the ice',
@@ -162,8 +163,8 @@ export const BIOMES = Object.freeze({
   celestial: Object.freeze({
     id: 'celestial',
     name: 'Celestial Realm',
-    start: 2000,
-    end: 3000,
+    start: WORLDS[2].start,
+    end: WORLDS[2].end,
     joinsPrev: true,
     joinsNext: true,
     lavaCopy: 'Fell through the clouds',
@@ -196,8 +197,8 @@ export const BIOMES = Object.freeze({
   palace: Object.freeze({
     id: 'palace',
     name: 'Rose Sky Palace',
-    start: 3000,
-    end: 5000,
+    start: WORLDS[3].start,
+    end: WORLDS[3].end,
     joinsPrev: true,
     joinsNext: true,
     lavaCopy: 'Splashed into the palace pool',
@@ -229,13 +230,13 @@ export const BIOMES = Object.freeze({
     }),
   }),
   /**
-   * Cloud Sanctuary (5000 m onwards, without end): five paintings (a girl with a dragon, a cat, a deer and a tiger on a cloud sea, then the empty
-   * cloud sea) shown for 1000 m each, then the cycle starts again. See `LoopingPaintings` (ZoneParts.jsx) and `cyclePlan` (scrollDriver.js).
+   * Cloud Sanctuary (8000 to 10000 m, the last world): five paintings (a girl with a dragon, a cat, a deer and a tiger on a cloud sea, then the empty
+   * cloud sea) shown for 400 m each (the cycle code can still repeat them). See `LoopingPaintings` (ZoneParts.jsx) and `cyclePlan` (scrollDriver.js).
    */
   sanctuary: Object.freeze({
     id: 'sanctuary',
     name: 'Cloud Sanctuary',
-    start: 5000,
+    start: WORLDS[4].start,
     end: Infinity,
     joinsPrev: true,
     lavaCopy: 'Fell through the clouds',
@@ -327,7 +328,7 @@ export const ACTIVE_OBSTACLE_LOOKS = Object.freeze([]);
 
 /**
  * Which obstacle look applies at a track position: the id of a zone whose obstacles are recoloured ('canyon', 'celestial', 'palace': the original shapes in the
- * zone's own colours) or null (the original look, including the whole Arctic stretch and everything from 5000 m on). Decided by the obstacle's own position, so it is the same however the
+ * zone's own colours) or null (the original look, including the whole Arctic stretch and the Cloud Sanctuary). Decided by the obstacle's own position, so it is the same however the
  * camera sees it.
  */
 export function obstacleStyleAt(x) {

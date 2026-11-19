@@ -6,5 +6,6 @@ export function useSkin() {
   const skinId = useGameStore((s) => s.skinId);
   const bestScore = useGameStore((s) => s.bestScore);
   const theme = useGameStore((s) => s.theme);
-  return resolveAvatar(skinId, bestScore, theme);
+  const rewards = useGameStore((s) => s.journey.rewards);
+  return resolveAvatar(skinId, bestScore, theme, rewards);
 }

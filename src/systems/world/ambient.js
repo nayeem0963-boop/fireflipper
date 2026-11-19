@@ -1,4 +1,8 @@
 import { WORLD } from '../physics/constants.js';
+import { paintingCuts } from './worlds.js';
+
+/** The cuts between the three Frosty Polar paintings (world 2): where Crystal Ice Canyon and Aurora Lake begin. */
+const AURORA_CUTS = paintingCuts(1, 3);
 
 /**
  * Ambient environment animation, all driven by the run distance (no wall clock): drifting particles (dust, snow, petals, sparkles) and the
@@ -57,6 +61,7 @@ export const pulse = (distance, period, phase = 0) => 0.5 + 0.5 * Math.sin((2 * 
  * The zone's own weight multiplies this in the renderer.
  */
 export function auroraStrength(distance) {
-  const canyon = smooth(1645, 1685, distance) * (1 - smooth(1810, 1850, distance)) * 0.3;
-  return Math.max(canyon, smooth(1810, 1850, distance));
+  const [c0, c1] = AURORA_CUTS; // the Frosty paintings' cuts: Crystal Ice Canyon starts at the first, Aurora Lake at the second
+  const canyon = smooth(c0 - 20, c0 + 20, distance) * (1 - smooth(c1 - 20, c1 + 20, distance)) * 0.3;
+  return Math.max(canyon, smooth(c1 - 20, c1 + 20, distance));
 }

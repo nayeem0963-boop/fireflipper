@@ -351,12 +351,12 @@ export function ParallaxLayer({ sim, wRef, geometry, depth, scale, count, span, 
 }
 
 /**
- * A painted backdrop that never ends: `files` are shown for `CYCLE.length` (1000) m each from the zone's start and then repeat, for as long as the run
+ * A painted backdrop that never ends: `files` are shown for `length` (default CYCLE.length, 1000) m each from the zone's start and then repeat, for as long as the run
  * goes on. Two slots (k % 2) hold the painting being shown and its neighbour: the next one loads 150 m before it is needed, the previous one is disposed
  * 100 m after it has dissolved out, and a load that finishes late is freed. Each painting slides across its own stretch like the other paintings; the picture
  * row `horizon` sits on the game's horizon. Position, dissolve and loading depend only on the run distance.
  */
-export function LoopingPaintings({ sim, wRef, zone, files, aspect, horizon = 0.7, cover = 1.5 }) {
+export function LoopingPaintings({ sim, wRef, zone, files, aspect, length = CYCLE.length, horizon = 0.7, cover = 1.5 }) {
   const meshes = useRef([]);
   const mats = useRef([]);
   const slots = useRef([
@@ -403,7 +403,7 @@ export function LoopingPaintings({ sim, wRef, zone, files, aspect, horizon = 0.7
 
   useFrame((frame) => {
     const d = sim.renderDistance();
-    const plan = cyclePlan(d, zone.start);
+    const plan = cyclePlan(d, zone.start, length);
     // residency: exactly the wanted paintings are on the GPU, each in its own slot (k % 2)
     for (let s = 0; s < 2; s++) if (slots.current[s].k >= 0 && !plan.wanted.includes(slots.current[s].k)) place(s, -1);
     for (const k of plan.wanted) if (slots.current[k % 2].k !== k) place(k % 2, k);
@@ -416,7 +416,7 @@ export function LoopingPaintings({ sim, wRef, zone, files, aspect, horizon = 0.7
     const viewH = 2 * dist * Math.tan(fov / 2);
     const viewW = viewH * cam.aspect;
     const needH = cam.position.y - WORLD.groundY + viewH * 0.58;
-    const W = Math.max(slideWidth(viewW, CYCLE.length + CYCLE.dissolve), needH * cover * aspect);
+    const W = Math.max(slideWidth(viewW, length + CYCLE.dissolve), needH * cover * aspect);
     const H = W / aspect;
     const slack = (W - viewW) / 2;
     const vMin = Math.min(0.99, needH / H);
@@ -432,9 +432,9 @@ export function LoopingPaintings({ sim, wRef, zone, files, aspect, horizon = 0.7
       const show = sl.k >= 0 && !!mat.map;
       m.visible = show;
       if (!show) continue;
-      const startK = zone.start + sl.k * CYCLE.length;
+      const startK = zone.start + sl.k * length;
       const alpha = sl.k === 0 ? w : w * smooth(startK - CYCLE.dissolve / 2, startK + CYCLE.dissolve / 2, d);
-      const [a, b] = cycleSpan(sl.k, zone.start);
+      const [a, b] = cycleSpan(sl.k, zone.start, length);
       m.position.set(cam.position.x + paintingSlide(d, a, b, effectiveSlack(slack, a, b)), y, BAND_Z);
       m.scale.set(W, H, 1);
       m.renderOrder = sl.k === newest ? -1.9 : -2; // the newer painting always draws over the older one

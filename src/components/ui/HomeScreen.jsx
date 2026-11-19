@@ -8,6 +8,7 @@ import { useSkin } from '../../hooks/useSkin.js';
 import { ACHIEVEMENTS, achievementProgress, dailyGoalFor } from '../../systems/progression/progression.js';
 import { useTheme } from '../../hooks/useTheme.js';
 import { AVATAR_SPECIES, avatarFor, collectionProgress, isAvatarUnlocked } from '../../systems/avatars/avatars.js';
+import { REWARDS, ownedCount } from '../../systems/rewards/rewards.js';
 import { formatScore } from '../../systems/scoring/scoring.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
 import '../../styles/home.css';
@@ -30,6 +31,9 @@ export default function HomeScreen() {
   const daily = useGameStore((s) => s.daily);
   const openAchievements = useGameStore((s) => s.openAchievements);
   const achievementsOpen = useGameStore((s) => s.achievementsOpen);
+  const openRewards = useGameStore((s) => s.openRewards);
+  const rewardsOpen = useGameStore((s) => s.rewardsOpen);
+  const journey = useGameStore((s) => s.journey);
   const doneCount = ACHIEVEMENTS.filter((a) => achievementProgress(a, stats, bestScore).done).length;
   const progress = collectionProgress(bestScore, flown, theme.id);
 
@@ -49,7 +53,7 @@ export default function HomeScreen() {
       <div className="home__stagewrap">
         <section className="home__stage" aria-label="Bird preview">
           <Suspense fallback={null}>
-            <HomeStage paused={settingsOpen || avatarsOpen || achievementsOpen} />
+            <HomeStage paused={settingsOpen || avatarsOpen || achievementsOpen || rewardsOpen} />
           </Suspense>
         </section>
 
@@ -83,7 +87,8 @@ export default function HomeScreen() {
           <span className="logo__fire">Fire</span>
           <span className="logo__flipper">Flipper</span>
         </h1>
-        <p className="tagline">Flip. Burn. Survive.</p>
+        <p className="edition">Journey to the Celestial City</p>
+        <p className="tagline">Five worlds. One extraordinary journey.</p>
       </section>
 
       <section className="home__actions">
@@ -139,6 +144,12 @@ export default function HomeScreen() {
           <span>
             Achievements {doneCount}/{ACHIEVEMENTS.length}
             {daily.streakDays > 0 ? ` · ${daily.streakDays}-day streak` : ''}
+          </span>
+        </button>
+        <button type="button" className="ghost-btn home__bird" onClick={openRewards}>
+          <TrophyIcon />
+          <span>
+            Rewards · {ownedCount(journey)}/{REWARDS.length}
           </span>
         </button>
         <button type="button" className="ghost-btn home__bird" onClick={openAvatars}>

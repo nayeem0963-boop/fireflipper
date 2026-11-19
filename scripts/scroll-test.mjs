@@ -1,6 +1,7 @@
 // Scenery scroll driver tests: distance-driven, frame-rate independent, pause-safe, seamless, correctly layered.
 import { readFileSync, readdirSync } from 'node:fs';
 import { CYCLE, DEPTH_SLIDE, SCROLL_SPEED, cyclePlan, cycleSpan, SLIDE_CAP, effectiveSlack, layerSlack, loopOffset, paintingSlide, paintingSpan, progress, slideWidth, wrap } from '../src/systems/world/scrollDriver.js';
+import { WORLDS, WORLD_LENGTH, paintingCuts } from '../src/systems/world/worlds.js';
 import { BIOMES, CROSSFADE, ZONE_IDS } from '../src/systems/world/biomes.js';
 
 let failed = 0;
@@ -68,7 +69,9 @@ for (const id of ZONE_IDS) {
   if (id === 'sanctuary') continue; // the looping zone is tested below
   const z = BIOMES[id];
   const src = read(zoneFiles[id]);
-  const cuts = JSON.parse(/const CUTS = (\[[^\]]*\])/.exec(src)[1]);
+  const wi = WORLDS.findIndex((w) => w.id === id);
+  ok(new RegExp(`const CUTS = paintingCuts\\(${wi}, 3\\)`).test(src), `${id}: the painting cuts come from worlds.js (thirds of the world)`);
+  const cuts = paintingCuts(wi, 3);
   const dissolve = Number(/const DISSOLVE = (\d+)/.exec(src)?.[1] ?? 30);
   const count = cuts.length + 1;
   for (let i = 0; i < count; i++) {
@@ -106,7 +109,19 @@ for (const id of ['canyon', 'arctic', 'celestial', 'palace']) ok(/\bdepth\s*\/>/
 // a later painting always draws over an earlier one, whatever their horizons (explicit renderOrder by painting index)
 ok(/renderOrder=\{-2 \+ i \* 0\.1\}/.test(read('ZoneParts.jsx')) && /renderOrder=\{-2 \+ i \* 0\.1 \+ \(k \+ 1\) \* 0\.02\}/.test(read('ZoneParts.jsx')), 'painting draw order follows the painting index (far, mid, near within each)');
 
-// ---- the looping Cloud Sanctuary (5000 m onwards, five paintings of 1000 m each, repeating for ever)
+// ---- the Cloud Sanctuary as shipped: world 5 (8000 to 10000 m), five paintings of 400 m each
+{
+  const files = ['dragon', 'cat', 'deer', 'tiger', 'clouds'];
+  const L = WORLD_LENGTH / files.length;
+  const shown = (d) => files[cyclePlan(d, 8000, L).k];
+  ok(L === 400 && shown(8000) === 'dragon' && shown(8399) === 'dragon' && shown(8400) === 'cat' && shown(8800) === 'deer' && shown(9200) === 'tiger' && shown(9600) === 'clouds' && shown(9999.9) === 'clouds', 'the five sanctuary paintings fill 8000 to 10000 m, 400 m each, in order');
+  let most = 0;
+  for (let d = 7800; d <= 10000; d += 3) { const p = cyclePlan(d, 8000, L); most = Math.max(most, p.wanted.length); if (p.k >= 0 && p.k < 5 && !p.wanted.includes(p.k)) most = 99; }
+  ok(most <= 2, 'at most two paintings resident at once with the 400 m sections');
+  ok(read('SanctuaryBackdrop.jsx').includes('SECTION = WORLD_LENGTH / FILES.length') && /length=\{SECTION\}/.test(read('SanctuaryBackdrop.jsx')), 'the backdrop passes the 400 m section length');
+}
+
+// ---- the looping machinery (generic: five paintings of 1000 m each from 5000 m, repeating for ever)
 {
   const files = ['dragon', 'cat', 'deer', 'tiger', 'clouds'];
   const shown = (d) => files[cyclePlan(d, 5000).k % 5];

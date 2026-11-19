@@ -17,7 +17,7 @@ export default function GameHUD() {
   const exitToMenu = useGameStore((s) => s.exitToMenu);
   const paused = status === STATUS.PAUSED;
   const canPause = status === STATUS.RUNNING || paused;
-  const showStats = status !== STATUS.OVER;
+  const showStats = status !== STATUS.OVER && status !== STATUS.COMPLETE;
 
   const [fs, setFs] = useState(isFullscreen);
   useEffect(() => {

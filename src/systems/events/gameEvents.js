@@ -12,6 +12,10 @@ export const GAME_EVENTS = Object.freeze({
   NEAR: 'near',
   CRASH: 'crash',
   OVER: 'over',
+  /** A world was completed (not the last one): { index, at, world, name }. */
+  MILESTONE: 'milestone',
+  /** The journey was completed at the finish line: the run's results. */
+  COMPLETE: 'complete',
 });
 
 export const gameEvents = createEmitter();

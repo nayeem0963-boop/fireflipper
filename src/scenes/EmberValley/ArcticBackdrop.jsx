@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { WORLD } from '../../systems/physics/constants.js';
 import { BIOMES } from '../../systems/world/biomes.js';
+import { PRELOAD_LEAD, paintingCuts } from '../../systems/world/worlds.js';
 import { createSnowTexture } from './valleyTextures.js';
 import { createIceCrystals, createSnowOutcrops } from './arcticGeometry.js';
 import { AuroraShimmer, DriftParticles } from './AmbientEffects.jsx';
@@ -9,26 +10,27 @@ import { GradientSky, ParallaxLayer, PaintedHorizon, WeightDriver } from './Zone
 
 const Z = BIOMES.arctic;
 const S = Z.scene;
+/** Where each next painting dissolves in over the one before it (metres): the three paintings share the world equally. */
+const CUTS = paintingCuts(1, 3);
 const GROUND_WIDTH = 200;
 const GROUND_REPEAT = 50; // 4 world units per tile
 /**
- * The three Frosty Polar paintings, one per sub-scene: Glacier Valley (1500 to 1665 m), Crystal Ice Canyon (1665 to 1830 m) and Aurora Lake (1830 to 2000 m).
+ * The three Frosty Polar paintings, one per sub-scene: Glacier Valley, Crystal Ice Canyon and Aurora Lake (a third of the world each).
  * Each is a whole 16:9 scene; `horizon` is the row of the picture (from its top) where the far shore meets the lake, which sits on the game's horizon line (the 3D
  * snow floor takes over below it). Each loads about 150 m before it is needed (`loadAt`).
  */
 const PAINTINGS = [
-  { file: 'frosty-glacier-valley.jpg', aspect: 1408 / 792, horizon: 0.63, loadAt: 1350 },
-  { file: 'frosty-crystal-canyon.jpg', aspect: 1408 / 792, horizon: 0.65, loadAt: 1515 },
-  { file: 'frosty-aurora-lake.jpg', aspect: 1408 / 792, horizon: 0.5, loadAt: 1680 },
+  { file: 'frosty-glacier-valley.jpg', aspect: 1408 / 792, horizon: 0.63, loadAt: Z.start - PRELOAD_LEAD },
+  { file: 'frosty-crystal-canyon.jpg', aspect: 1408 / 792, horizon: 0.65, loadAt: CUTS[0] - PRELOAD_LEAD },
+  { file: 'frosty-aurora-lake.jpg', aspect: 1408 / 792, horizon: 0.5, loadAt: CUTS[1] - PRELOAD_LEAD },
 ];
-/** Where each next sub-scene dissolves in over the one before it (metres), over DISSOLVE metres centred on the cut. */
-const CUTS = [1665, 1830];
+/** Each sub-scene dissolves in over the one before it, over DISSOLVE metres centred on its cut. */
 const DISSOLVE = 40;
 const RISE = { from: 0.66, to: 0.66, cover: 1.5 };
 const FADE_RGB = [176, 196, 238];
 
 /**
- * The Frosty Polar scenery for 1500 to 2000 m: the three Frosty paintings (public/images/backdrop) slide with the run distance and dissolve into each other at
+ * The Frosty Polar scenery for the second world (2000 to 4000 m): the three Frosty paintings (public/images/backdrop) slide with the run distance and dissolve into each other at
  * 1665 and 1830 m, with a faceted snowfield, slate outcrops and ice crystals in 3D for depth and parallax. It cross-fades with the canyon (around 1500 m) and with the
  * Celestial City (around 2000 m), and is hidden outside that, so it costs nothing elsewhere. Purely visual: nothing here touches the simulation.
  */
@@ -47,7 +49,7 @@ export default function ArcticBackdrop({ sim }) {
   return (
     <group ref={root} name="arctic" visible={false}>
       <GradientSky wRef={wRef} top={S.skyTop} bottom={S.skyMid} />
-      <PaintedHorizon sim={sim} wRef={wRef} zone={Z} paintings={PAINTINGS} cuts={CUTS} dissolve={DISSOLVE} preloadAt={1350} fadeRgb={FADE_RGB} rise={RISE} depth />
+      <PaintedHorizon sim={sim} wRef={wRef} zone={Z} paintings={PAINTINGS} cuts={CUTS} dissolve={DISSOLVE} preloadAt={Z.start - PRELOAD_LEAD} fadeRgb={FADE_RGB} rise={RISE} depth />
       <Snow sim={sim} wRef={wRef} />
       <ParallaxLayer sim={sim} wRef={wRef} geometry={crystals} depth={-26} scale={1.5} count={5} span={140} speedFactor={0.32} seed={9} tint="#ffffff" emissive="#6fd0f0" emissiveIntensity={0.55} />
       <ParallaxLayer sim={sim} wRef={wRef} geometry={outcrops} depth={-34} scale={2.4} count={7} span={170} speedFactor={0.22} seed={6} tint="#dfe6ea" />

@@ -8,6 +8,7 @@ import { createTrack, fillTrack, resetTrack, speedAt } from '../obstacles/spawne
 import { computeScore, toMetres } from '../scoring/scoring.js';
 import { GAME_EVENTS } from '../events/gameEvents.js';
 import { createRng, randomSeed } from '../../utils/random.js';
+import { JOURNEY_LENGTH, MILESTONES, WORLD_COUNT, worldsCompleted } from '../world/worlds.js';
 
 /**
  * The whole game simulation as plain JavaScript: no React, no Three.js.
@@ -18,7 +19,11 @@ import { createRng, randomSeed } from '../../utils/random.js';
  * Coordinates: x is distance along the track. The bird's x always equals
  * `distance`; obstacles have fixed track x. Renderers draw at x - distance.
  */
-export const PHASE = Object.freeze({ READY: 'ready', RUNNING: 'running', DYING: 'dying', OVER: 'over' });
+export const PHASE = Object.freeze({ READY: 'ready', RUNNING: 'running', DYING: 'dying', OVER: 'over', COMPLETE: 'complete' });
+
+/** The bird's glide after the finish line (the ending): speed it eases to (m/s) and the cruising height it settles at. */
+const GLIDE_SPEED = 4.2;
+const GLIDE_Y = 1.2;
 
 const ORB_RADIUS = 0.35;
 /** Passing an obstacle with less clearance than this (world units) counts as a near miss. */
@@ -172,6 +177,10 @@ export function createGameSim() {
     nearMisses: 0,
     /** What ended the run: 'lava' or an obstacle kind ('column' | 'block' | 'rock'). */
     crashCause: null,
+    /** Milestones (worlds completed) announced so far this run: 0 to 4; the fifth is the finish line, which completes the journey. Only ever grows, so each fires once. */
+    milestonesDone: 0,
+    /** Seconds since the finish line (the ending's glide); 0 before it. */
+    completeTime: 0,
     deathTime: 0,
     /** Interpolation factor between the last two fixed steps (set by the loop). */
     alpha: 1,
@@ -190,6 +199,10 @@ export function createGameSim() {
     get metres() {
       return toMetres(sim.phase === PHASE.RUNNING || sim.phase === PHASE.READY ? sim.distance : sim.scoredDistance);
     },
+    /** True once the finish line was crossed alive. */
+    get completed() {
+      return sim.phase === PHASE.COMPLETE;
+    },
     get score() {
       return computeScore(sim.metres, sim.orbsCollected);
     },
@@ -201,6 +214,9 @@ export function createGameSim() {
         bestStreak: sim.bestStreak,
         nearMisses: sim.nearMisses,
         cause: sim.crashCause,
+        completed: sim.phase === PHASE.COMPLETE,
+        // worlds completed by this run: a crash counts only what was behind it, the finish line all five
+        worlds: sim.phase === PHASE.COMPLETE ? WORLD_COUNT : worldsCompleted(sim.scoredDistance),
       };
     },
 
@@ -216,6 +232,8 @@ export function createGameSim() {
       sim.orbsCollected = 0;
       sim.orbStreak = sim.bestStreak = sim.nearMisses = 0;
       sim.crashCause = null;
+      sim.milestonesDone = 0;
+      sim.completeTime = 0;
       sim.deathTime = 0;
       sim.alpha = 1;
       const b = sim.bird;
@@ -264,6 +282,7 @@ export function createGameSim() {
         return;
       }
       if (sim.phase === PHASE.RUNNING) stepRunning(dt);
+      else if (sim.phase === PHASE.COMPLETE) stepComplete(dt);
       else stepDying(dt);
     },
 
@@ -365,6 +384,47 @@ export function createGameSim() {
         sim.events.push({ type: GAME_EVENTS.ORB, x: orb.x, y: orb.y, streak: sim.orbStreak });
       }
     }
+
+    // Milestones and the finish line are checked LAST: a step that ended in a crash returned above, so a collision always beats a milestone or the finish in the same step
+    // (nothing is announced or granted for a border the bird did not survive). Each fires once: `milestonesDone` only grows and the phase leaves RUNNING at the finish.
+    while (sim.milestonesDone < WORLD_COUNT - 1 && sim.distance >= MILESTONES[sim.milestonesDone].at) {
+      const m = MILESTONES[sim.milestonesDone++];
+      sim.events.push({ type: GAME_EVENTS.MILESTONE, index: m.index, at: m.at, world: m.world, name: m.name });
+    }
+    if (sim.distance >= JOURNEY_LENGTH) complete();
+  }
+
+  /** The finish line, crossed alive: the run is over and won. The distance scored is exactly the journey's length. */
+  function complete() {
+    const b = sim.bird;
+    sim.milestonesDone = WORLD_COUNT;
+    sim.phase = PHASE.COMPLETE;
+    sim.scoredDistance = JOURNEY_LENGTH;
+    sim.completeTime = 0;
+    sim.input.holding = sim.input.dive = sim.input.flapQueued = false;
+    b.vy = 0;
+    neutralHazards();
+    sim.events.push({ type: GAME_EVENTS.COMPLETE, ...sim.results() });
+  }
+
+  /** The hazards stop acting at the finish line (and the obstacles stop moving). */
+  function neutralHazards() {
+    hazardsAt(0, sim.hazard, track.corridors);
+  }
+
+  /** The ending's glide: no input, no collisions, no new obstacles. The bird eases to a calm cruise and the world slows to a drift; what is behind it despawns as usual. */
+  function stepComplete(dt) {
+    const b = sim.bird;
+    sim.completeTime += dt;
+    sim.speed += (GLIDE_SPEED - sim.speed) * (1 - Math.exp(-1.1 * dt));
+    sim.distance += sim.speed * dt;
+    b.vy = Math.max(-3, Math.min(3, (GLIDE_Y - b.y) * 1.8));
+    b.y += b.vy * dt;
+    b.pitch += (0.12 - b.pitch) * (1 - Math.exp(-3 * dt));
+    b.sinceFlap = (sim.completeTime * 1.1) % 0.9; // slow, calm wing beats
+    const behind = sim.distance - WORLD.despawnBehind;
+    for (const o of obstacles.active) if (o.x + o.extent < behind) obstacles.release(o);
+    for (const orb of orbs.active) if (orb.x < behind) orbs.release(orb);
   }
 
   function die(cause) {

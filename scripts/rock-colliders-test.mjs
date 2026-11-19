@@ -131,7 +131,7 @@ function flyTrack(seed, upto, visit) {
   sim.reset(seed);
   sim.flap();
   let steps = 0;
-  while (sim.phase === PHASE.RUNNING && sim.distance < upto && steps++ < 120 * 1000) {
+  while (sim.phase === PHASE.RUNNING && sim.distance < upto && steps++ < 120 * 1500) {
     const c = sim.track.corridors.find((k) => k.x1 > sim.distance - 0.3);
     const target = c ? Math.max(c.lo + 0.8, c.center - 0.6) : 0;
     const { y, vy } = sim.bird;
@@ -153,7 +153,7 @@ function flyTrack(seed, upto, visit) {
   };
   for (const seed of [1, 2, 3, 4, 5, 6]) {
     const checked = new Set();
-    flyTrack(seed, 6400, (sim, steps) => {
+    flyTrack(seed, 10100, (sim, steps) => {
       if (steps % 30) return;
       for (const o of sim.obstacles.active) {
         // the simulation reuses its obstacle objects, so an obstacle is identified by what it is and where it stands
@@ -178,33 +178,42 @@ function flyTrack(seed, upto, visit) {
   check(`every look of every kit occurs on the generated tracks (${want.length})`, want.every((l) => seenLooks.has(l)), want.filter((l) => !seenLooks.has(l)).join());
 }
 {
-  // 2. layouts unchanged: a fingerprint of every generated obstacle and orb (kind, position, size, cap, spin) for 8 seeds out to 3000 m, recorded before the shapes were added
-  const GOLDEN = ['7482155bbc42ca1e:966', 'ae86d796d42c9d34:1028', '1c85b5c5a9774a2e:1037', '4c880bf96b1b906b:1015', '67d500f2d340b846:1069', '810ad0f6b7a5203b:1000', 'aacc18790eb082a5:1052', 'a6fce5762cd71148:1029'];
-  // the hazards reserve runway in the spawner (on by default), so the pre-shapes layouts are only reproduced with them off
+  // 2. layouts unchanged: a fingerprint of every generated obstacle and orb (kind, position, size, cap, spin) for 8 seeds out to 4500 m (three worlds), flown once with the shapes
+  // switched off (the original obstacles) and once on: the shapes may only change how an obstacle looks and collides, never where it is or what its size is. (This used to compare
+  // with a recorded golden value; it now compares the two modes directly, so it stays valid when the difficulty curve or the world borders change.)
+  // The hazards reserve runway in the spawner (on by default), which is its own change to the layout, so both runs have them off.
   const hazardsWere = HAZARDS.enabled;
+  const shapesWere = ROCK_SHAPES.enabled;
   HAZARDS.enabled = false;
-  let same = true;
-  const got = [];
-  for (let seed = 1; seed <= 8; seed++) {
+  const fingerprint = (seed) => {
     const seen = new Set();
-    const sim = flyTrack(seed, 3000, (s, steps) => {
+    const sim = flyTrack(seed, 4500, (s, steps) => {
       if (steps % 6) return;
       for (const o of s.obstacles.active) seen.add(o.kind === 'rock' ? `rock|${o.x.toFixed(4)}|${o.y.toFixed(4)}|${o.r.toFixed(4)}|${o.rot.toFixed(4)}` : `${o.kind}|${o.x.toFixed(4)}|${o.y.toFixed(4)}|${o.w.toFixed(4)}|${o.h.toFixed(4)}|${o.cap}|${o.rot.toFixed(4)}`);
       for (const orb of s.orbs.active) seen.add(`orb|${orb.x.toFixed(4)}|${orb.y.toFixed(4)}`);
     });
-    const fp = `${createHash('sha1').update([...seen].sort().join('\n')).digest('hex').slice(0, 16)}:${seen.size}`;
-    got.push(fp);
-    if (fp !== GOLDEN[seed - 1] || sim.distance < 3000) same = false;
+    return { fp: `${createHash('sha1').update([...seen].sort().join('\n')).digest('hex').slice(0, 16)}:${seen.size}`, reached: sim.distance >= 4500 };
+  };
+  let same = true;
+  const got = [];
+  for (let seed = 1; seed <= 8; seed++) {
+    ROCK_SHAPES.enabled = false;
+    const plain = fingerprint(seed);
+    ROCK_SHAPES.enabled = true;
+    const shaped = fingerprint(seed);
+    got.push(`${plain.fp}|${shaped.fp}`);
+    if (plain.fp !== shaped.fp || !plain.reached || !shaped.reached) same = false;
   }
   HAZARDS.enabled = hazardsWere;
-  check('every generated track is identical to the one before the shapes (8 seeds, 3000 m, all obstacles and orbs)', same, same ? '' : got.join(' '));
+  ROCK_SHAPES.enabled = shapesWere;
+  check('every generated track is identical with and without the shapes (8 seeds, 4500 m, all obstacles and orbs)', same, same ? '' : got.join(' '));
 }
 {
   // 3. gating: shapes only inside a shaped zone, and the boundaries are the scenery zones' starts; unshaped zones keep their original colliders
   const ZONE_OF = { canyon: 'canyon', frosty: 'arctic', celestial: 'celestial', palace: 'palace', sanctuary: 'sanctuary' };
   check('each kit begins where its scenery zone begins', KIT_STARTS.every(([kit, start]) => BIOMES[ZONE_OF[kit]].start === start));
   let shaped = 0, shapedBad = 0;
-  flyTrack(3, 2400, (sim) => {
+  flyTrack(3, 4300, (sim) => {
     for (const o of sim.obstacles.active) {
       const kit = rockKit(o.x);
       if (kit) {
@@ -218,9 +227,9 @@ function flyTrack(seed, upto, visit) {
   // switch-back: with a kit turned off its zone's obstacles are the original boxes and circles again
   ROCK_SHAPES.kits.frosty = false;
   let offSeen = 0, offBad = 0;
-  flyTrack(3, 2100, (sim) => {
+  flyTrack(3, 2300, (sim) => {
     for (const o of sim.obstacles.active) {
-      if (o.x >= 1500 && o.x < 2000) {
+      if (o.x >= 2000 && o.x < 4000) {
         offSeen++;
         if (o.kit || o.look || o.polys || (o.kind === 'rock' ? o.shape !== 'circle' : o.shape !== 'box')) offBad++;
       }
@@ -234,7 +243,7 @@ function flyTrack(seed, upto, visit) {
   // 4. the existing bot and corridor guarantee still hold on shaped tracks: a corridor-following bird survives the whole canyon on many seeds
   let ok = 0;
   const N = 16;
-  for (let seed = 1; seed <= N; seed++) if (flyTrack(seed, 5800, () => {}).distance >= 5800) ok++;
+  for (let seed = 1; seed <= N; seed++) if (flyTrack(seed, 10050, () => {}).phase === PHASE.COMPLETE) ok++; // the journey ends at the finish line (10,000 m)
   check(`the corridor-following bot flies every shaped zone (canyon to Cloud Sanctuary) on ${ok}/${N} seeds`, ok === N);
 }
 ROCK_SHAPES.enabled = DEFAULT_ENABLED;

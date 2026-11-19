@@ -1,4 +1,5 @@
 import { WORLD } from '../physics/constants.js';
+import { WORLDS } from '../world/worlds.js';
 
 /**
  * Zone obstacle shapes (pure data and maths, no rendering): for each scenery zone a "kit" of outlines (poles that rise from the ground or hang from above, a passage's arch span and
@@ -88,7 +89,7 @@ export const KITS = Object.freeze({
 export const ROCK_SHAPES = { enabled: true, kits: { canyon: true, frosty: true, celestial: true, palace: true, sanctuary: true } };
 
 /** Where each kit's zone begins along the track (a test checks these equal the scenery zones' starts: the simulation cannot read the zones itself). */
-export const KIT_STARTS = Object.freeze([['canyon', 0], ['frosty', 1500], ['celestial', 2000], ['palace', 3000], ['sanctuary', 5000]]);
+export const KIT_STARTS = Object.freeze(WORLDS.map((w) => [w.kit, w.start]));
 
 /** The kit of the zone a track position is in, or null where the original obstacles stand (a zone whose kit is not built yet, or switched off). */
 export function rockKit(x) {

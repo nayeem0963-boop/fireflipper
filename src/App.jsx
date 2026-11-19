@@ -5,6 +5,7 @@ import SettingsPanel from './components/ui/SettingsPanel.jsx';
 import AvatarPicker from './components/ui/AvatarPicker.jsx';
 import AchievementsPanel from './components/ui/AchievementsPanel.jsx';
 import CreditsPanel from './components/ui/CreditsPanel.jsx';
+import RewardsPanel from './components/ui/RewardsPanel.jsx';
 
 /**
  * Top-level screen router. Intentionally thin: screens own their own
@@ -16,6 +17,7 @@ export default function App() {
   const avatarsOpen = useGameStore((s) => s.avatarsOpen);
   const achievementsOpen = useGameStore((s) => s.achievementsOpen);
   const creditsOpen = useGameStore((s) => s.creditsOpen);
+  const rewardsOpen = useGameStore((s) => s.rewardsOpen);
 
   return (
     <>
@@ -25,6 +27,7 @@ export default function App() {
       {avatarsOpen && <AvatarPicker />}
       {achievementsOpen && <AchievementsPanel />}
       {creditsOpen && <CreditsPanel />}
+      {rewardsOpen && <RewardsPanel />}
     </>
   );
 }

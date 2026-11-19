@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { WORLD } from '../../systems/physics/constants.js';
 import { BIOMES } from '../../systems/world/biomes.js';
+import { PRELOAD_LEAD, paintingCuts } from '../../systems/world/worlds.js';
 import { createPalacePoolTexture } from './valleyTextures.js';
 import { createFloatingIsland } from './celestialGeometry.js';
 import { DriftParticles } from './AmbientEffects.jsx';
@@ -9,6 +10,8 @@ import { GradientSky, ParallaxLayer, PaintedHorizon, WeightDriver } from './Zone
 
 const Z = BIOMES.palace;
 const S = Z.scene;
+/** Where each next painting dissolves in over the one before it (metres): the three paintings share the world equally. */
+const CUTS = paintingCuts(3, 3);
 const GROUND_WIDTH = 200;
 const GROUND_REPEAT = 50; // 4 world units per tile
 /**
@@ -18,20 +21,19 @@ const GROUND_REPEAT = 50; // 4 world units per tile
  */
 const PAINTINGS = [
   { file: 'palace-a.jpg', aspect: 1280 / 720, horizon: 0.62 },
-  { file: 'palace-b.jpg', aspect: 1280 / 720, horizon: 0.62, loadAt: 3500 },
-  { file: 'palace-c.jpg', aspect: 1280 / 720, horizon: 0.66, loadAt: 4170 },
+  { file: 'palace-b.jpg', aspect: 1280 / 720, horizon: 0.62, loadAt: CUTS[0] - PRELOAD_LEAD },
+  { file: 'palace-c.jpg', aspect: 1280 / 720, horizon: 0.66, loadAt: CUTS[1] - PRELOAD_LEAD },
 ];
-/** Where each next painting dissolves in over the one before it (metres). The scenes differ a lot, so the dissolves are longer than elsewhere. */
-const CUTS = [3660, 4330];
+/** The scenes differ a lot, so the dissolves are longer than elsewhere. */
 const DISSOLVE = 70;
 /** The paintings load when the player gets this close, so the first screens of the game never wait for them. */
-const PRELOAD_AT = 2880;
+const PRELOAD_AT = Z.start - PRELOAD_LEAD;
 /** The picture is scaled to about 1.6 times the visible height, so the waterline can sit on the horizon with sky above it. */
 const RISE = { from: 0.62, to: 0.62, cover: 1.62 };
 const FADE_RGB = [141, 114, 158];
 
 /**
- * The Rose Sky Palace scenery for 3000 to 5000 m: the three palace paintings (public/images/backdrop) fill the sky and drift slowly sideways as
+ * The Rose Sky Palace scenery for the fourth world (6000 to 8000 m): the three palace paintings (public/images/backdrop) fill the sky and drift slowly sideways as
  * you fly; their waterline sits on the horizon, where a 3D mirror pool takes over (golden lantern glints, soft reflection streaks), and small
  * floating white-stone islands with pink trees drift past at two depths. It cross-fades with the Celestial Realm (around 3000 m) and fades back to
  * the original scenery by 5000 m, and is hidden outside that, so it costs nothing elsewhere. Purely visual: nothing here touches the simulation.

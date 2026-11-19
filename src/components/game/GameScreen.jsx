@@ -5,6 +5,8 @@ import PauseMenu from '../ui/PauseMenu.jsx';
 import StartPrompt from '../ui/StartPrompt.jsx';
 import DemoOverlay from '../ui/DemoOverlay.jsx';
 import GameOverPanel from '../ui/GameOverPanel.jsx';
+import MilestoneToast from '../ui/MilestoneToast.jsx';
+import JourneyEnding from '../ui/JourneyEnding.jsx';
 import { useGameInput } from '../../hooks/useGameInput.js';
 import { usePauseWhenHidden } from '../../hooks/usePauseWhenHidden.js';
 import { useGameAudio } from '../../hooks/useGameAudio.js';
@@ -76,6 +78,8 @@ export default function GameScreen() {
       <GameHUD />
 
       {demo && <DemoOverlay />}
+      {!demo && (status === STATUS.RUNNING || paused) && <MilestoneToast />}
+      {status === STATUS.COMPLETE && !demo && <JourneyEnding />}
       {status === STATUS.READY && !demo && <StartPrompt />}
       {status === STATUS.DYING && <div className="game__flash" aria-hidden="true" />}
       {paused && <PauseMenu />}

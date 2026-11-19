@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { WORLD } from '../../systems/physics/constants.js';
 import { BIOMES } from '../../systems/world/biomes.js';
+import { PRELOAD_LEAD, paintingCuts } from '../../systems/world/worlds.js';
 import { createStarSeaTexture } from './valleyTextures.js';
 import { createFloatingIsland } from './celestialGeometry.js';
 import { DriftParticles } from './AmbientEffects.jsx';
@@ -9,6 +10,8 @@ import { GradientSky, ParallaxLayer, PaintedHorizon, WeightDriver } from './Zone
 
 const Z = BIOMES.celestial;
 const S = Z.scene;
+/** Where each next painting dissolves in over the one before it (metres): the three paintings share the world equally. */
+const CUTS = paintingCuts(2, 3);
 const GROUND_WIDTH = 200;
 const GROUND_REPEAT = 50; // 4 world units per tile
 /**
@@ -17,19 +20,17 @@ const GROUND_REPEAT = 50; // 4 world units per tile
  */
 const PAINTINGS = [
   { file: 'celestial-a.jpg', aspect: 1280 / 698 },
-  { file: 'celestial-b.jpg', aspect: 1280 / 698, loadAt: 2180 },
-  { file: 'celestial-c.jpg', aspect: 1280 / 698, loadAt: 2510 },
+  { file: 'celestial-b.jpg', aspect: 1280 / 698, loadAt: CUTS[0] - PRELOAD_LEAD },
+  { file: 'celestial-c.jpg', aspect: 1280 / 698, loadAt: CUTS[1] - PRELOAD_LEAD },
 ];
-/** Where each next painting dissolves in over the one before it (metres). */
-const CUTS = [2330, 2660];
 /** The paintings load when the player gets this close, so the first screens of the game never wait for them. */
-const PRELOAD_AT = 1880;
+const PRELOAD_AT = Z.start - PRELOAD_LEAD;
 /** The picture slides from its floating cities (0.98 of the way down) up to the planet, galaxies and nebulae (0.12, clamped so no edge shows) over the zone. */
 const RISE = { from: 0.98, to: 0.12 };
 const FADE_RGB = [50, 59, 92];
 
 /**
- * The Celestial Realm scenery for 2000 to 3000 m: the three cosmic paintings (public/images/backdrop) fill the sky and slowly slide as you
+ * The Celestial Realm scenery for the third world (4000 to 6000 m): the three cosmic paintings (public/images/backdrop) fill the sky and slowly slide as you
  * fly, so the view climbs from the floating cities up into the cosmos. The floor is a starlit cloud sea, and a few small floating crystal
  * islands drift past at two depths for parallax. It cross-fades with the Arctic (around 2000 m) and fades back to the original scenery by
  * 3000 m, and is hidden outside that, so it costs nothing elsewhere. Purely visual: nothing here touches the simulation.

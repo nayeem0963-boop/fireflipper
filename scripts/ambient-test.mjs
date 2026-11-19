@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { AMBIENT, DRIFT, auroraStrength, driftItems, driftPoint, pulse } from '../src/systems/world/ambient.js';
 import { UNLOAD_AFTER, cyclePlan, paintingSpan, residency } from '../src/systems/world/scrollDriver.js';
 import { BIOMES, CROSSFADE, ZONE_IDS } from '../src/systems/world/biomes.js';
+import { PRELOAD_LEAD, WORLDS, paintingCuts } from '../src/systems/world/worlds.js';
 import { WORLD } from '../src/systems/physics/constants.js';
 
 let failed = 0;
@@ -23,17 +24,20 @@ for (const id of ZONE_IDS) {
   if (id === 'sanctuary') continue; // looping zone: tested below
   const [file, w, h] = info[id];
   const src = read(file);
-  const cuts = JSON.parse(/const CUTS = (\[[^\]]*\])/.exec(src)[1]);
+  const wi = WORLDS.findIndex((w) => w.id === id);
+  const cuts = paintingCuts(wi, 3);
   const dissolve = Number(/const DISSOLVE = (\d+)/.exec(src)?.[1] ?? 30);
-  const preload = Number(/PRELOAD_AT = (\d+)/.exec(src)?.[1] ?? 0);
-  const entries = [...src.matchAll(/\{ file: '([^']+)'[^}]*\}/g)].map((m) => ({ file: m[1], loadAt: Number(/loadAt: (-?\d+)/.exec(m[0])?.[1] ?? preload) }));
+  const preload = /PRELOAD_AT = Z\.start - PRELOAD_LEAD/.test(src) ? BIOMES[id].start - PRELOAD_LEAD : 0;
+  // `loadAt` is written in terms of the cuts: -1 (never unloaded), CUTS[n] - PRELOAD_LEAD, or Z.start - PRELOAD_LEAD; none means the zone's PRELOAD_AT
+  const loadOf = (m) => { const t = /loadAt: (-?\d+|CUTS\[(\d)\] - PRELOAD_LEAD|Z\.start - PRELOAD_LEAD)/.exec(m[0]); if (!t) return preload; if (t[2] !== undefined) return cuts[Number(t[2])] - PRELOAD_LEAD; if (t[1].startsWith('Z.')) return BIOMES[id].start - PRELOAD_LEAD; return Number(t[1]); };
+  const entries = [...src.matchAll(/\{ file: '([^']+)'[^}]*\}/g)].map((m) => ({ file: m[1], loadAt: loadOf(m) }));
   entries.forEach((e, i) => {
     const [, end] = paintingSpan(BIOMES[id], cuts, dissolve, i, entries.length, CROSSFADE);
     residents.push({ ...e, end, mb: (w * h * 4 * 1.33) / 1e6 });
   });
 }
 let peak = 0, peakAt = 0, loaded = new Set();
-for (let d = -10; d <= 5400; d += 5) {
+for (let d = -10; d <= 10200; d += 5) {
   residents.forEach((r, i) => {
     const act = residency(d, r.loadAt, r.end, loaded.has(i));
     if (act === 'load') loaded.add(i);
@@ -48,7 +52,7 @@ console.log(`     for comparison, keeping every painting would use ${oldPeak.toF
 // every painting is resident while it is visible
 {
   let missing = 0, set = new Set();
-  for (let d = -10; d <= 5400; d += 5) {
+  for (let d = -10; d <= 10200; d += 5) {
     residents.forEach((r, i) => { const act = residency(d, r.loadAt, r.end, set.has(i)); if (act === 'load') set.add(i); if (act === 'unload') set.delete(i); });
     residents.forEach((r, i) => { if (d > r.loadAt + 120 && d < r.end && !set.has(i)) missing++; });
   }
@@ -61,8 +65,8 @@ for (const r of residents) ok(r.loadAt < 0 || r.end - r.loadAt >= 100, `${r.file
 {
   const mb = (1408 * 792 * 4 * 1.33) / 1e6;
   let peakLoop = 0;
-  for (let d = 4800; d < 80000; d += 5) peakLoop = Math.max(peakLoop, cyclePlan(d, 5000).wanted.length * mb);
-  ok(peakLoop <= 12, `the endless Cloud Sanctuary never holds more than two paintings (${peakLoop.toFixed(1)} MB), however far the run goes`);
+  for (let d = 7800; d < 80000; d += 5) peakLoop = Math.max(peakLoop, cyclePlan(d, 8000, 400).wanted.length * mb);
+  ok(peakLoop <= 12, `the Cloud Sanctuary never holds more than two paintings (${peakLoop.toFixed(1)} MB), however far the run goes`);
   // at the palace / sanctuary handover: the last palace painting and the first canyon painting (never unloaded) are also resident
   const small = (1280 * 720 * 4 * 1.33) / 1e6;
   ok(peakLoop + 2 * small <= 25, `at the palace / sanctuary handover the total (${(peakLoop + 2 * small).toFixed(1)} MB) stays inside the 25 MB target`);
@@ -102,9 +106,9 @@ ok(JSON.stringify(driftPoint(a, 123.4, DRIFT.arctic)) === JSON.stringify(driftPo
 ok(driftPoint(a, 0, DRIFT.celestial).y !== driftPoint(a, 400, DRIFT.celestial).y, 'celestial sparkles drift (rise) with distance');
 
 // aurora: faint over Crystal Ice Canyon, full over Aurora Lake, zero before
-ok(auroraStrength(1600) === 0 && auroraStrength(1750) > 0 && auroraStrength(1750) <= 0.3 && auroraStrength(1900) === 1, 'aurora strength: off, faint over Crystal Ice Canyon, full over Aurora Lake');
+ok(auroraStrength(2400) === 0 && auroraStrength(3000) > 0 && auroraStrength(3000) <= 0.3 && auroraStrength(3700) === 1, 'aurora strength: off, faint over Crystal Ice Canyon, full over Aurora Lake');
 let smoothOk = true;
-for (let d = 1500; d < 2000; d += 0.5) if (Math.abs(auroraStrength(d + 0.5) - auroraStrength(d)) > 0.05) smoothOk = false;
+for (let d = 2000; d < 4000; d += 0.5) if (Math.abs(auroraStrength(d + 0.5) - auroraStrength(d)) > 0.05) smoothOk = false;
 ok(smoothOk, 'aurora strength changes smoothly with distance');
 ok(pulse(0, 90) === pulse(90, 90) || Math.abs(pulse(0, 90) - pulse(90, 90)) < 1e-9, 'pulse is periodic in distance');
 

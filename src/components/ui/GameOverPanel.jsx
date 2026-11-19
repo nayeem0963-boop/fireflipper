@@ -5,6 +5,7 @@ import { formatDistance, formatScore } from '../../systems/scoring/scoring.js';
 import { useTheme } from '../../hooks/useTheme.js';
 import { biomeAt } from '../../systems/world/biomes.js';
 import { sfx } from '../../systems/audio/sfx.js';
+import { getReward } from '../../systems/rewards/rewards.js';
 import { isCoarsePointer } from '../../utils/device.js';
 import { RestartIcon } from './Icons.jsx';
 import '../../styles/panel.css';
@@ -173,6 +174,16 @@ export default function GameOverPanel() {
           </dl>
 
           <section className="rewards" aria-label="Rewards and next goal">
+            {(result.worlds ?? 0) > 0 && (
+              <p className="reward">
+                Worlds completed: <strong>{result.worlds}/5</strong>
+              </p>
+            )}
+            {(result.rewards ?? []).map((id) => (
+              <p key={id} className="reward reward--earned">
+                <span aria-hidden="true">✦</span> Reward unlocked: <strong>{getReward(id)?.name}</strong>
+              </p>
+            ))}
             {achievements.map((a) => (
               <p key={a.id} className="reward reward--earned" title={a.desc}>
                 <span aria-hidden="true">★</span> Achievement: <strong>{a.name}</strong>

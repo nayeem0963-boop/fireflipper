@@ -101,6 +101,19 @@ export const sfx = {
     [523, 659, 784, 1047].forEach((f, i) => tone({ type: 'triangle', from: f, to: f, duration: 0.28, peak: 0.16, delay: i * 0.09 }));
     tone({ type: 'sine', from: 2093, to: 3136, duration: 0.6, peak: 0.07, delay: 0.36 });
   },
+  /** A world completed: a short, soft rising chime (two notes and a sparkle), kept quiet so it never competes with flying. */
+  milestone() {
+    if (!ready()) return;
+    [659, 988].forEach((f, i) => tone({ type: 'sine', from: f, to: f, duration: 0.34, peak: 0.1, delay: i * 0.11 }));
+    tone({ type: 'sine', from: 1976, to: 2637, duration: 0.5, peak: 0.04, delay: 0.2 });
+  },
+  /** The finish line: a warm rising arpeggio that opens into a held chord and a long sparkle. */
+  journey() {
+    if (!ready()) return;
+    [392, 523, 659, 784, 1047].forEach((f, i) => tone({ type: 'triangle', from: f, to: f, duration: 0.5, peak: 0.13, delay: i * 0.16 }));
+    [523, 659, 784, 1047].forEach((f) => tone({ type: 'sine', from: f, to: f, duration: 1.8, peak: 0.07, delay: 0.9 }));
+    tone({ type: 'sine', from: 2093, to: 3136, duration: 1.2, peak: 0.05, delay: 1.0 });
+  },
   crash() {
     if (!ready()) return;
     noiseBurst({ duration: 0.55, filter: 'lowpass', from: 1800, to: 120, q: 0.7, peak: 0.55 });

@@ -47,6 +47,8 @@ export function useGameLoop(sim) {
         if (e.type === GAME_EVENTS.START) store.beginRun();
         else if (e.type === GAME_EVENTS.CRASH) store.crash();
         else if (e.type === GAME_EVENTS.OVER) store.endRun(sim.results());
+        else if (e.type === GAME_EVENTS.MILESTONE) store.milestoneReached(e);
+        else if (e.type === GAME_EVENTS.COMPLETE) store.endRun(sim.results());
         gameEvents.emit(e.type, e);
       }
       sim.events.length = 0;

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { WORLD } from '../../systems/physics/constants.js';
 import { BIOMES } from '../../systems/world/biomes.js';
+import { PRELOAD_LEAD, paintingCuts } from '../../systems/world/worlds.js';
 import { createCanyonFloorTexture } from './valleyTextures.js';
 import { createCanyonMesas } from './mangroveGeometry.js';
 import { DriftParticles } from './AmbientEffects.jsx';
@@ -9,27 +10,27 @@ import { GradientSky, ParallaxLayer, PaintedHorizon, WeightDriver } from './Zone
 
 const Z = BIOMES.canyon;
 const S = Z.scene;
+/** Where each next painting dissolves in over the one before it (metres): the three paintings share the world equally. */
+const CUTS = paintingCuts(0, 3);
 const GROUND_WIDTH = 200;
 const GROUND_REPEAT = 50; // 4 world units per tile
 /**
- * The three canyon paintings, one for each 500 m of the first 1500 m (an arch and a misty gorge; pillars and a natural bridge in the low sun; a winding river
+ * The three canyon paintings, one for each third of the first world (2000 m) (an arch and a misty gorge; pillars and a natural bridge in the low sun; a winding river
  * canyon at sunset). `horizon` is the row of each picture (from the top) that sits on the horizon line: the valley floor, so the cliffs, arches and sunset sky fill the
  * view above it and the 3D canyon floor takes over below it. Only the first loads at start-up; the others load as the player approaches them (`loadAt`).
  */
 const PAINTINGS = [
   { file: 'canyon-a.jpg', aspect: 1280 / 720, horizon: 0.66, loadAt: -1 },
-  { file: 'canyon-b.jpg', aspect: 1280 / 720, horizon: 0.66, loadAt: 250 },
-  { file: 'canyon-c.jpg', aspect: 1280 / 720, horizon: 0.66, loadAt: 750 },
+  { file: 'canyon-b.jpg', aspect: 1280 / 720, horizon: 0.66, loadAt: CUTS[0] - PRELOAD_LEAD },
+  { file: 'canyon-c.jpg', aspect: 1280 / 720, horizon: 0.66, loadAt: CUTS[1] - PRELOAD_LEAD },
 ];
-/** Where each next painting dissolves in over the one before it (metres): one painting per 500 m. */
-const CUTS = [500, 1000];
 const DISSOLVE = 60;
 /** The picture is scaled to about 1.55 times the visible height, so the valley floor can sit on the horizon with sky above it. */
 const RISE = { from: 0.66, to: 0.66, cover: 1.55 };
 const FADE_RGB = [172, 90, 91];
 
 /**
- * The Red Rock Canyon scenery for 0 to 1500 m: the three canyon paintings (public/images/backdrop) fill the sky and drift slowly sideways as you fly, one for
+ * The Red Rock Canyon scenery for the first world (0 to 2000 m): the three canyon paintings (public/images/backdrop) fill the sky and drift slowly sideways as you fly, one for
  * each 500 m; a dusty faceted canyon floor takes over at the horizon, and red sandstone mesas stand at two depths for parallax. It cross-fades into the Arctic around
  * 1500 m, and is hidden once that is done, so it costs nothing elsewhere. Purely visual: nothing here touches the simulation.
  */
