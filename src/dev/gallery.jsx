@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas } from '@react-three/fiber';
 import * as M from '../components/scene/animalModels.js';
-import { createCanyonRockSet } from '../components/scene/canyonRocks.js';
+import { createCanyonRockSet, poleInstances } from '../components/scene/canyonRocks.js';
 
 /** Dev-only page (npm run dev, then /gallery.html): every zone obstacle model side by side for a close look. Not part of the build. */
 const SUND = [['Tiger', 'createTiger', 0], ['Crocodile', 'createCrocodile', 0], ['Bat', 'createFruitBat', 1], ['Hive', 'createHoneyHive', 1], ['Swarm', 'createBeeSwarm', 1], ['Stilt roots', 'createStiltRoots', 0]];
@@ -32,22 +32,33 @@ function Models() {
   );
 }
 
-/** ?set=canyon: the canyon rock obstacle families as the game will draw them: hoodoo (shaft + cap), fin, arch lintel, passage slab, boulder. */
+/** ?set=canyon: the canyon rock obstacles as the game will place them (poleInstances, the same placement list the tests assemble): a hoodoo and a fin rising from the ground, a fin and a lintel hanging, an arch span, a ledge and boulders. */
 function CanyonRocks() {
   const g = useMemo(() => createCanyonRockSet(), []);
   const mat = <meshStandardMaterial vertexColors flatShading roughness={0.85} />;
-  const H = 4.2;
+  const floorY = -3.2;
   const W = 1.5;
+  const pole = (look, cap, x, gapEndY) => {
+    const dDraw = Math.abs(gapEndY - (cap > 0 ? floorY - 0.5 : 5.4)) / W;
+    return poleInstances(look, cap, gapEndY, W, dDraw).map((it, i) => <mesh key={`${look}${cap}${x}${i}`} geometry={g[it.key]} position={[x, it.y, 0]} scale={[it.s, it.sy, it.s]}>{mat}</mesh>);
+  };
+  const L = 7;
   return (
-    <group position={[-6.4, -2.6, 0]}>
-      <group position={[0, H / 2, 0]}>
-        <mesh geometry={g.hoodooShaft} scale={[W, H, W]}>{mat}</mesh>
-        <mesh geometry={g.hoodooCap} scale={[W, W, W]} position={[0, H / 2, 0]}>{mat}</mesh>
+    <group>
+      {pole('hoodoo', 1, -9, 0.2)}
+      {pole('fin', 1, -6, 0.2)}
+      {pole('fin', -1, -3, -0.4)}
+      {pole('lintel', -1, 0, -0.4)}
+      {/* a passage: ledge below, arch span above, the gap between (gap height 0 to 3) */}
+      <group position={[7.5, 0, 0]}>
+        <mesh geometry={g.archBand} position={[0, 3, 0]} scale={[L, 1, 2.2]}>{mat}</mesh>
+        <mesh geometry={g.slabBody} position={[0, 3 + 1.2 + 2.2, 0]} scale={[L, 4.4, 2.2]}>{mat}</mesh>
+        <mesh geometry={g.ledgeBand} position={[0, 0, 0]} scale={[L, 1, 2.2]}>{mat}</mesh>
+        <mesh geometry={g.slabBody} position={[0, -1.2 - 1.0, 0]} scale={[L, 2, 2.2]}>{mat}</mesh>
       </group>
-      <mesh geometry={g.fin} scale={[W, H, W]} position={[3, H / 2, 0]}>{mat}</mesh>
-      <mesh geometry={g.lintel} scale={[W * 1.2, H, W * 1.2]} position={[6, H / 2, 0]} rotation={[0, 0, Math.PI]}>{mat}</mesh>
-      <mesh geometry={g.slab} scale={[5.5, 2.6, 2.2]} position={[10.2, 1.3, 0]}>{mat}</mesh>
-      <mesh geometry={g.boulder} scale={[1.2, 1.2, 1.2]} position={[14, 1.2, 0]}>{mat}</mesh>
+      <mesh geometry={g.boulder} position={[13.5, -2, 0]} scale={[1.2, 1.2, 1.2]}>{mat}</mesh>
+      <mesh geometry={g.boulder} position={[15.6, -2.6, 0]} scale={[0.7, 0.7, 0.7]} rotation={[0.5, 1, 0]}>{mat}</mesh>
+      <mesh position={[0, floorY - 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[60, 6]} /><meshStandardMaterial color="#c8603a" /></mesh>
     </group>
   );
 }

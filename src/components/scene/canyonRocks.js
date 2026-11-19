@@ -1,26 +1,23 @@
 import { BufferAttribute, BufferGeometry, Color, IcosahedronGeometry, Vector3 } from 'three';
+import { ARCH_RISE, FIN_FOOT, LEDGE_DROP, POLE_TABLES, archRise, finLean, ledgeDrop, polePlacements, slabSamples } from '../../systems/obstacles/rockShapes.js';
 
 /**
- * Procedural sandstone geometry for the Red Rock Canyon obstacles: hoodoos, rock fins, arch lintels and passage ledges, and boulders, in the faceted,
- * banded style of the owner's reference paintings. Pure geometry (vertex colours, flat faces), no model files; the renderer decides where they go.
+ * Procedural sandstone geometry for the Red Rock Canyon obstacles: hoodoos, rock fins, arch lintels, arch spans, ledges and boulders, in the faceted, banded style of the owner's
+ * reference paintings. Pure geometry (vertex colours, flat faces), no model files; ObstacleField places the instances.
  *
- * THE FAIRNESS CONTRACT. Collision never changes: columns are boxes (half width 0.4 w, from the pole's base to its gap end less 0.06), slabs are boxes, rocks are
- * circles (0.86 r). A visual may never be smaller than its collider (the bird would die in empty air) nor reach into the corridor beyond it. In unit space
- * (a column is drawn scaled by its width w across and its height h up; a slab by its length and height; a boulder by its radius r) every family therefore keeps:
- *   - shafts and caps: at every height the left and right extremes are at least MIN_SUPPORT (the collider is 0.4) and at most MAX_SUPPORT from the axis;
- *   - the gap end (y = +0.5 in shaft space; the renderer turns hanging poles upside down) is a flat plane: nothing rises above it;
- *   - slabs: at least 0.5 across (their collider is 0.5 - 0.05 / length) and the gap face is flat;
- *   - boulders: the largest ball inside is at least MIN_INRADIUS (the collider is 0.86) and nothing reaches beyond MAX_RADIUS.
- * Non-round shapes are drawn without the obstacle's random spin (rotation about y = 0), since their silhouette across the track is what is tested.
- * scripts/canyon-rocks-test.mjs checks all of this against the real geometry.
+ * Every outline is built from the SAME tables the simulation's colliders use (systems/obstacles/rockShapes.js): a pole's rings sit exactly on the outline's control points, with
+ * vertices on the left and right extremes, so the silhouette across the track IS the collider's polygon outline. A pole is drawn in widths `w` (unit width, the gap end at y = 0, the
+ * stem running away from the corridor: down for a rising pole, up for a hanging one); passage slabs are one unit long, stretched to the slab's length. scripts/canyon-rocks-test.mjs compares
+ * the assembled silhouettes with the real colliders.
+ *
+ * Pieces (one InstancedMesh each): hoodooHead, hoodooSegment, lintelHead, lintelSegment, finHeadUp, finHeadDown, finBody, archBand, ledgeBand, slabBody, boulder.
  */
 export const ROCK_CONTRACT = Object.freeze({
-  colliderHalf: 0.4,
-  minSupport: 0.425,
-  maxSupport: 0.53,
-  slabHalf: 0.5,
+  /** Boulders: the largest ball inside is at least this (the collider circle is 0.86) and nothing reaches beyond maxRadius (1.4 x the collider). */
   boulder: Object.freeze({ collider: 0.86, minInradius: 0.9, maxRadius: 1.2 }),
   maxTriangles: 400,
+  /** How far the drawn silhouette may differ from the collider outline (world units at the poles' widest): the faceting jitter stays off the extremes, so this is small. */
+  silhouetteTolerance: 0.05,
 });
 
 /** The canyon's colours, from the paintings: sunlit yellow-orange strata, orange sandstone, red shade, pale sunlit tops. */
@@ -44,25 +41,35 @@ function rng(seed) {
 }
 
 const c3 = new Color();
-/** Builds a non-indexed geometry from triangles, colouring each face with `colorOf(centroid, normal)`. */
-function fromTriangles(tris, colorOf) {
+const A = new Vector3();
+const B = new Vector3();
+const C = new Vector3();
+const N = new Vector3();
+
+/**
+ * Builds a non-indexed geometry from triangles. `outward(mid)` gives the direction the surface faces near that point (so winding is fixed up automatically, whatever order the
+ * triangle was written in); `colorOf(mid, normal, tri index)` colours each face.
+ */
+function fromTriangles(tris, outward, colorOf) {
   const pos = new Float32Array(tris.length * 9);
   const col = new Float32Array(tris.length * 9);
-  const a = new Vector3();
-  const b = new Vector3();
-  const c = new Vector3();
-  const n = new Vector3();
   tris.forEach((t, i) => {
-    a.fromArray(t[0]);
-    b.fromArray(t[1]);
-    c.fromArray(t[2]);
-    n.copy(b).sub(a).cross(c.clone().sub(a)).normalize();
-    const mid = a.clone().add(b).add(c).divideScalar(3);
-    c3.set(colorOf(mid, n, i));
-    for (let k = 0; k < 3; k++) {
-      pos.set(t[k], i * 9 + k * 3);
-      col.set([c3.r, c3.g, c3.b], i * 9 + k * 3);
+    let [p, q, r] = t;
+    A.fromArray(p);
+    B.fromArray(q);
+    C.fromArray(r);
+    const mid = A.clone().add(B).add(C).divideScalar(3);
+    N.copy(B).sub(A).cross(C.clone().sub(A));
+    if (N.dot(outward(mid, t)) < 0) {
+      [q, r] = [r, q];
+      N.negate();
     }
+    N.normalize();
+    c3.set(colorOf(mid, N.clone(), i, t));
+    [p, q, r].forEach((v, k) => {
+      pos.set(v, i * 9 + k * 3);
+      col.set([c3.r, c3.g, c3.b], i * 9 + k * 3);
+    });
   });
   const g = new BufferGeometry();
   g.setAttribute('position', new BufferAttribute(pos, 3));
@@ -71,153 +78,150 @@ function fromTriangles(tris, colorOf) {
   return g;
 }
 
+const hex = (h, k = 1) => c3.set(h).multiplyScalar(k).getHex();
+
 /**
- * A rock column of stacked rings (a lathe with a jittered outline): y runs from yMin to yMax, `rx(t)`, `rz(t)` and `cx(t)` give the half widths and the lean at t = 0..1 up the
- * column. Vertices sit on the axis directions at angles 0 and 180 degrees, so the left and right extremes are exactly the ring radii (times the small jitter).
+ * A pole piece from outline control points [d, left, right] (widths from the gap end), as stacked rings: y = -dir * d. The ring vertices at 0 and 180 degrees sit exactly on the
+ * outline (no jitter), the others are jittered a little for the faceted look. `gapCap` closes the gap end with a flat face; `farCap` the other end.
  */
-function column({ seed, rings, sides = 8, yMin = -0.5, yMax = 0.5, rx, rz, cx = () => 0, jitter = 0.03, colorOf }) {
+function pole({ points, dir, sides, depth, seed, gapCap = false, farCap = false, color }) {
   const rnd = rng(seed);
-  const ring = [];
-  for (let k = 0; k <= rings; k++) {
-    const t = k / rings;
-    const y = yMin + (yMax - yMin) * t;
-    const pts = [];
-    for (let i = 0; i < sides; i++) {
+  const ring = points.map(([d, l, r]) => {
+    const rx = (l + r) / 2;
+    const cx = (r - l) / 2;
+    return Array.from({ length: sides }, (_, i) => {
       const th = (2 * Math.PI * i) / sides;
-      const j = 1 + (rnd() * 2 - 1) * jitter;
-      pts.push([cx(t) + rx(t) * Math.cos(th) * j, y, rz(t) * Math.sin(th) * j]);
-    }
-    ring.push(pts);
-  }
+      const j = i === 0 || i === sides / 2 ? 1 : 1 + (rnd() * 2 - 1) * 0.03;
+      return [cx + rx * Math.cos(th) * j, -dir * d, depth(rx) * Math.sin(th) * j];
+    });
+  });
   const tris = [];
-  for (let k = 0; k < rings; k++) {
+  const rows = points.length - 1;
+  for (let k = 0; k < rows; k++) {
     for (let i = 0; i < sides; i++) {
       const i2 = (i + 1) % sides;
-      const a = ring[k][i];
-      const b = ring[k][i2];
-      const c = ring[k + 1][i2];
-      const d = ring[k + 1][i];
-      tris.push([a, c, b], [a, d, c]);
+      tris.push({ t: [ring[k][i], ring[k + 1][i2], ring[k][i2]], row: k, col: i }, { t: [ring[k][i], ring[k + 1][i], ring[k + 1][i2]], row: k, col: i });
     }
   }
-  const sideCount = rings * sides * 2;
-  const meta = (i) => (i < sideCount ? { row: Math.floor(i / (2 * sides)), rows: rings, col: Math.floor((i % (2 * sides)) / 2), cols: sides } : null);
-  const top = [cx(1), yMax, 0];
-  const bottom = [cx(0), yMin, 0];
-  for (let i = 0; i < sides; i++) {
-    const i2 = (i + 1) % sides;
-    tris.push([top, ring[rings][i2], ring[rings][i]]);
-    tris.push([bottom, ring[0][i], ring[0][i2]]);
-  }
-  return fromTriangles(tris, (mid, n, i) => colorOf(mid, n, i, meta(i)));
+  const cap = (k, up) => {
+    const centre = [(ring[k][0][0] + ring[k][sides / 2][0]) / 2, ring[k][0][1], 0];
+    for (let i = 0; i < sides; i++) tris.push({ t: [centre, ring[k][i], ring[k][(i + 1) % sides]], row: up ? 0 : rows - 1, col: i, cap: up });
+  };
+  if (gapCap) cap(0, true);
+  if (farCap) cap(rows, false);
+  // outward: the side faces face away from the axis (the middle of their ring pair); the gap-end cap faces the corridor (+y for a rising pole), the far cap the other way
+  const axisX = (y) => {
+    let best = ring[0];
+    for (const rg of ring) if (Math.abs(rg[0][1] - y) < Math.abs(best[0][1] - y)) best = rg;
+    return (best[0][0] + best[sides / 2][0]) / 2;
+  };
+  const meta = new Map();
+  const list = tris.map((o, i) => {
+    meta.set(i, o);
+    return o.t;
+  });
+  return fromTriangles(
+    list,
+    (mid, t) => {
+      const o = tris[list.indexOf(t)];
+      if (o.cap === true) return new Vector3(0, dir, 0);
+      if (o.cap === false) return new Vector3(0, -dir, 0);
+      return new Vector3(mid.x - axisX(mid.y), 0, mid.z);
+    },
+    (mid, n, i) => color(mid, n, meta.get(i), dir),
+  );
 }
 
-/** Banded sandstone: alternating yellow-orange and orange strata (diagonal when `slant` is set), pale sunlit top, darker shade on faces turned away from the light. */
-function strata({ yMin = -0.5, yMax = 0.5, bands, slant = 0, seed = 1 }) {
+/** Sandstone strata for poles: bands alternate by facet row, the face toward the corridor is pale sunlit rock, the face turned away is deep shade. */
+function strata(seed, { slant = 0 } = {}) {
   const rnd = rng(seed * 7919);
-  const jitter = new Float32Array(512).map(() => 0.94 + rnd() * 0.12);
-  // one band per run of facet rows, so each stripe is a clean band round the rock (not a checkerboard of triangles)
-  return (mid, n, i, m) => {
-    if (n.y > 0.9) return ROCK_COLORS.top;
-    const s = m ? (m.row / m.rows) * bands + (m.col / m.cols) * slant : ((mid.y - yMin) / (yMax - yMin)) * bands + mid.x * slant;
-    const even = (((Math.floor(s) % 2) + 2) % 2) === 0;
-    let colorHex = even ? ROCK_COLORS.body : ROCK_COLORS.lit;
-    if (n.y < -0.5) colorHex = ROCK_COLORS.deep;
-    // faces turned away from the sun (low, left-facing) fall into red shade
-    else if (n.x < -0.35 && n.y < 0.3) colorHex = even ? ROCK_COLORS.red : ROCK_COLORS.body;
-    c3.set(colorHex).multiplyScalar(jitter[(m ? m.row * 31 + m.col : i) % 512]);
-    return c3.getHex();
+  const jitter = Array.from({ length: 256 }, () => 0.94 + rnd() * 0.12);
+  return (mid, n, m, dir) => {
+    const facing = n.y * dir; // > 0: turned towards the gap end
+    if (facing > 0.9) return hex(ROCK_COLORS.top);
+    const band = Math.floor(m.row + (m.col / 8) * slant);
+    const even = (((band % 2) + 2) % 2) === 0;
+    let h = even ? ROCK_COLORS.body : ROCK_COLORS.lit;
+    if (facing < -0.5) h = ROCK_COLORS.deep;
+    else if (n.x < -0.35 && Math.abs(n.y) < 0.4) h = even ? ROCK_COLORS.red : ROCK_COLORS.body;
+    return hex(h, jitter[(m.row * 17 + m.col * 5) % 256]);
   };
 }
 
-/** Hoodoo shaft: a wavy, banded stem (never thinner than the hitbox). Gap end at the top (y = +0.5). */
-export function createHoodooShaft() {
-  return column({
-    seed: 11,
-    rings: 10,
-    sides: 8,
-    rx: (t) => 0.47 + 0.03 * Math.sin(t * Math.PI * 3.2) + 0.015 * t,
-    rz: (t) => 0.5 + 0.08 * Math.sin(t * Math.PI * 2.1 + 1),
-    jitter: 0.03,
-    colorOf: strata({ bands: 7, seed: 11 }),
-  });
-}
+const tailPoints = (tail) => tail.offsets.map(([o, hw]) => [o, hw, hw]);
+const finPoints = () => POLE_TABLES.fin.map(([d, hw, c]) => [d, hw - c * finLean(0), hw + c * finLean(0)]);
 
-/** Hoodoo caprock: a wide faceted disc 0.3 high (in widths), its flat top on y = 0 and its body below it. Overhangs the stem by about 0.05 of a width each side. */
-export function createHoodooCap() {
-  return column({
-    seed: 12,
-    rings: 3,
-    sides: 8,
-    yMin: -0.3,
-    yMax: 0,
-    rx: (t) => [0.46, 0.505, 0.505, 0.485][Math.round(t * 3)],
-    rz: (t) => [0.52, 0.66, 0.68, 0.6][Math.round(t * 3)],
-    jitter: 0.02,
-    colorOf: strata({ yMin: -0.3, yMax: 0, bands: 2, seed: 12 }),
-  });
-}
+/** Hoodoo head: the flat-topped caprock (flat face at the gap end) down into the neck, d 0 to 0.58. A rising pole only. */
+export const createHoodooHead = () => pole({ points: POLE_TABLES.hoodoo.head, dir: 1, sides: 8, depth: (rx) => rx * 1.05, seed: 11, gapCap: true, color: strata(11) });
+/** One period of the hoodoo's waisted stem (1.8 widths long); placed again and again down the pole. */
+export const createHoodooSegment = () => pole({ points: tailPoints(POLE_TABLES.hoodoo.tail), dir: 1, sides: 8, depth: (rx) => rx * 1.05, seed: 12, color: strata(12) });
+/** Lintel head: the flared, flat underside of a hanging keystone (hangs from above: the gap end is the bottom), d 0 to 0.64. */
+export const createLintelHead = () => pole({ points: POLE_TABLES.lintel.head, dir: -1, sides: 8, depth: (rx) => rx * 1.25, seed: 21, gapCap: true, color: strata(21) });
+/** One period of the lintel's stepped masonry (1.4 widths). */
+export const createLintelSegment = () => pole({ points: tailPoints(POLE_TABLES.lintel.tail), dir: -1, sides: 8, depth: (rx) => rx * 1.25, seed: 22, color: strata(22) });
+/** Rock fin blade: a pointed tip leaning forward, widening to the foot (d 0 to 3.6). `dir` 1 rises from the ground (tip up), -1 hangs (tip down). */
+export const createFinHead = (dir) => pole({ points: finPoints(), dir, sides: 6, depth: (rx) => 0.3 + rx * 0.45, seed: dir > 0 ? 31 : 32, gapCap: true, color: strata(dir > 0 ? 31 : 32, { slant: 3 }) });
+/** The fin's straight foot: a prism 1 wide and 1 long, stretched to the rest of the pole (its width never changes, so stretching keeps the outline exact). Centred on y = 0. */
+export const createFinBody = () => {
+  const g = pole({ points: [[-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]], dir: 1, sides: 6, depth: (rx) => 0.3 + rx * 0.45, seed: 33, color: strata(33, { slant: 3 }) });
+  return g;
+};
 
-/** Rock fin: a leaning blade, thick in depth at its foot and thinning towards the gap end, with diagonal strata. Gap end at the top. */
-export function createRockFin() {
-  return column({
-    seed: 21,
-    rings: 6,
-    sides: 6,
-    rx: () => 0.48,
-    rz: (t) => 0.5 - 0.22 * t,
-    cx: (t) => (t - 0.5) * 0.08,
-    jitter: 0.035,
-    colorOf: strata({ bands: 6, slant: 3.2, seed: 21 }),
-  });
-}
-
-/** Arch lintel: a heavy stepped bridge stone for poles that hang from above; deep in depth, flat underside at the gap end (the renderer flips it, so the gap end is the top here too). */
-export function createArchLintel() {
-  const steps = [0.5, 0.5, 0.465, 0.465, 0.51, 0.51, 0.47, 0.47, 0.51];
-  return column({
-    seed: 31,
-    rings: 8,
-    sides: 8,
-    rx: (t) => steps[Math.round(t * 8)] ?? 0.5,
-    rz: (t) => 0.62 - 0.06 * Math.sin(t * Math.PI * 2),
-    jitter: 0.03,
-    colorOf: strata({ bands: 5, seed: 31 }),
-  });
-}
-
-/**
- * A passage slab (a long ledge or arch span): a box one unit long, tall and deep with a faceted front face and strata, the top (gap face, y = +0.5) perfectly flat.
- * Stretched to the slab's length, so its ends stay square at x = +-0.5.
- */
-export function createPassageSlab(seed = 41) {
+/** Faceted front for the passage slabs: depth jitter on the z faces only, so the silhouette across the track is exact. */
+function slabFaces({ xs, bottom, top, z = 0.5, seed, rows, topCap, faceColor }) {
   const rnd = rng(seed);
-  const NX = 14;
-  const NY = 5;
-  const xs = Array.from({ length: NX + 1 }, (_, i) => -0.5 + i / NX);
-  const ys = Array.from({ length: NY + 1 }, (_, j) => -0.5 + j / NY);
-  // the front face (z > 0) is a faceted grid; only its depth varies
-  const front = xs.map((x, i) => ys.map((y, j) => [x, y, 0.5 + (i === 0 || i === NX || j === NY ? 0 : (rnd() - 0.5) * 0.12)]));
   const tris = [];
-  for (let i = 0; i < NX; i++) {
-    for (let j = 0; j < NY; j++) {
-      const a = front[i][j];
-      const b = front[i + 1][j];
-      const c = front[i + 1][j + 1];
-      const d = front[i][j + 1];
-      tris.push([a, b, c], [a, c, d]);
+  const quads = [];
+  const n = xs.length - 1;
+  for (const side of [1, -1]) {
+    for (let i = 0; i < n; i++) {
+      const jit = () => (rnd() - 0.5) * 0.1;
+      const za = side * (z + (i === 0 ? 0 : jit()));
+      const zb = side * (z + (i === n - 1 ? 0 : jit()));
+      quads.push({ q: [[xs[i], bottom[i], za], [xs[i + 1], bottom[i + 1], zb], [xs[i + 1], top[i + 1], zb], [xs[i], top[i], za]], i, kind: side > 0 ? 'front' : 'back' });
     }
   }
-  // back face, top (flat), bottom and the two ends
-  const q = (a, b, c, d) => tris.push([a, b, c], [a, c, d]);
-  q([0.5, -0.5, -0.5], [-0.5, -0.5, -0.5], [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5]);
-  q([-0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, -0.5], [-0.5, 0.5, -0.5]);
-  q([-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, -0.5, 0.5]);
-  q([0.5, -0.5, 0.5], [0.5, -0.5, -0.5], [0.5, 0.5, -0.5], [0.5, 0.5, 0.5]);
-  q([-0.5, -0.5, -0.5], [-0.5, -0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, 0.5, -0.5]);
-  const stripe = strata({ bands: 4, seed });
-  const frontCount = NX * NY * 2;
-  return fromTriangles(tris, (mid, n, i) => stripe(mid, n, i, i < frontCount ? { row: Math.floor(i / 2) % NY, rows: NY, col: Math.floor(Math.floor(i / 2) / NY), cols: NX } : null));
+  for (let i = 0; i < n; i++) {
+    quads.push({ q: [[xs[i], bottom[i], z], [xs[i + 1], bottom[i + 1], z], [xs[i + 1], bottom[i + 1], -z], [xs[i], bottom[i], -z]], i, kind: 'under' });
+    if (topCap) quads.push({ q: [[xs[i], top[i], z], [xs[i + 1], top[i + 1], z], [xs[i + 1], top[i + 1], -z], [xs[i], top[i], -z]], i, kind: 'top' });
+  }
+  for (const [x, k] of [[xs[0], 0], [xs[n], n]]) quads.push({ q: [[x, bottom[k], -z], [x, bottom[k], z], [x, top[k], z], [x, top[k], -z]], i: k, kind: 'end' });
+  const info = [];
+  for (const o of quads) {
+    const [a, b, c, d] = o.q;
+    tris.push([a, b, c], [a, c, d]);
+    info.push(o, o);
+  }
+  const centre = new Vector3(0, (Math.min(...bottom) + Math.max(...top)) / 2, 0);
+  return fromTriangles(tris, (mid) => mid.clone().sub(centre), (mid, nrm, i) => faceColor(mid, nrm, info[i], rows));
+}
+
+const stoneColor = (seed) => {
+  const rnd = rng(seed);
+  const j = Array.from({ length: 64 }, () => 0.94 + rnd() * 0.12);
+  return (mid, n, o) => {
+    if (n.y > 0.9) return hex(ROCK_COLORS.top);
+    if (n.y < -0.5) return hex(ROCK_COLORS.deep);
+    return hex(o.i % 2 === 0 ? ROCK_COLORS.body : ROCK_COLORS.lit, j[(o.i * 7 + (o.kind === 'front' ? 1 : 2)) % 64]);
+  };
+};
+
+/** The band of an arch span at its gap face: stone blocks (alternating colour) over an underside that rises from the gap height at both ends (archRise). 1 unit long, 1.2 tall, y = 0 at the gap height. */
+export function createArchBand() {
+  const us = slabSamples();
+  const xs = us.map((u) => -0.5 + u);
+  return slabFaces({ xs, bottom: us.map((u) => archRise(u)), top: us.map(() => 1.2), seed: 41, faceColor: stoneColor(41) });
+}
+/** The band of a ledge at its gap face: the top drops at both ends (ledgeDrop). 1 unit long, 1.2 tall, y = 0 at the gap height, the band running down from there. */
+export function createLedgeBand() {
+  const us = slabSamples();
+  const xs = us.map((u) => -0.5 + u);
+  return slabFaces({ xs, bottom: us.map(() => -1.2), top: us.map((u) => -ledgeDrop(u)), seed: 42, topCap: true, faceColor: stoneColor(42) });
+}
+/** The plain body of a slab, stretched from the band to the slab's far end: a unit box, y -0.5 to 0.5. */
+export function createSlabBody() {
+  const xs = [-0.5, 0.5];
+  return slabFaces({ xs, bottom: [-0.5, -0.5], top: [0.5, 0.5], seed: 43, topCap: true, faceColor: stoneColor(43) });
 }
 
 /** A boulder: a faceted lump (an icosphere with each vertex pushed in or out), always at least 0.9 thick in every direction and never beyond 1.2, so it can be spun freely. */
@@ -227,32 +231,57 @@ export function createBoulder(seed = 51) {
   const keyOf = (i) => `${p.getX(i).toFixed(3)},${p.getY(i).toFixed(3)},${p.getZ(i).toFixed(3)}`;
   const factor = new Map();
   const rnd = rng(seed);
-  const tris = [];
   const pts = [];
   for (let i = 0; i < p.count; i++) {
     const key = keyOf(i);
     if (!factor.has(key)) factor.set(key, 0.99 + rnd() * 0.15);
     const v = new Vector3(p.getX(i), p.getY(i), p.getZ(i)).multiplyScalar(factor.get(key));
-    // slightly flattened on top and bottom, like a weathered block
     pts.push([v.x, v.y * 0.97, v.z]);
   }
+  const tris = [];
   for (let i = 0; i < pts.length; i += 3) tris.push([pts[i], pts[i + 1], pts[i + 2]]);
   base.dispose();
-  return fromTriangles(tris, (mid, n, i) => {
-    if (n.y > 0.55) return ROCK_COLORS.lit;
-    if (n.y < -0.3) return ROCK_COLORS.deep;
-    return (Math.floor(mid.y * 3 + 8) % 2 === 0 ? ROCK_COLORS.body : n.x < -0.2 ? ROCK_COLORS.red : ROCK_COLORS.lit);
-  });
+  return fromTriangles(
+    tris,
+    (mid) => mid,
+    (mid, n) => {
+      if (n.y > 0.55) return hex(ROCK_COLORS.lit);
+      if (n.y < -0.3) return hex(ROCK_COLORS.deep);
+      return hex(Math.floor(mid.y * 3 + 8) % 2 === 0 ? ROCK_COLORS.body : n.x < -0.2 ? ROCK_COLORS.red : ROCK_COLORS.lit);
+    },
+  );
 }
 
 /** Every canyon obstacle geometry, built once. */
 export function createCanyonRockSet() {
   return {
-    hoodooShaft: createHoodooShaft(),
-    hoodooCap: createHoodooCap(),
-    fin: createRockFin(),
-    lintel: createArchLintel(),
-    slab: createPassageSlab(),
+    hoodooHead: createHoodooHead(),
+    hoodooSegment: createHoodooSegment(),
+    lintelHead: createLintelHead(),
+    lintelSegment: createLintelSegment(),
+    finHeadUp: createFinHead(1),
+    finHeadDown: createFinHead(-1),
+    finBody: createFinBody(),
+    archBand: createArchBand(),
+    ledgeBand: createLedgeBand(),
+    slabBody: createSlabBody(),
     boulder: createBoulder(),
   };
 }
+
+/**
+ * The instances that draw one pole: for a pole of the given look at (gapEndY) with width w, shaped down to `dDraw` widths from its gap end, a list of
+ * { key: geometry name in the set, y: where its origin goes, sy: vertical scale, s: scale across (w) }. Built from the same placement list the tests assemble.
+ */
+export function poleInstances(look, cap, gapEndY, w, dDraw) {
+  const dir = cap > 0 ? 1 : -1;
+  const yAt = (d) => gapEndY - dir * d * w;
+  return polePlacements(look, dDraw).map(({ part, d0, d1 }) => {
+    if (look === 'fin') {
+      if (part === 'head') return { key: dir > 0 ? 'finHeadUp' : 'finHeadDown', y: yAt(0), sy: w, s: w };
+      return { key: 'finBody', y: yAt((d0 + d1) / 2), sy: (d1 - d0) * w, s: w };
+    }
+    return { key: part === 'head' ? `${look}Head` : `${look}Segment`, y: yAt(d0), sy: w, s: w };
+  });
+}
+export { ARCH_RISE, FIN_FOOT, LEDGE_DROP };

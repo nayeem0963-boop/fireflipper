@@ -288,3 +288,10 @@ large as their circle); `npm run test:rocks` checks it against the real geometry
 (`shape: 'poly'` in `collision.js`: a union of convex quads, allocation-free). Which look an obstacle gets comes from a hash of its position, so generated tracks are unchanged (a test compares a fingerprint of 8 seeds out to
 3000 m with the one recorded before). Shapes only apply before `WORLD.rockShapesEnd` (1500 m, the canyon's end) and only add room around the guaranteed corridors. They are behind `ROCK_SHAPES.enabled`, which stays
 off until the matching geometry is drawn, so the game plays exactly as before for now. `npm run test:colliders` covers it.
+
+### Canyon obstacle redesign, phase B: geometry from the collider outlines
+
+`src/components/scene/canyonRocks.js` is rebuilt from the same outline tables as the colliders (`systems/obstacles/rockShapes.js`): a pole's rings sit exactly on the outline's control points, with vertices on the left and right extremes, so the
+silhouette across the track is the collider's outline. `poleInstances()` lists the instances that draw one pole (a head, whole stem segments or a stretched foot), the same placement list the tests assemble.
+Eleven pieces, one InstancedMesh each: hoodoo head and segment, lintel head and segment, fin head (up and down) and foot, arch band, ledge band, slab body, boulder (about 650 triangles all together). Not drawn in the game yet (phase C).
+`npm run test:rocks` compares the assembled silhouettes with the real colliders (worst difference 0.0000); preview with `npm run dev` and `/gallery.html?set=canyon&z=26&cx=3`.

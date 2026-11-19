@@ -30,7 +30,7 @@ const FIN = [[0, 0.05, 0.28], [0.9, 0.2, 0.2], [1.8, 0.36, 0.12], [2.8, 0.48, 0.
 /** Passage arch span and ledge shape constants (world units). */
 export const ARCH_RISE = 0.5; // the span's underside rises this much in the middle (never below the section's gap height)
 export const LEDGE_DROP = 0.6; // the ledge's top drops this much at its ends (never above the gap height)
-export const LEDGE_BEVEL = 0.8; // over this length
+export const LEDGE_BEVEL = 0.1; // over this fraction of its length, at each end
 
 /**
  * Master switch. While the renderer still draws the original poles, the canyon keeps its original colliders (a visual that differs from its collider would be unfair);
@@ -53,8 +53,8 @@ export function rockLook(kind, cap, x) {
   if (cap > 0) return h < 0.5 ? 'hoodoo' : 'fin';
   return h < 0.5 ? 'fin' : 'lintel';
 }
-/** A fin leans forward or back, by position. */
-export const finLean = (x) => (hash01(x * 1.7 + 3) < 0.5 ? 1 : -1);
+/** Fins lean forward (towards +x). One direction keeps the renderer's mesh count down. */
+export const finLean = () => 1;
 
 /** Control points [d, left, right] of a pole look, from the gap end (d = 0) to `dMax` widths, the last one cut exactly at dMax. */
 export function controlPoints(look, dMax, lean = 1) {
@@ -109,9 +109,7 @@ function ccw(p) {
 export function columnPolys(look, cx, gapEndY, cap, w, yBottom, yTop, lean = 1) {
   const dir = cap > 0 ? 1 : -1;
   const farY = cap > 0 ? yBottom : yTop;
-  const total = Math.abs(gapEndY - farY) / w;
-  const reachY = cap > 0 ? WORLD.groundY - 0.5 : WORLD.ceilingY + 1.0;
-  const dReach = Math.max(0.05, Math.min(total, Math.abs(gapEndY - reachY) / w));
+  const { total, reach: dReach } = poleReach(cap, gapEndY, w, yBottom, yTop);
   const pts = controlPoints(look, dReach, lean);
   const polys = [];
   const yAt = (d) => gapEndY - dir * d * w;
@@ -127,21 +125,19 @@ export function columnPolys(look, cx, gapEndY, cap, w, yBottom, yTop, lean = 1) 
   return polys;
 }
 
-/** Sample positions along a passage slab of length L (the geometry uses the same ones). Breakpoints at both bevels, other samples about 0.8 apart. */
-export function slabSamples(L) {
-  const n = Math.max(6, Math.round(L / 0.8));
-  return Array.from({ length: n + 1 }, (_, i) => i / n);
-}
+/** Fractions along a passage slab where its outline is sampled: ten equal strips (the geometry stretches to the slab's length, so it uses the same ones). */
+export const SLAB_STRIPS = 10;
+export const slabSamples = () => Array.from({ length: SLAB_STRIPS + 1 }, (_, i) => i / SLAB_STRIPS);
 
 /** Underside rise of an arch span at fraction u along it (0 at both springers). */
 export const archRise = (u) => ARCH_RISE * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, u))), 0.7);
-/** How far a ledge's top drops below the gap height at distance `s` metres from its nearer end. */
-export const ledgeDrop = (s) => LEDGE_DROP * Math.max(0, 1 - s / LEDGE_BEVEL);
+/** How far a ledge's top drops below the gap height at fraction u along it (0 in the middle, LEDGE_DROP at each end). */
+export const ledgeDrop = (u) => LEDGE_DROP * Math.max(0, 1 - Math.min(u, 1 - u) / LEDGE_BEVEL);
 
 /** Arch span (the upper slab of a passage): the underside rises from the gap height at both ends; strips from there up to the slab's top. */
 export function archPolys(x0, x1, yBottom, yTop) {
   const L = x1 - x0;
-  const us = slabSamples(L);
+  const us = slabSamples();
   const polys = [];
   for (let i = 0; i + 1 < us.length; i++) {
     const xa = x0 + us[i] * L;
@@ -154,10 +150,13 @@ export function archPolys(x0, x1, yBottom, yTop) {
 /** Ledge (the lower slab of a passage): the top drops away at both ends; strips from the slab's foot up to there. */
 export function ledgePolys(x0, x1, yBottom, yTop) {
   const L = x1 - x0;
-  const xs = [...new Set([...slabSamples(L).map((u) => x0 + u * L), x0 + LEDGE_BEVEL, x1 - LEDGE_BEVEL])].sort((a, b) => a - b);
-  const top = (x) => yTop - ledgeDrop(Math.min(x - x0, x1 - x));
+  const us = slabSamples();
   const polys = [];
-  for (let i = 0; i + 1 < xs.length; i++) polys.push([xs[i], yBottom, xs[i + 1], yBottom, xs[i + 1], top(xs[i + 1]), xs[i], top(xs[i])]);
+  for (let i = 0; i + 1 < us.length; i++) {
+    const xa = x0 + us[i] * L;
+    const xb = x0 + us[i + 1] * L;
+    polys.push([xa, yBottom, xb, yBottom, xb, yTop - ledgeDrop(us[i + 1]), xa, yTop - ledgeDrop(us[i])]);
+  }
   return polys;
 }
 
@@ -166,4 +165,34 @@ export function polysExtent(polys, cx) {
   let m = 0;
   for (const p of polys) for (let i = 0; i < 8; i += 2) m = Math.max(m, Math.abs(p[i] - cx));
   return m;
+}
+
+/** The tables the geometry is built from (the same data the colliders use). */
+export const POLE_TABLES = Object.freeze({ hoodoo: HOODOO, lintel: LINTEL, fin: FIN });
+/** Where a fin's blade ends and its straight foot begins, in widths from the gap end. */
+export const FIN_FOOT = FIN[FIN.length - 1][0];
+
+/** How deep (in widths from the gap end) a pole's collider is shaped: only the part a bird can reach (see columnPolys). */
+export function poleReach(cap, gapEndY, w, yBottom, yTop) {
+  const farY = cap > 0 ? yBottom : yTop;
+  const total = Math.abs(gapEndY - farY) / w;
+  const reachY = cap > 0 ? WORLD.groundY - 0.5 : WORLD.ceilingY + 1.0;
+  return { total, reach: Math.max(0.05, Math.min(total, Math.abs(gapEndY - reachY) / w)) };
+}
+
+/**
+ * The pieces a pole is drawn from, for a pole shaped down to `dDraw` widths from its gap end: a head (cap, tip or underside), whole repeating segments of the stem (hoodoo,
+ * lintel) or one stretched straight foot (fin), each given by its part name and where it starts (`d0`, in widths). The renderer places instances from this list and the tests
+ * assemble the same list, so what is tested is what is drawn. Segments end at or beyond `dDraw`: the excess lies underground or above the ceiling, out of reach of the bird.
+ */
+export function polePlacements(look, dDraw) {
+  if (look === 'fin') {
+    const out = [{ part: 'head', d0: 0 }];
+    if (dDraw > FIN_FOOT) out.push({ part: 'body', d0: FIN_FOOT, d1: dDraw });
+    return out;
+  }
+  const { start, period } = look === 'hoodoo' ? HOODOO.tail : LINTEL.tail;
+  const out = [{ part: 'head', d0: 0 }];
+  for (let d = start; d < dDraw - 1e-9; d += period) out.push({ part: 'segment', d0: d });
+  return out;
 }
