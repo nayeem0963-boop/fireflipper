@@ -1,16 +1,16 @@
 import { BufferAttribute, BufferGeometry, Color, IcosahedronGeometry, Vector3 } from 'three';
-import { ARCH_RISE, FIN_FOOT, LEDGE_DROP, POLE_TABLES, archRise, finLean, ledgeDrop, slabSamples } from '../../systems/obstacles/rockShapes.js';
+import { KITS, archRise, bladePoints, kitPieces, ledgeDrop, poleDef, slabSamples } from '../../systems/obstacles/rockShapes.js';
 
 /**
- * Procedural sandstone geometry for the Red Rock Canyon obstacles: hoodoos, rock fins, arch lintels, arch spans, ledges and boulders, in the faceted, banded style of the owner's
- * reference paintings. Pure geometry (vertex colours, flat faces), no model files; ObstacleField places the instances.
+ * Procedural geometry for the zones' obstacles (the canyon's hoodoos, fins and arch lintels, Frosty Polar's ice spires, blades, icicles and keystones, and so on): the poles, the arch spans
+ * and ledges of passages, and boulders, in each zone's own palette. Pure geometry (vertex colours, flat faces), no model files; ObstacleField places the instances.
  *
  * Every outline is built from the SAME tables the simulation's colliders use (systems/obstacles/rockShapes.js): a pole's rings sit exactly on the outline's control points, with
  * vertices on the left and right extremes, so the silhouette across the track IS the collider's polygon outline. A pole is drawn in widths `w` (unit width, the gap end at y = 0, the
- * stem running away from the corridor: down for a rising pole, up for a hanging one); passage slabs are one unit long, stretched to the slab's length. scripts/canyon-rocks-test.mjs compares
- * the assembled silhouettes with the real colliders.
+ * stem running away from the corridor: down for a rising pole, up for a hanging one); passage slabs are one unit long, stretched to the slab's length. scripts/rock-sets-test.mjs compares
+ * the assembled silhouettes with the real colliders, for every kit.
  *
- * Pieces (one InstancedMesh each): hoodooHead, hoodooSegment, lintelHead, lintelSegment, finHeadUp, finHeadDown, finBody, archBand, ledgeBand, slabBlock, boulder.
+ * A kit's pieces (see kitPieces in rockShapes.js; one InstancedMesh each): per look a head and a segment (capped) or head(s) and a body (blade), plus archBand, ledgeBand, slabBlock, boulder.
  */
 export const ROCK_CONTRACT = Object.freeze({
   /** Boulders: the largest ball inside is at least this (the collider circle is 0.86) and nothing reaches beyond maxRadius (1.4 x the collider). */
@@ -21,15 +21,26 @@ export const ROCK_CONTRACT = Object.freeze({
 });
 
 /**
- * The canyon's colours, from the paintings: sunlit yellow-orange strata, orange sandstone, red shade, pale sunlit tops. The shade colours are kept light enough to read against the
- * paintings (their median luminance is 0.09 to 0.15, measured; see PAINTING_MEDIAN_LUMINANCE in scripts/canyon-rocks-test.mjs).
+ * How each kit looks. `palette`: top (sunlit highlights and caps), lit and body (the strata), shade (faces turned from the light), deep (undersides). The colours are kept readable against
+ * the zone's paintings (checked in the tests against measured painting luminance). `looks` gives each pole look its sides, depth (a + rx * b) and diagonal banding.
  */
-export const ROCK_COLORS = Object.freeze({
-  lit: '#f6b44e',
-  body: '#ee8434',
-  red: '#e2632f',
-  deep: '#b84a2c',
-  top: '#ffe0a8',
+export const KIT_STYLE = Object.freeze({
+  // from the canyon paintings: sunlit yellow-orange strata, orange sandstone, red shade, pale sunlit tops (paintings' median luminance 0.09 to 0.15)
+  canyon: {
+    palette: { top: '#ffe0a8', lit: '#f6b44e', body: '#ee8434', shade: '#e2632f', deep: '#b84a2c' },
+    emissive: '#4a1a0c',
+    emissiveIntensity: 0.55,
+    looks: { hoodoo: { sides: 8, a: 0, b: 1.05 }, lintel: { sides: 8, a: 0, b: 1.25 }, fin: { sides: 6, a: 0.3, b: 0.45, slant: 3 } },
+    boulder: { cap: 'lit', capNormal: 0.55 },
+  },
+  // from the Frosty Polar paintings: deep glacier blues with pale ice highlights and snow-white caps (paintings' median luminance 0.26 to 0.40, bright)
+  frosty: {
+    palette: { top: '#ffffff', lit: '#c4ecff', body: '#1a5fa0', shade: '#144a85', deep: '#0e3060' },
+    emissive: '#0c2f55',
+    emissiveIntensity: 0.5,
+    looks: { spire: { sides: 8, a: 0, b: 1.0 }, iceBlade: { sides: 6, a: 0.3, b: 0.45, slant: 3 }, icicle: { sides: 6, a: 0.2, b: 0.8, slant: 0 }, keystone: { sides: 8, a: 0, b: 1.2 } },
+    boulder: { cap: 'top', capNormal: 0.45 },
+  },
 });
 
 function rng(seed) {
@@ -135,40 +146,6 @@ function pole({ points, dir, sides, depth, seed, gapCap = false, farCap = false,
   );
 }
 
-/** Sandstone strata for poles: bands alternate by facet row, the face toward the corridor is pale sunlit rock, the face turned away is deep shade. */
-function strata(seed, { slant = 0 } = {}) {
-  const rnd = rng(seed * 7919);
-  const jitter = Array.from({ length: 256 }, () => 0.94 + rnd() * 0.12);
-  return (mid, n, m, dir) => {
-    const facing = n.y * dir; // > 0: turned towards the gap end
-    if (facing > 0.9) return hex(ROCK_COLORS.top);
-    const band = Math.floor(m.row + (m.col / 8) * slant);
-    const even = (((band % 2) + 2) % 2) === 0;
-    let h = even ? ROCK_COLORS.body : ROCK_COLORS.lit;
-    if (facing < -0.5) h = ROCK_COLORS.deep;
-    else if (n.x < -0.35 && Math.abs(n.y) < 0.4) h = even ? ROCK_COLORS.red : ROCK_COLORS.body;
-    return hex(h, jitter[(m.row * 17 + m.col * 5) % 256]);
-  };
-}
-
-const tailPoints = (tail) => tail.offsets.map(([o, hw]) => [o, hw, hw]);
-const finPoints = () => POLE_TABLES.fin.map(([d, hw, c]) => [d, hw - c * finLean(0), hw + c * finLean(0)]);
-
-/** Hoodoo head: the flat-topped caprock (flat face at the gap end) down into the neck, d 0 to 0.58. A rising pole only. */
-export const createHoodooHead = () => pole({ points: POLE_TABLES.hoodoo.head, dir: 1, sides: 8, depth: (rx) => rx * 1.05, seed: 11, gapCap: true, color: strata(11) });
-/** One period of the hoodoo's waisted stem (1.8 widths long); placed again and again down the pole. */
-export const createHoodooSegment = () => pole({ points: tailPoints(POLE_TABLES.hoodoo.tail), dir: 1, sides: 8, depth: (rx) => rx * 1.05, seed: 12, color: strata(12) });
-/** Lintel head: the flared, flat underside of a hanging keystone (hangs from above: the gap end is the bottom), d 0 to 0.64. */
-export const createLintelHead = () => pole({ points: POLE_TABLES.lintel.head, dir: -1, sides: 8, depth: (rx) => rx * 1.25, seed: 21, gapCap: true, color: strata(21) });
-/** One period of the lintel's stepped masonry (1.4 widths). */
-export const createLintelSegment = () => pole({ points: tailPoints(POLE_TABLES.lintel.tail), dir: -1, sides: 8, depth: (rx) => rx * 1.25, seed: 22, color: strata(22) });
-/** Rock fin blade: a pointed tip leaning forward, widening to the foot (d 0 to 3.6). `dir` 1 rises from the ground (tip up), -1 hangs (tip down). */
-export const createFinHead = (dir) => pole({ points: finPoints(), dir, sides: 6, depth: (rx) => 0.3 + rx * 0.45, seed: dir > 0 ? 31 : 32, gapCap: true, color: strata(dir > 0 ? 31 : 32, { slant: 3 }) });
-/** The fin's straight foot: a prism 1 wide and 1 long, stretched to the rest of the pole (its width never changes, so stretching keeps the outline exact). Centred on y = 0. */
-export const createFinBody = () => {
-  const g = pole({ points: [[-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]], dir: 1, sides: 6, depth: (rx) => 0.3 + rx * 0.45, seed: 33, color: strata(33, { slant: 3 }) });
-  return g;
-};
 
 /**
  * Faceted front and back for the passage slabs. Each strip is cut into `rows` rows, and the interior vertices are pushed in or out in depth (z) only, so the
@@ -201,49 +178,87 @@ function slabFaces({ xs, bottom, top, z = 0.5, seed, rows = 1, topCap, faceColor
   return fromTriangles(tris, (mid) => mid.clone().sub(centre), (mid, nrm, i) => faceColor(mid, nrm, info[i]));
 }
 
-/** A stratum: the lower half of a block one colour, the upper half the other (two layers of sandstone per block). */
-const layerColor = (seed) => {
+
+/** Strata for poles: bands alternate by facet row, the face toward the corridor is the palette's sunlit top, the face turned away is deep shade. */
+function strata(seed, P, { slant = 0 } = {}) {
+  const rnd = rng(seed * 7919);
+  const jitter = Array.from({ length: 256 }, () => 0.94 + rnd() * 0.12);
+  return (mid, n, m, dir) => {
+    const facing = n.y * dir; // > 0: turned towards the gap end
+    if (facing > 0.9) return hex(P.top);
+    const band = Math.floor(m.row + (m.col / 8) * slant);
+    const even = (((band % 2) + 2) % 2) === 0;
+    let h = even ? P.body : P.lit;
+    if (facing < -0.5) h = P.deep;
+    else if (n.x < -0.35 && Math.abs(n.y) < 0.4) h = even ? P.shade : P.body;
+    return hex(h, jitter[(m.row * 17 + m.col * 5) % 256]);
+  };
+}
+
+const tailPoints = (tail) => tail.offsets.map(([o, hw]) => [o, hw, hw]);
+
+/** One piece of a pole: spec = { look, part: 'head' | 'segment' | 'body', dir }. Built from the look's outline table, in the kit's palette. */
+function createPolePiece(kit, spec, index) {
+  const { look, part, dir } = spec;
+  const def = poleDef(kit, look);
+  const st = KIT_STYLE[kit];
+  const ls = st.looks[look];
+  const seed = 1000 * (Object.keys(KITS).indexOf(kit) + 1) + 37 * index + 5;
+  const depth = (rx) => ls.a + rx * ls.b;
+  const color = strata(seed, st.palette, { slant: ls.slant ?? 0 });
+  if (def.type === 'blade') {
+    if (part === 'body') return pole({ points: [[-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]], dir: 1, sides: ls.sides, depth, seed, color });
+    return pole({ points: bladePoints(def), dir, sides: ls.sides, depth, seed, gapCap: true, color });
+  }
+  if (part === 'head') return pole({ points: def.head, dir, sides: ls.sides, depth, seed, gapCap: true, color });
+  return pole({ points: tailPoints(def.tail), dir, sides: ls.sides, depth, seed, color });
+}
+
+const stoneColor = (seed, P) => {
   const rnd = rng(seed);
   const j = Array.from({ length: 64 }, () => 0.94 + rnd() * 0.12);
   return (mid, n, o) => {
-    if (n.y > 0.9) return hex(ROCK_COLORS.top);
-    if (n.y < -0.5) return hex(ROCK_COLORS.deep);
+    if (n.y > 0.9) return hex(P.top);
+    if (n.y < -0.5) return hex(P.deep);
+    return hex(o.i % 2 === 0 ? P.body : P.lit, j[(o.i * 7 + (o.kind === 'front' ? 1 : 2)) % 64]);
+  };
+};
+
+/** A stratum: the lower half of a block one colour, the upper half the other (two layers of the zone's stone per block). */
+const layerColor = (seed, P) => {
+  const rnd = rng(seed);
+  const j = Array.from({ length: 64 }, () => 0.94 + rnd() * 0.12);
+  return (mid, n, o) => {
+    if (n.y > 0.9) return hex(P.top);
+    if (n.y < -0.5) return hex(P.deep);
     const upper = o.j >= o.rows / 2;
-    let h = upper ? ROCK_COLORS.lit : ROCK_COLORS.body;
-    if (n.x < -0.35 && Math.abs(n.y) < 0.4) h = upper ? ROCK_COLORS.body : ROCK_COLORS.red;
+    let h = upper ? P.lit : P.body;
+    if (n.x < -0.35 && Math.abs(n.y) < 0.4) h = upper ? P.body : P.shade;
     return hex(h, j[(o.i * 5 + o.j * 11) % 64]);
   };
 };
 
-const stoneColor = (seed) => {
-  const rnd = rng(seed);
-  const j = Array.from({ length: 64 }, () => 0.94 + rnd() * 0.12);
-  return (mid, n, o) => {
-    if (n.y > 0.9) return hex(ROCK_COLORS.top);
-    if (n.y < -0.5) return hex(ROCK_COLORS.deep);
-    return hex(o.i % 2 === 0 ? ROCK_COLORS.body : ROCK_COLORS.lit, j[(o.i * 7 + (o.kind === 'front' ? 1 : 2)) % 64]);
-  };
-};
-
 /** The band of an arch span at its gap face: stone blocks (alternating colour) over an underside that rises from the gap height at both ends (archRise). 1 unit long, 1.2 tall, y = 0 at the gap height. */
-export function createArchBand() {
+export function createArchBand(kit) {
   const us = slabSamples();
   const xs = us.map((u) => -0.5 + u);
-  return slabFaces({ xs, bottom: us.map((u) => archRise(u)), top: us.map(() => 1.2), seed: 41, rows: 2, faceColor: stoneColor(41) });
+  return slabFaces({ xs, bottom: us.map((u) => archRise(kit, u)), top: us.map(() => 1.2), seed: 41, rows: 2, faceColor: stoneColor(41, KIT_STYLE[kit].palette) });
 }
 /** The band of a ledge at its gap face: the top drops at both ends (ledgeDrop). 1 unit long, 1.2 tall, y = 0 at the gap height, the band running down from there. */
-export function createLedgeBand() {
+export function createLedgeBand(kit) {
   const us = slabSamples();
   const xs = us.map((u) => -0.5 + u);
-  return slabFaces({ xs, bottom: us.map(() => -1.2), top: us.map((u) => -ledgeDrop(u)), seed: 42, rows: 2, topCap: true, faceColor: stoneColor(42) });
+  return slabFaces({ xs, bottom: us.map(() => -1.2), top: us.map((u) => -ledgeDrop(kit, u)), seed: 42, rows: 2, topCap: true, faceColor: stoneColor(42, KIT_STYLE[kit].palette) });
 }
-/** One block of a slab's body: 3 tall (two 1.5-thick layers of sandstone), 1 long (stretched to the slab's length), y from -1.5 to 1.5. The body is a stack of these. */
-export function createSlabBlock() {
-  return slabFaces({ xs: [-0.5, -0.25, 0, 0.25, 0.5], bottom: Array(5).fill(-1.5), top: Array(5).fill(1.5), seed: 43, rows: 4, topCap: true, faceColor: layerColor(43), jitter: 0.2 });
+/** One block of a slab's body: 3 tall (two 1.5-thick layers), 1 long (stretched to the slab's length), y from -1.5 to 1.5. The body is a stack of these. */
+export function createSlabBlock(kit) {
+  return slabFaces({ xs: [-0.5, -0.25, 0, 0.25, 0.5], bottom: Array(5).fill(-1.5), top: Array(5).fill(1.5), seed: 43, rows: 4, topCap: true, faceColor: layerColor(43, KIT_STYLE[kit].palette), jitter: 0.2 });
 }
 
 /** A boulder: a faceted lump (an icosphere with each vertex pushed in or out), always at least 0.9 thick in every direction and never beyond 1.2, so it can be spun freely. */
-export function createBoulder(seed = 51) {
+export function createBoulder(kit, seed = 51) {
+  const st = KIT_STYLE[kit];
+  const P = st.palette;
   const base = new IcosahedronGeometry(1, 1);
   const p = base.attributes.position;
   const keyOf = (i) => `${p.getX(i).toFixed(3)},${p.getY(i).toFixed(3)},${p.getZ(i).toFixed(3)}`;
@@ -263,29 +278,24 @@ export function createBoulder(seed = 51) {
     tris,
     (mid) => mid,
     (mid, n) => {
-      if (n.y > 0.55) return hex(ROCK_COLORS.lit);
-      if (n.y < -0.3) return hex(ROCK_COLORS.deep);
-      return hex(Math.floor(mid.y * 3 + 8) % 2 === 0 ? ROCK_COLORS.body : n.x < -0.2 ? ROCK_COLORS.red : ROCK_COLORS.lit);
+      if (n.y > st.boulder.capNormal) return hex(P[st.boulder.cap]);
+      if (n.y < -0.3) return hex(P.deep);
+      return hex(Math.floor(mid.y * 3 + 8) % 2 === 0 ? P.body : n.x < -0.2 ? P.shade : P.lit);
     },
   );
 }
 
-/** Every canyon obstacle geometry, built once. */
-export function createCanyonRockSet() {
-  return {
-    hoodooHead: createHoodooHead(),
-    hoodooSegment: createHoodooSegment(),
-    lintelHead: createLintelHead(),
-    lintelSegment: createLintelSegment(),
-    finHeadUp: createFinHead(1),
-    finHeadDown: createFinHead(-1),
-    finBody: createFinBody(),
-    archBand: createArchBand(),
-    ledgeBand: createLedgeBand(),
-    slabBlock: createSlabBlock(),
-    boulder: createBoulder(),
-  };
+/** Every geometry piece of one kit, built once: { <piece key>: geometry } (the keys are the ones kitPieces lists, and the ones poleInstances names after '<kit>.'). */
+export function createRockSet(kit) {
+  const out = {};
+  kitPieces(kit).forEach((spec, i) => {
+    if (spec.key === 'archBand') out.archBand = createArchBand(kit);
+    else if (spec.key === 'ledgeBand') out.ledgeBand = createLedgeBand(kit);
+    else if (spec.key === 'slabBlock') out.slabBlock = createSlabBlock(kit);
+    else if (spec.key === 'boulder') out.boulder = createBoulder(kit);
+    else out[spec.key] = createPolePiece(kit, spec, i);
+  });
+  return out;
 }
 
 export { poleInstances } from '../../systems/obstacles/rockShapes.js';
-export { ARCH_RISE, FIN_FOOT, LEDGE_DROP };

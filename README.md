@@ -306,3 +306,10 @@ worked out once when it spawns, so the renderer allocates nothing per frame. Pas
 
 The rock palette is checked against the canyon paintings (median luminance of the band behind the gameplay area, 0.09 to 0.15, measured): the body colour is `#ee8434` (2.0:1 against the brightest median), sunlit strata and tops 2.9:1 and 4.1:1, shade `#e2632f` 1.5:1,
 and only the undersides (`#b84a2c`) blend in. `npm run test:rocks` keeps these ratios. Browser matrix on the phase C build: 62 cases, at most 61 draw calls and 27 GPU textures.
+
+### Zone obstacle kits (canyon redesign applied to the other zones), step 1: infrastructure and Frosty Polar
+
+The canyon's rock obstacles became a general system of per-zone **kits** (`KITS` in `systems/obstacles/rockShapes.js`): each kit lists its pole looks (rising and hanging; `capped` = a head and a repeating stem, `blade` = tip to foot), a passage's arch span and
+ledge shape, and a palette (`KIT_STYLE` in `components/scene/rockSets.js`). The simulation picks the kit from the track position (`KIT_STARTS`, checked against the scenery zones' starts) and each shape's look from a hash of its position, so generated tracks stay
+identical. Colliders and geometry come from the same tables for every kit (`npm run test:colliders`, `npm run test:rocks`). Built so far: **canyon** (hoodoos, fins, lintels) and **Frosty Polar** (ice spires, ice blades, icicles, ice keystones, an ice arch over a snow-capped shelf, ice floes).
+Switch a kit off with `ROCK_SHAPES.kits.<kit> = false` (the zone's original obstacles and colliders come back); celestial, palace and sanctuary are still `false`. Draw calls: about 33 of the frame's total are the player bird, up to about 24 the two zones' scenery at a border and up to about 20 obstacles; the matrix budget is 80.

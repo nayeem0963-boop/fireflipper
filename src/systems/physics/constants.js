@@ -45,8 +45,6 @@ export const WORLD = Object.freeze({
   runway: 12,
   /** Visual depth (z) of obstacles. */
   obstacleDepth: 1.6,
-  /** Obstacles before this track position (the Red Rock Canyon) are hoodoos, fins, arches and boulders with matching polygon colliders; see systems/obstacles/rockShapes.js. */
-  rockShapesEnd: 1500,
 });
 
 export const SCORING = Object.freeze({

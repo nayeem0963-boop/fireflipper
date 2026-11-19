@@ -28,7 +28,8 @@ const SCREENS = [
 // MATRIX_ONLY=pause,retry (any of: screens, pause, retry, soak) runs just those parts
 const ONLY = process.env.MATRIX_ONLY?.split(',');
 const want = (part) => !ONLY || ONLY.includes(part);
-const BUDGET = { drawCalls: 70, textures: 32 };
+// Draw calls per frame. At a zone border two zones' scenery cross-fade and two obstacle kits are on screen; the player bird alone is about 33 of them (measured), the scenery about 24, obstacles up to about 20.
+const BUDGET = { drawCalls: 80, textures: 32 };
 let failures = 0;
 const rows = [];
 const fail = (name, detail = '') => {

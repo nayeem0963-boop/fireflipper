@@ -20,7 +20,7 @@
     "test:foreground": "node scripts/foreground-test.mjs",
     "test:ambient": "node scripts/ambient-test.mjs",
     "test:fps": "node scripts/fps-test.mjs",
-    "test:rocks": "node scripts/canyon-rocks-test.mjs",
+    "test:rocks": "node scripts/rock-sets-test.mjs",
     "test:colliders": "node scripts/rock-colliders-test.mjs",
     "test:e2e": "node scripts/e2e-smoke.mjs",
     "test:matrix": "node scripts/matrix-test.mjs",
