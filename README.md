@@ -342,3 +342,14 @@ are drawn in phase 3); `?hazards=1` switches them on for a preview. `npm run tes
 - **Moving and phasing obstacles.** The simulation computes `o.dy`, `o.solid`, `o.pulse`, `o.rumble`, `o.dyn` for every obstacle from the bird's distance. The bird is tested in the obstacle's own moved frame (`b.y - o.dy`), a phased-out barrier is skipped (no hit, no near miss), and moving obstacles use an 85% hitbox
   (the bird radius shrinks by `DYNAMIC_INSET`, about 0.054; static shapes keep exact silhouettes). The Auto play bot plans with the same function. The renderer applies `dy` to every piece; until phase 3 a passable phase barrier is simply not drawn.
 - Tests: `npm run test:hazards` now also covers the telegraph on real tracks (80 windows, 0.62 to 0.65 s), the reserved bands, the collisions (a retracted piston's vacated space is survivable and the unmoved collider would have hit; a translucent barrier is passable and a solid one kills) and Auto play to 5600 m.
+
+### Biome hazards, phase 3: the telegraphs (still off by default)
+
+Everything the player must see before a hazard acts is now drawn (only with `?hazards=1`; nothing is drawn or computed otherwise). Pure maths in `systems/hazards/telegraph.js`, the renderer in `scenes/EmberValley/HazardTelegraph.jsx`:
+- **Windows** (updraft, gust, low-gravity pocket): a soft column with crisp edge lines over the stretch of track, brightening through the 0.65 s lead and pulsing while it acts, plus particles inside it (rising heat, blowing snow, slow glints).
+  The canyon's updraft is warm additive light; Frosty Polar's gust (blue) and the Sanctuary's low gravity (violet) are tinted with darker particles, because additive white vanished on snow and cloud (the particle colours are tested against the paintings' measured luminance).
+- **Phase barriers** (Celestial City): drawn as a dithered translucent ghost while passable (three's `alphaHash` with a per-instance alpha, so no sorting and no depth problems), firming up over their warning, then solid. They glow warm just before they turn solid.
+- **Pistons** (Palace): a glowing rail beside the pole spanning its travel, brighter just before the piston comes back. **Brittle caps** (canyon): a warm glow and a tremble of at most 0.05 (inside the moving obstacles' 15% forgiveness) before the cap sinks.
+- **Bobbing platforms** (Sanctuary) bob (they move with their colliders). They do not tilt: a tilted slab would no longer match its collider.
+- Draw calls: the telegraph is 4 draw items with at most 3 visible at once; with the hazards on the zone-border peak stays at 78 on phone (the budget is 80). Everything stands behind the gameplay plane or beside an obstacle, so it cannot cover the bird, an obstacle or an orb.
+`MATRIX_HAZARDS=1 npm run test:matrix` runs the browser matrix with the hazards on.

@@ -16,6 +16,8 @@ try {
 }
 const { chromium, devices } = playwright;
 const PORT = 4188;
+// MATRIX_HAZARDS=1 runs the whole matrix with the biome hazards switched on (?hazards=1)
+const QUERY = process.env.MATRIX_HAZARDS === '1' ? '/?hazards=1' : '';
 const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
 await new Promise((r) => setTimeout(r, 4000));
 
@@ -53,7 +55,7 @@ for (const [name, opt] of want('screens') ? SCREENS : []) {
   const errors = [];
   p.on('pageerror', (e) => errors.push(e.message));
   p.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-  await p.goto(`http://localhost:${PORT}`);
+  await p.goto(`http://localhost:${PORT}${QUERY}`);
   await p.waitForTimeout(2000);
   await p.getByRole('button', { name: /play|start|fly/i }).first().click();
   await p.waitForTimeout(1500);
@@ -80,7 +82,7 @@ if (want('pause')) {
   const p = await ctx.newPage();
   const errors = [];
   p.on('pageerror', (e) => errors.push(e.message));
-  await p.goto(`http://localhost:${PORT}`);
+  await p.goto(`http://localhost:${PORT}${QUERY}`);
   await p.waitForTimeout(2000);
   for (const d of [700, 1900, 6500]) {
     await p.getByRole('button', { name: /play|start|fly/i }).first().click({ timeout: 15000 }).catch(() => {});
@@ -119,7 +121,7 @@ if (want('retry')) {
   const p = await ctx.newPage();
   const errors = [];
   p.on('pageerror', (e) => errors.push(e.message));
-  await p.goto(`http://localhost:${PORT}`);
+  await p.goto(`http://localhost:${PORT}${QUERY}`);
   await p.waitForTimeout(2000);
   await p.getByRole('button', { name: /play|start|fly/i }).first().click();
   await p.waitForTimeout(1500);
@@ -151,7 +153,7 @@ if (want('retry')) {
 if (want('soak')) {
   const ctx = await browser.newContext({ viewport: { width: 1534, height: 630 } });
   const p = await ctx.newPage();
-  await p.goto(`http://localhost:${PORT}`);
+  await p.goto(`http://localhost:${PORT}${QUERY}`);
   await p.waitForTimeout(2000);
   await p.getByRole('button', { name: /play|start|fly/i }).first().click();
   await p.waitForTimeout(1500);

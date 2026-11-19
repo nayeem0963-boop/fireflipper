@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { BackSide, DoubleSide, Object3D } from 'three';
+import { BackSide, Color, DoubleSide, InstancedBufferAttribute, MeshStandardMaterial, Object3D } from 'three';
 import { WORLD } from '../../systems/physics/constants.js';
 import { ACTIVE_OBSTACLE_LOOKS, BIOMES, obstacleStyleAt } from '../../systems/world/biomes.js';
 import { useTheme } from '../../hooks/useTheme.js';
 import { createObstacleStyle, styleGeometries } from './obstacleStyles.js';
 import { KIT_STYLE, createRockSet } from './rockSets.js';
 import { ROCK_SHAPES } from '../../systems/obstacles/rockShapes.js';
+import { HAZARDS } from '../../systems/hazards/biomeHazards.js';
 
 /** Deterministic 0..1 from a number, so an obstacle always picks the same animal and spot. */
 const hash = (n) => {
@@ -54,7 +55,19 @@ export default function ObstacleField({ sim }) {
   const styles = useMemo(() => Object.fromEntries(ACTIVE_OBSTACLE_LOOKS.map((id) => [id, createObstacleStyle(id)])), []);
   useEffect(() => () => Object.values(styles).forEach((st) => styleGeometries(st).forEach((g) => g.dispose())), [styles]);
   // The shaped zones' hoodoos, fins, spires, arches, ledges and boulders: drawn from the lists the simulation worked out when each obstacle spawned.
-  const rocks = useMemo(() => Object.fromEntries(ROCK_KITS.map((k) => [k, createRockSet(k)])), []);
+  const rocks = useMemo(
+    () =>
+      Object.fromEntries(
+        ROCK_KITS.map((k) => {
+          const set = createRockSet(k);
+          // kits with phase barriers (the Celestial City) carry a per-instance alpha: a barrier is drawn dithered-translucent while it is passable (see RockSet)
+          if (HAZARDS.enabled && KIT_STYLE[k].alpha) for (const [piece, g] of Object.entries(set)) g.setAttribute('aAlpha', new InstancedBufferAttribute(new Float32Array(rockMax(piece)).fill(1), 1));
+          return [k, set];
+        }),
+      ),
+    [],
+  );
+  const tint = useMemo(() => new Color(), []);
   useEffect(() => () => Object.values(rocks).forEach((set) => Object.values(set).forEach((g) => g.dispose())), [rocks]);
 
   useFrame(() => {
@@ -67,9 +80,18 @@ export default function ObstacleField({ sim }) {
     const next = (style, part) => (n[`${style}.${part}`] = (n[`${style}.${part}`] ?? 0) + 1) - 1;
     /** Writes one instance of a rock piece of a kit (no spin: the outlines are tested as drawn). */
     let curDy = 0; // the obstacle being drawn has moved this far (biome hazards): its collider is in the same place
+    let curAlpha = 1; // a phase barrier that is passable is drawn translucent
+    let curGlow = 1; // brightness multiplier: a barrier about to turn solid, a piston about to return and a brittle cap about to drop glow warm
+    const haz = HAZARDS.enabled;
     const putRock = (kit, set, piece, px, py, sx, sy, sz, pz = 0) => {
       const i = next(`rocks.${kit}`, piece);
       if (i >= rockMax(piece)) return;
+      if (haz) {
+        const mesh = set[piece];
+        const a = mesh.geometry.attributes.aAlpha;
+        if (a) a.array[i] = curAlpha;
+        mesh.setColorAt(i, tint.setScalar(curGlow));
+      }
       dummy.position.set(px, py + curDy, pz);
       dummy.rotation.set(0, 0, 0);
       dummy.scale.set(sx, sy, sz);
@@ -80,8 +102,13 @@ export default function ObstacleField({ sim }) {
       const kit = o.kit;
       const set = refs.current[`rocks.${kit}`];
       if (!set) return;
-      if (!o.solid) return; // interim: a phase barrier that is passable is not drawn (phase 3 draws it translucent, with its warning)
+      if (!o.solid && !KIT_STYLE[kit].alpha) return;
       curDy = o.dy;
+      if (haz) {
+        // passable: a ghost (alpha 0.26) that firms up to 0.78 over its warning, then solid; the warning, a piston about to return and a cap about to drop glow warm (distance-driven flicker)
+        curAlpha = o.solid ? 1 : 0.26 + 0.52 * o.pulse;
+        curGlow = 1 + 1.5 * Math.max(o.pulse, o.rumble) * (0.65 + 0.35 * Math.sin(dist * 3.1));
+      }
       if (o.kind === 'rock') {
         // a boulder: a round faceted lump, uniform scale (its collider circle sits inside it), free to spin
         const i = next(`rocks.${kit}`, 'boulder');
@@ -113,7 +140,8 @@ export default function ObstacleField({ sim }) {
       const x = o.x - dist;
       if (x < -20 - o.extent || x > 60) continue;
       if (o.kit) {
-        drawRock(o, x);
+        // a brittle cap about to drop trembles: at most 0.05, inside the 15% forgiveness of moving obstacles
+        drawRock(o, haz && o.rumble > 0 ? x + Math.sin(dist * 9 + o.x) * 0.05 * o.rumble : x);
         continue;
       }
       // The look follows the obstacle's own position: the original shapes in the zone's own colours ('tinted-...'), or the original look.
@@ -272,7 +300,12 @@ export default function ObstacleField({ sim }) {
         const count = n[`${style}.${part}`] ?? 0;
         mesh.count = count;
         mesh.visible = count > 0;
-        if (count > 0) mesh.instanceMatrix.needsUpdate = true;
+        if (count > 0) {
+          mesh.instanceMatrix.needsUpdate = true;
+          if (haz && mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+          const aa = haz && mesh.geometry.attributes.aAlpha;
+          if (aa) aa.needsUpdate = true;
+        }
       }
     }
   });
@@ -389,15 +422,32 @@ function TintedSet({ id, reg, Z }) {
   );
 }
 
+/**
+ * Dithered translucency (three's alphaHash: stochastic discard, no sorting, depth intact) with a per-instance alpha attribute `aAlpha`, for the kits with phase barriers.
+ * Only built when the hazards are on.
+ */
+function patchAlpha(material) {
+  material.alphaHash = true;
+  material.customProgramCacheKey = () => 'rockAlpha';
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float aAlpha;\nvarying float vAlpha;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvAlpha = aAlpha;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vAlpha;').replace('#include <alphahash_fragment>', 'diffuseColor.a *= vAlpha;\n#include <alphahash_fragment>');
+  };
+}
+
 /** One instanced mesh per rock piece of a kit, all sharing one material in the zone's palette (vertex colours carry the strata). */
 function RockSet({ kit, reg, geo }) {
   const st = KIT_STYLE[kit];
+  const material = useMemo(() => {
+    const m = new MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9, emissive: st.emissive, emissiveIntensity: st.emissiveIntensity });
+    if (HAZARDS.enabled && st.alpha) patchAlpha(m);
+    return m;
+  }, [st]);
+  useEffect(() => () => material.dispose(), [material]);
   return (
     <group>
       {Object.keys(geo).map((piece) => (
-        <instancedMesh key={piece} ref={reg(`rocks.${kit}`, piece)} args={[geo[piece], undefined, rockMax(piece)]} frustumCulled={false}>
-          <meshStandardMaterial vertexColors flatShading roughness={0.9} emissive={st.emissive} emissiveIntensity={st.emissiveIntensity} />
-        </instancedMesh>
+        <instancedMesh key={piece} ref={reg(`rocks.${kit}`, piece)} args={[geo[piece], material, rockMax(piece)]} frustumCulled={false} />
       ))}
     </group>
   );

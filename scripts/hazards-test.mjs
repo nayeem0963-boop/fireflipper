@@ -6,6 +6,8 @@ import { applyFlap, stepFlight } from '../src/systems/physics/flight.js';
 import { PHYSICS, WORLD } from '../src/systems/physics/constants.js';
 import { speedAt } from '../src/systems/physics/speed.js';
 import { KIT_STARTS } from '../src/systems/obstacles/rockShapes.js';
+import { ACTIVE_GLOW, BAND_BOTTOM, BAND_HEIGHT, BAND_Z, FAR_GLOW, KIND_STYLE, MAX_RAILS, MAX_WINDOWS, PARTICLES, particleAt, railFor, windowGlow } from '../src/systems/hazards/telegraph.js';
+import { Color } from 'three';
 import { BIOME_HAZARDS, HAZARDS, HAZARD_FREE_START, LEAD_S, ZONE_RAMP, createHazardFx, createObstacleFx, hazardsAt, obstacleHazard, windowsIn, zoneAt } from '../src/systems/hazards/biomeHazards.js';
 
 let failures = 0;
@@ -389,6 +391,98 @@ function flyBot(seed, upto, visit) {
   HAZARDS.enabled = true;
   check('with the switch off every obstacle is solid and still', still);
 }
+
+// ---------------------------------------------------------------- phase 3: the telegraphs
+{
+  // brightness curve of a window on real windows: faint from afar, rising over the lead to the active level, steady while it acts, gone after
+  let worstStep = 0, nonMono = 0, count = 0, lowActive = Infinity, afterOk = true;
+  windowsIn(100, 9000, (kind, s, len, lead) => {
+    count++;
+    let prev = null;
+    for (let d = s - lead - 6; d < s + len + 3; d += 0.01) {
+      const g = windowGlow(d, s, len, lead);
+      if (prev !== null && d < s + len - 0.005 && d > s - lead - 0.005) {
+        worstStep = Math.max(worstStep, Math.abs(g - prev));
+        if (d < s && g < prev - 1e-9) nonMono++; // the telegraph only ever brightens
+      }
+      if (d >= s && d < s + len) lowActive = Math.min(lowActive, g);
+      if (d >= s + len && g !== 0) afterOk = false;
+      prev = g;
+    }
+    if (Math.abs(windowGlow(s - lead - 1, s, len, lead) - FAR_GLOW) > 1e-9 || Math.abs(windowGlow(s, s, len, lead) - ACTIVE_GLOW) > 1e-9) afterOk = false;
+  });
+  check(`a window brightens smoothly through its telegraph (${count} windows; largest step ${worstStep.toFixed(4)} per 1 cm, never dimming before it acts)`, count > 20 && worstStep < 0.01 && nonMono === 0);
+  check(`it is bright while it acts (at least ${lowActive.toFixed(2)}), faint (${FAR_GLOW}) from afar, and gone once passed`, lowActive >= 0.55 && afterOk);
+
+  // particles: inside the window, inside the flight space, always behind the gameplay plane
+  const out = { x: 0, y: 0, z: 0 };
+  let bad = 0, front = 0, n = 0;
+  for (const kind of Object.keys(KIND_STYLE)) {
+    for (let i = 0; i < PARTICLES; i++) {
+      for (const [s, len] of [[1600, 10], [5150, 18]]) {
+        for (let d = s - 30; d < s + len + 30; d += 1.7) {
+          for (const dir of [1, -1]) {
+            particleAt(i, kind, s, len, dir, d, out);
+            n++;
+            if (out.x < s - d - 0.6 || out.x > s - d + len + 0.6 || out.y < BAND_BOTTOM - 1e-9 || out.y > BAND_BOTTOM + BAND_HEIGHT + 1e-9) bad++;
+            if (out.z > -0.3 + 1e-9) front++;
+          }
+        }
+      }
+    }
+  }
+  check(`particles stay inside their window and the flight space (${n} sampled)`, bad === 0, String(bad));
+  check('every telegraph stands behind the gameplay plane (particles z <= -0.3, bands z < 0): it can never cover the bird, an obstacle or an orb', front === 0 && BAND_Z < 0);
+  const a = { x: 0, y: 0, z: 0 }, b = { x: 0, y: 0, z: 0 };
+  particleAt(7, 'gust', 1600, 10, -1, 1590.25, a);
+  particleAt(3, 'lowG', 1, 1, 1, 9, b);
+  particleAt(7, 'gust', 1600, 10, -1, 1590.25, b);
+  check('particles depend only on the distance (no clock, no history)', a.x === b.x && a.y === b.y && a.z === b.z);
+
+  // piston rails: they span exactly the piston's travel, and stand outside the pole
+  const r = { x: 0, y0: 0, y1: 0, glow: 0 };
+  const amp = BIOME_HAZARDS.palace.piston.amp;
+  let railOk = true;
+  for (const [cap, y, h, w] of [[1, -1.2, 4, 1.5], [-1, 3.4, 9, 1.2], [1, 0.3, 7, 1.8]]) {
+    for (const pulse of [0, 1]) {
+      railFor({ x: 3100, y, h, w, cap, pulse }, amp, 3095, r);
+      const edge = cap > 0 ? y + h / 2 : y - h / 2;
+      if (Math.abs(Math.abs(r.y1 - r.y0) - amp) > 1e-9 || Math.abs(r.y0 - edge) > 1e-9 || !(3100 - 3095 - r.x > w * 0.5) || r.glow < 0.25 || r.glow > 1) railOk = false;
+      if ((cap > 0 && r.y1 > r.y0) || (cap < 0 && r.y1 < r.y0)) railOk = false; // the rail runs the way the pole retracts: away from its corridor
+    }
+  }
+  check('a piston rail spans exactly its travel, starts at the pole\'s gap end, runs away from the corridor and stands outside the pole', railOk);
+  railFor({ x: 1, y: 0, h: 4, w: 1, cap: 1, pulse: 1 }, amp, 0, r);
+  const bright = r.glow;
+  railFor({ x: 1, y: 0, h: 4, w: 1, cap: 1, pulse: 0 }, amp, 0, r);
+  check('the rail glows brighter just before the piston comes back', bright > r.glow + 0.5);
+
+  // every window kind has a style, and the styles read against their own zone's paintings
+  const lum = (h) => { const c = new Color(h); return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; };
+  const contrast = (x, y) => (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  const kindsUsed = new Set();
+  for (const H of Object.values(BIOME_HAZARDS)) { if (H.updraft) kindsUsed.add('updraft'); if (H.gust) kindsUsed.add('gust'); if (H.lowG) kindsUsed.add('lowG'); }
+  check('every window kind has a telegraph style', [...kindsUsed].every((k) => KIND_STYLE[k] && /^#[0-9a-f]{6}$/i.test(KIND_STYLE[k].band) && /^#[0-9a-f]{6}$/i.test(KIND_STYLE[k].dust)));
+  // measured median luminance of the paintings behind the flight band: canyon 0.09-0.15, frosty 0.26-0.40, sanctuary 0.38-0.51
+  const zoneMedians = { updraft: [0.09, 0.12, 0.15], gust: [0.26, 0.34, 0.4], lowG: [0.38, 0.44, 0.51] };
+  for (const [kind, meds] of Object.entries(zoneMedians)) {
+    const c = Math.min(...meds.map((m) => contrast(lum(KIND_STYLE[kind].dust), m)));
+    check(`the ${kind} particles read against their zone's paintings (contrast ${c.toFixed(2)} >= 2)`, c >= 2);
+  }
+  check('the canyon updraft is additive light; the bright zones use tinted bands (additive light would vanish on snow and cloud)', KIND_STYLE.updraft.additive === true && KIND_STYLE.gust.additive === false && KIND_STYLE.lowG.additive === false);
+
+  // the renderer: nothing drawn when the hazards are off, a fixed small number of draw items, no clock
+  const comp = read('src/scenes/EmberValley/HazardTelegraph.jsx');
+  const noComments = comp.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  check('the telegraph draws nothing unless the hazards are on', /HAZARDS\.enabled \? <Telegraph/.test(comp));
+  const items = (noComments.match(/<instancedMesh\b|<points\b/g) ?? []).length;
+  check(`the telegraph is ${items} draw items at most, and only ${3} are ever visible (the two band meshes are exclusive): about 3 extra draw calls`, items === 4 && /bandsAdd/.test(comp) && /bandsNorm/.test(comp) && MAX_WINDOWS === 3 && MAX_RAILS <= 16);
+  check('the telegraph reads no clock and draws no random number', !/elapsedTime|Date\.now|performance\.now|Math\.random|clock/.test(noComments + read('src/systems/hazards/telegraph.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')));
+  const field = read('src/components/scene/ObstacleField.jsx');
+  check('obstacle telegraphs (translucency, glow, rumble) only run with the hazards on', /const haz = HAZARDS\.enabled/.test(field) && /if \(haz\)/.test(field) && /alphaHash/.test(field));
+  check('the rumble stays inside the moving obstacles\' 15% forgiveness (at most 0.05)', /Math\.sin\(dist \* 9 \+ o\.x\) \* 0\.05 \* o\.rumble/.test(field) && 0.05 <= DYNAMIC_INSET_FOR_TEST());
+}
+function DYNAMIC_INSET_FOR_TEST() { return 0.15 * PHYSICS.birdRadius; }
 
 // ---------------------------------------------------------------- obstacle states (pure; wired into collisions in phase 2)
 {

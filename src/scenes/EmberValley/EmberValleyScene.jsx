@@ -5,6 +5,7 @@ import EmberParticles from '../../components/scene/EmberParticles.jsx';
 import EdgeWarning from '../../components/scene/EdgeWarning.jsx';
 import PlayerBird from '../../components/scene/PlayerBird.jsx';
 import ObstacleField from '../../components/scene/ObstacleField.jsx';
+import HazardTelegraph from './HazardTelegraph.jsx';
 import OrbField from '../../components/scene/OrbField.jsx';
 import BurstParticles from '../../components/scene/BurstParticles.jsx';
 import { useRenderSettings } from '../../hooks/useRenderSettings.js';
@@ -95,6 +96,7 @@ export default function EmberValleyScene() {
       <PalaceBackdrop sim={game} />
       <SanctuaryBackdrop sim={game} />
       <ObstacleField sim={game} />
+      <HazardTelegraph sim={game} />
       <OrbField sim={game} />
       <ForegroundLayer sim={game} />
       <PlayerBird sim={game} />
