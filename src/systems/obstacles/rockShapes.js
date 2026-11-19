@@ -43,13 +43,37 @@ export const KITS = Object.freeze({
     hanging: ['icicle', 'keystone'],
     passage: { rise: 0.55, drop: 0.6, bevel: 0.1, power: 0.7 },
   },
+  /** Celestial City: crystal gems on beaded stems, monoliths, hanging shards and crystal clusters, a star-gate arch over a cloud ledge. */
+  celestial: {
+    poles: {
+      gem: capped([[0, 0.12, 0.12], [0.3, 0.36, 0.36], [0.55, 0.46, 0.46], [0.85, 0.34, 0.34], [1.0, 0.3, 0.3]], PERIODIC(1.0, 1.5, [[0, 0.3], [0.5, 0.36], [0.75, 0.3], [1.0, 0.4], [1.5, 0.3]])),
+      monolith: blade([[0, 0.04, 0.08], [1.0, 0.18, 0.06], [2.2, 0.34, 0.03], [3.2, 0.46, 0], [4.0, 0.5, 0]]),
+      shard: blade([[0, 0.03, 0], [0.9, 0.2, 0], [2.0, 0.36, 0], [3.0, 0.5, 0]]),
+      cluster: capped([[0, 0.08, 0.08], [0.3, 0.3, 0.3], [0.7, 0.48, 0.48], [1.0, 0.36, 0.36]], PERIODIC(1.0, 1.6, [[0, 0.36], [0.5, 0.44], [1.0, 0.36], [1.3, 0.42], [1.6, 0.36]])),
+    },
+    rising: ['gem', 'monolith'],
+    hanging: ['shard', 'cluster'],
+    passage: { rise: 0.6, drop: 0.55, bevel: 0.1, power: 0.7 },
+  },
+  /** Rose Sky Palace: fluted marble columns with capitals, obelisks, hanging finials and corbels, a grand arch over a terrace. */
+  palace: {
+    poles: {
+      column: capped([[0, 0.5, 0.5], [0.07, 0.58, 0.58], [0.28, 0.58, 0.58], [0.38, 0.42, 0.42], [0.5, 0.36, 0.36]], PERIODIC(0.5, 1.6, [[0, 0.36], [0.4, 0.4], [0.8, 0.38], [1.2, 0.4], [1.6, 0.36]])),
+      obelisk: blade([[0, 0.05, 0.06], [1.0, 0.2, 0.05], [2.2, 0.36, 0.02], [3.2, 0.46, 0], [4.0, 0.5, 0]]),
+      finial: blade([[0, 0.04, 0], [1.1, 0.16, 0], [2.2, 0.3, 0], [3.4, 0.44, 0], [4.2, 0.5, 0]]),
+      corbel: capped([[0, 0.44, 0.44], [0.1, 0.52, 0.52], [0.35, 0.52, 0.52], [0.5, 0.36, 0.36]], PERIODIC(0.5, 1.5, [[0, 0.36], [0.5, 0.42], [0.75, 0.42], [1.0, 0.36], [1.5, 0.36]])),
+    },
+    rising: ['column', 'obelisk'],
+    hanging: ['finial', 'corbel'],
+    passage: { rise: 0.7, drop: 0.6, bevel: 0.1, power: 0.7 },
+  },
 });
 
 /**
  * Master switches. `enabled` turns every kit off at once; `kits` turns one off. One switch drives both what is drawn and what is collided with (a visual that differs from its
  * collider would be unfair), so a kit set to false brings back the zone's original obstacles with their original colliders, in one line. The tests turn everything on.
  */
-export const ROCK_SHAPES = { enabled: true, kits: { canyon: true, frosty: true, celestial: false, palace: false, sanctuary: false } };
+export const ROCK_SHAPES = { enabled: true, kits: { canyon: true, frosty: true, celestial: true, palace: true, sanctuary: false } };
 
 /** Where each kit's zone begins along the track (a test checks these equal the scenery zones' starts: the simulation cannot read the zones itself). */
 export const KIT_STARTS = Object.freeze([['canyon', 0], ['frosty', 1500], ['celestial', 2000], ['palace', 3000], ['sanctuary', 5000]]);

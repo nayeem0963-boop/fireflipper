@@ -41,6 +41,22 @@ export const KIT_STYLE = Object.freeze({
     looks: { spire: { sides: 8, a: 0, b: 1.0 }, iceBlade: { sides: 6, a: 0.3, b: 0.45, slant: 3 }, icicle: { sides: 6, a: 0.2, b: 0.8, slant: 0 }, keystone: { sides: 8, a: 0, b: 1.2 } },
     boulder: { cap: 'top', capNormal: 0.45 },
   },
+  // from the Celestial City paintings (dark cosmos, luminous violet crystal): bright lavender crystal with white highlights (paintings' median luminance 0.10 to 0.19, dark)
+  celestial: {
+    palette: { top: '#ffffff', lit: '#f0edff', body: '#c4b8ff', shade: '#9a8cff', deep: '#6a5acd' },
+    emissive: '#3a2a7a',
+    emissiveIntensity: 0.6,
+    looks: { gem: { sides: 8, a: 0, b: 1.0 }, monolith: { sides: 6, a: 0.3, b: 0.45, slant: 3 }, shard: { sides: 6, a: 0.2, b: 0.8, slant: 0 }, cluster: { sides: 8, a: 0, b: 1.2 } },
+    boulder: { cap: 'top', capNormal: 0.5 },
+  },
+  // from the Rose Sky Palace paintings (pink sunset, white stone): deep teal marble with white capitals (paintings' median luminance 0.25 to 0.30, bright)
+  palace: {
+    palette: { top: '#ffffff', lit: '#bff3f0', body: '#0b5c70', shade: '#094a5c', deep: '#06323f' },
+    emissive: '#04303c',
+    emissiveIntensity: 0.5,
+    looks: { column: { sides: 10, a: 0, b: 1.0 }, obelisk: { sides: 6, a: 0.3, b: 0.45, slant: 2 }, finial: { sides: 6, a: 0.2, b: 0.8, slant: 0 }, corbel: { sides: 8, a: 0, b: 1.2 } },
+    boulder: { cap: 'lit', capNormal: 0.55 },
+  },
 });
 
 function rng(seed) {

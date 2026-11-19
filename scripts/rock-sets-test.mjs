@@ -178,7 +178,7 @@ for (const kit of Object.keys(KITS)) {
   // -------------------------------------------------------------- palette and readability against the zone's paintings
   {
     const P = KIT_STYLE[kit].palette;
-    const HUE = { canyon: [0, 0.14], frosty: [0.5, 0.66] }[kit]; // red-orange-yellow sandstone / cyan-blue ice
+    const HUE = { canyon: [0, 0.14], frosty: [0.5, 0.66], celestial: [0.6, 0.8], palace: [0.46, 0.58] }[kit]; // sandstone / ice / violet crystal / teal marble
     const hsl = { h: 0, s: 0, l: 0 };
     let ok = true, minS = 1;
     for (const g of Object.values(set)) {
@@ -192,7 +192,7 @@ for (const kit of Object.keys(KITS)) {
     }
     check(`${kit}: palette: every colour is in the zone's hue range (${HUE.join(' to ')})`, ok, `lowest saturation ${minS.toFixed(2)}`);
     // median luminance of the part of each of the zone's paintings behind the gameplay band, measured from public/images/backdrop (canyon-a/b/c, frosty-*)
-    const MEDIANS = { canyon: [0.09, 0.12, 0.15], frosty: [0.26, 0.34, 0.4] }[kit];
+    const MEDIANS = { canyon: [0.09, 0.12, 0.15], frosty: [0.26, 0.34, 0.4], celestial: [0.1, 0.15, 0.19], palace: [0.25, 0.27, 0.3] }[kit];
     const lum = (h) => { const c = new Color(h); return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; }; // Color holds linear values
     const contrast = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
     const NEED = { top: 1.45, lit: 1.45, body: 1.9, shade: 1.45, deep: 1.0 }; // 'deep' is only the undersides, always next to a lit face

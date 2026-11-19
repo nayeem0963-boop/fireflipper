@@ -150,9 +150,9 @@ function flyTrack(seed, upto, visit) {
     }
     return true;
   };
-  for (const seed of [1, 2, 3, 4, 5, 6]) {
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
     const checked = new Set();
-    flyTrack(seed, 2000, (sim, steps) => {
+    flyTrack(seed, 4200, (sim, steps) => {
       if (steps % 30) return;
       for (const o of sim.obstacles.active) {
         if (!o.polys || checked.has(o)) continue;
@@ -169,7 +169,7 @@ function flyTrack(seed, upto, visit) {
       }
     });
   }
-  check(`no shaped obstacle covers any point of a guaranteed corridor (${poles} obstacles, ${sampled} points on 6 tracks, canyon and Frosty Polar)`, covered === 0, String(covered));
+  check(`no shaped obstacle covers any point of a guaranteed corridor (${poles} obstacles, ${sampled} points on 8 tracks, canyon to Rose Sky Palace)`, covered === 0, String(covered));
   const want = [];
   for (const kit of Object.keys(KITS)) for (const l of [...new Set([...KITS[kit].rising, ...KITS[kit].hanging]), 'arch', 'ledge']) want.push(`${kit}:${l}`);
   check(`every look of every kit occurs on the generated tracks (${want.length})`, want.every((l) => seenLooks.has(l)), want.filter((l) => !seenLooks.has(l)).join());
@@ -197,7 +197,7 @@ function flyTrack(seed, upto, visit) {
   const ZONE_OF = { canyon: 'canyon', frosty: 'arctic', celestial: 'celestial', palace: 'palace', sanctuary: 'sanctuary' };
   check('each kit begins where its scenery zone begins', KIT_STARTS.every(([kit, start]) => BIOMES[ZONE_OF[kit]].start === start));
   let shaped = 0, plain = 0, shapedBad = 0, plainBad = 0;
-  flyTrack(3, 2600, (sim) => {
+  flyTrack(3, 5300, (sim) => {
     for (const o of sim.obstacles.active) {
       const kit = rockKit(o.x);
       if (kit) {
@@ -217,9 +217,9 @@ function flyTrack(seed, upto, visit) {
 {
   // 4. the existing bot and corridor guarantee still hold on shaped tracks: a corridor-following bird survives the whole canyon on many seeds
   let ok = 0;
-  const N = 30;
-  for (let seed = 1; seed <= N; seed++) if (flyTrack(seed, 2100, () => {}).distance >= 2100) ok++;
-  check(`the corridor-following bot flies the shaped canyon and Frosty Polar on ${ok}/${N} seeds`, ok === N);
+  const N = 24;
+  for (let seed = 1; seed <= N; seed++) if (flyTrack(seed, 3400, () => {}).distance >= 3400) ok++;
+  check(`the corridor-following bot flies the shaped zones (canyon to Rose Sky Palace) on ${ok}/${N} seeds`, ok === N);
 }
 ROCK_SHAPES.enabled = DEFAULT_ENABLED;
 check('the shapes are on by default for every kit built so far (ROCK_SHAPES.enabled / .kits turn them off, bringing back the original obstacles)', DEFAULT_ENABLED === true && Object.entries(ROCK_SHAPES.kits).every(([k, on]) => on === !!KITS[k]));
