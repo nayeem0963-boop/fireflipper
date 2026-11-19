@@ -2,6 +2,7 @@ import { DYING_DURATION, PHYSICS, WORLD } from '../physics/constants.js';
 import { applyFlap, stepFlight } from '../physics/flight.js';
 import { circleGap, circleHitsObstacle } from '../physics/collision.js';
 import { ObjectPool } from '../obstacles/ObjectPool.js';
+import { archPolys, columnPolys, finLean, ledgePolys, polysExtent, rockLook } from '../obstacles/rockShapes.js';
 import { createTrack, fillTrack, resetTrack, speedAt } from '../obstacles/spawner.js';
 import { computeScore, toMetres } from '../scoring/scoring.js';
 import { GAME_EVENTS } from '../events/gameEvents.js';
@@ -25,7 +26,7 @@ const FLAP_EVENT = Object.freeze({ type: GAME_EVENTS.FLAP });
 const START_EVENT = Object.freeze({ type: GAME_EVENTS.START });
 
 function createObstacle() {
-  return { kind: 'column', shape: 'box', x: 0, y: 0, z: 0, w: 1, h: 1, d: 1, hw: 0, hh: 0, cr: 0, r: 0, sx: 1, sy: 1, sz: 1, rot: 0, spin: 0, cap: 0, extent: 0, gap: Infinity, nm: false };
+  return { kind: 'column', shape: 'box', x: 0, y: 0, z: 0, w: 1, h: 1, d: 1, hw: 0, hh: 0, cr: 0, r: 0, sx: 1, sy: 1, sz: 1, rot: 0, spin: 0, cap: 0, extent: 0, gap: Infinity, nm: false, look: null, polys: null };
 }
 function createOrb() {
   return { x: 0, y: 0, phase: 0, missed: false };
@@ -57,6 +58,16 @@ export function createGameSim() {
       o.extent = w / 2;
       o.gap = Infinity;
       o.nm = false;
+      o.look = null;
+      o.polys = null;
+      // In the canyon the pole is a hoodoo, fin or lintel: its collider is the union of convex quads that follow its outline (what the renderer draws), chosen by position (no random numbers).
+      const look = rockLook('column', cap, cx);
+      if (look) {
+        o.look = look;
+        o.shape = 'poly';
+        o.polys = columnPolys(look, cx, cap > 0 ? yTop : yBottom, cap, w, yBottom, yTop, finLean(cx));
+        o.extent = Math.max(o.extent, polysExtent(o.polys, cx));
+      }
     },
     block(x0, x1, yBottom, yTop, cap) {
       const o = obstacles.acquire();
@@ -76,6 +87,15 @@ export function createGameSim() {
       o.extent = o.w / 2;
       o.gap = Infinity;
       o.nm = false;
+      o.look = null;
+      o.polys = null;
+      // In the canyon a passage's upper slab is an arch span and its lower slab a terraced ledge (they only add room: see rockShapes.js).
+      const look = rockLook('block', cap, o.x);
+      if (look) {
+        o.look = look;
+        o.shape = 'poly';
+        o.polys = cap < 0 ? archPolys(x0, x1, yBottom, yTop) : ledgePolys(x0, x1, yBottom, yTop);
+      }
     },
     rock(x, y, r) {
       const o = obstacles.acquire();
@@ -95,6 +115,8 @@ export function createGameSim() {
       o.extent = r;
       o.gap = Infinity;
       o.nm = false;
+      o.look = rockLook('rock', 0, x);
+      o.polys = null;
     },
     orb(x, y) {
       const orb = orbs.acquire();

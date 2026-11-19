@@ -281,3 +281,10 @@ disposed 100 m after the cut). Obstacles keep their original look. The zone weig
 `src/components/scene/canyonRocks.js` builds the canyon's new obstacle geometry (hoodoo shaft and cap, rock fin, arch lintel, passage slab, boulder) from the owner's four reference paintings, as vertex-coloured faceted
 low-poly meshes (about 700 triangles for all six). Nothing is wired into the game yet. Collision is unchanged, so every shape keeps a contract with its collider (never narrower than the hitbox, a flat gap face, boulders at least as
 large as their circle); `npm run test:rocks` checks it against the real geometry. Preview: `npm run dev`, then `/gallery.html?set=canyon&z=17`.
+
+### Canyon obstacle redesign, phase A: polygon colliders (switched off until phase C)
+
+`src/systems/obstacles/rockShapes.js` defines the outlines of the canyon's hoodoos, rock fins, arch lintels, arch spans, ledges and boulders and the convex polygons the simulation collides with
+(`shape: 'poly'` in `collision.js`: a union of convex quads, allocation-free). Which look an obstacle gets comes from a hash of its position, so generated tracks are unchanged (a test compares a fingerprint of 8 seeds out to
+3000 m with the one recorded before). Shapes only apply before `WORLD.rockShapesEnd` (1500 m, the canyon's end) and only add room around the guaranteed corridors. They are behind `ROCK_SHAPES.enabled`, which stays
+off until the matching geometry is drawn, so the game plays exactly as before for now. `npm run test:colliders` covers it.
