@@ -325,3 +325,12 @@ Same rules and tests as the other kits (`npm run test:colliders`, `npm run test:
 **Cloud Sanctuary** (5000 m onwards): bulging cloud pillars and golden spires rising, hanging pendants and gilded keystones, a cloud arch over a ledge, cloud-puff boulders, in sapphire stone banded with white and white caps
 (the paintings are bright, median luminance 0.38 to 0.51, and the figures wear sapphire robes). Every zone from 0 m to infinity now has its own obstacle kit; the tests cover all five (`npm run test:colliders` flies six tracks to 6400 m and checks 3,500 obstacles and about a million corridor points,
 and a corridor-following bot to 5800 m on 16 seeds). Draw calls at the 5000 m border: up to about 70.
+
+### Biome hazards, phase 1: the modifiers, the flight hooks and the bot (off by default)
+
+`src/systems/hazards/biomeHazards.js` holds the hazard rules of each zone as **pure functions of the run distance** (no clock, no random numbers, so pause, retry and stage changes need no reset and generated tracks are unchanged):
+`hazardsAt(d, fx, corridors)` fills the bird modifiers (gravity scale, flap strength, a vertical acceleration for updrafts and gusts, the flap carry and dive recovery for the frosty slide) and `obstacleHazard(o, d, out)` the dynamic state of an obstacle
+(brittle canyon caps, phase barriers, pistons, bobbing platforms; every offset points away from the obstacle's corridor). Every window is telegraphed 0.65 s ahead (`LEAD_S`), and a zone's hazards fade in and out over 40 m at its borders.
+`flight.js` takes an optional `fx` (identical physics without it, checked bit for bit); the simulation computes `sim.hazard` each step and the Auto play bot plans with the same function. `HAZARDS.enabled` is **off by default** (an unannounced force would be unfair until the telegraphs
+are drawn in phase 3); `?hazards=1` switches them on for a preview. `npm run test:hazards` covers it. Known limitation: the bird-modifier windows only act in the open runway between sections, which is only about 3 to 7 m, so on real tracks they act on about 3% of the
+canyon and almost never after it (the always-on frosty slide is the exception); letting a force act near sections made no bot survive (0 of 16 seeds). Decision pending: reserve runway for windows in the spawner, or rely on the obstacle hazards in the dense zones.

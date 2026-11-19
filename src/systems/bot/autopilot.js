@@ -2,6 +2,7 @@ import { PHYSICS, WORLD } from '../physics/constants.js';
 import { applyFlap, stepFlight } from '../physics/flight.js';
 import { circleHitsObstacle } from '../physics/collision.js';
 import { speedAt } from '../obstacles/spawner.js';
+import { createHazardFx, hazardsAt } from '../hazards/biomeHazards.js';
 
 /**
  * Autopilot for the watch-only "Auto play" mode. A feature the owner asked to keep: do not remove it without
@@ -47,6 +48,8 @@ export function createAutopilot(sim) {
   // Scratch bird reused for every simulated step.
   const b = { y: 0, vy: 0, pitch: 0, sinceFlap: 0 };
   const input = { holding: false, dive: false };
+  // The biome hazards at a planned state's distance (the same function the simulation uses), so the bot plans with the real forces.
+  const hz = createHazardFx();
 
   /** Search from the bird's current state; returns the first action (0-2) of the best surviving plan. */
   function plan(margin) {
@@ -70,6 +73,8 @@ export function createAutopilot(sim) {
     for (let k = 0; k < LAYERS; k++) {
       const next = new Map();
       for (const s of layer.values()) {
+        // held for the 0.1 s of a decision: a window lasts at least 10 m, so this is faithful to the step-by-step simulation within a few centimetres
+        hazardsAt(s.x, hz, sim.track.corridors);
         for (let a = 0; a < ACTIONS.length; a++) {
           const act = ACTIONS[a];
           b.y = s.y;
@@ -82,8 +87,8 @@ export function createAutopilot(sim) {
           let gained = 0;
           let alive = true;
           for (let i = 0; i < SUB && alive; i++) {
-            if (i === 0 && act.flap) applyFlap(b);
-            stepFlight(b, input, DT);
+            if (i === 0 && act.flap) applyFlap(b, hz);
+            stepFlight(b, input, DT, hz);
             x += speedAt(x) * DT;
             if (b.y <= GROUND) {
               alive = false;

@@ -22,9 +22,10 @@
     "test:fps": "node scripts/fps-test.mjs",
     "test:rocks": "node scripts/rock-sets-test.mjs",
     "test:colliders": "node scripts/rock-colliders-test.mjs",
+    "test:hazards": "node scripts/hazards-test.mjs",
     "test:e2e": "node scripts/e2e-smoke.mjs",
     "test:matrix": "node scripts/matrix-test.mjs",
-    "test:all": "npm run test:sim && npm run test:avatars && npm run test:progression && npm run test:autoplay && npm run test:store && npm run test:theme && npm run test:biome && npm run test:obstacles && npm run test:scroll && npm run test:foreground && npm run test:ambient && npm run test:fps && npm run test:rocks && npm run test:colliders"
+    "test:all": "npm run test:sim && npm run test:avatars && npm run test:progression && npm run test:autoplay && npm run test:store && npm run test:theme && npm run test:biome && npm run test:obstacles && npm run test:scroll && npm run test:foreground && npm run test:ambient && npm run test:fps && npm run test:rocks && npm run test:colliders && npm run test:hazards"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

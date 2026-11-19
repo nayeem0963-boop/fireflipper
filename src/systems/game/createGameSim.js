@@ -1,5 +1,6 @@
 import { DYING_DURATION, PHYSICS, WORLD } from '../physics/constants.js';
 import { applyFlap, stepFlight } from '../physics/flight.js';
+import { createHazardFx, hazardsAt } from '../hazards/biomeHazards.js';
 import { circleGap, circleHitsObstacle } from '../physics/collision.js';
 import { ObjectPool } from '../obstacles/ObjectPool.js';
 import { archPolys, columnPolys, ledgePolys, pickLook, poleInstances, poleReach, polysExtent, rockKit } from '../obstacles/rockShapes.js';
@@ -160,6 +161,8 @@ export function createGameSim() {
     alpha: 1,
     bird: { y: WORLD.birdStartY, prevY: WORLD.birdStartY, vy: 0, pitch: 0, spin: 0, sinceFlap: 99, dead: false },
     input: { holding: false, dive: false, flapQueued: false },
+    /** The biome hazards acting on the bird this step (gravity and flap scales, vertical acceleration...); neutral where there is none. Read by the renderer's telegraphs. */
+    hazard: createHazardFx(),
     /** Camera/feedback impulses, decayed every step. */
     fx: { fovKick: 0, shake: 0, lift: 0 },
     obstacles,
@@ -206,6 +209,7 @@ export function createGameSim() {
       b.dead = false;
       sim.input.holding = sim.input.dive = sim.input.flapQueued = false;
       sim.fx.fovKick = sim.fx.shake = sim.fx.lift = 0;
+      hazardsAt(0, sim.hazard, track.corridors); // neutral: nothing from the last run lingers
       sim.events.length = 0;
       resetTrack(track, WORLD.birdStartY);
       fillTrack(track, builder, 0, rng);
@@ -258,14 +262,15 @@ export function createGameSim() {
 
   function stepRunning(dt) {
     const b = sim.bird;
+    const hz = hazardsAt(sim.distance, sim.hazard, track.corridors);
     if (sim.input.flapQueued) {
       sim.input.flapQueued = false;
-      applyFlap(b);
+      applyFlap(b, hz);
       sim.fx.fovKick += 0.8;
       sim.fx.lift = 1;
       sim.events.push(FLAP_EVENT);
     }
-    stepFlight(b, sim.input, dt);
+    stepFlight(b, sim.input, dt, hz);
 
     sim.speed = speedAt(sim.distance);
     sim.distance += sim.speed * dt;
