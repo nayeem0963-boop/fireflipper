@@ -301,3 +301,8 @@ Eleven pieces, one InstancedMesh each: hoodoo head and segment, lintel head and 
 Before 1500 m the canyon now has hoodoos, rock fins (rising and hanging), arch lintels, arch spans over terraced ledges (passages) and faceted boulders, drawn from the geometry of phase B and collided with the
 polygons of phase A (`ROCK_SHAPES.enabled`, on by default; set it to `false` in `systems/obstacles/rockShapes.js` to bring the original indigo canyon obstacles and their colliders back, in one line). Each pole's draw list is
 worked out once when it spawns, so the renderer allocates nothing per frame. Passage slabs are a band at the gap face plus stacked 3-tall blocks of layered sandstone. From 1500 m on, obstacles are unchanged.
+
+### Canyon obstacle redesign, phase D: readability tuning
+
+The rock palette is checked against the canyon paintings (median luminance of the band behind the gameplay area, 0.09 to 0.15, measured): the body colour is `#ee8434` (2.0:1 against the brightest median), sunlit strata and tops 2.9:1 and 4.1:1, shade `#e2632f` 1.5:1,
+and only the undersides (`#b84a2c`) blend in. `npm run test:rocks` keeps these ratios. Browser matrix on the phase C build: 62 cases, at most 61 draw calls and 27 GPU textures.

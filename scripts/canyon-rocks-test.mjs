@@ -197,6 +197,23 @@ function inradius(g) {
   }));
 }
 
+// ---------------------------------------------------------------- readability against the canyon paintings
+{
+  // median luminance of the part of each canyon painting behind the gameplay band (rows 0.30 to 0.66), measured from public/images/backdrop/canyon-a, -b, -c
+  const PAINTING_MEDIAN_LUMINANCE = [0.09, 0.12, 0.15];
+  const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const lum = (h) => { const c = new Color(h); return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; }; // Color already holds linear values
+  const contrast = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  const worst = Math.max(...PAINTING_MEDIAN_LUMINANCE);
+  for (const [name, hex] of Object.entries(ROCK_COLORS)) {
+    const need = name === 'deep' ? 1.0 : 1.45; // 'deep' is only the undersides, always next to a lit face
+    const c = contrast(lum(hex), worst);
+    check(`${name} ${hex} against the darkest-to-brightest canyon painting medians: contrast ${c.toFixed(2)} (needs ${need})`, c >= need);
+  }
+  const lowestBody = Math.min(...['top', 'lit', 'body'].map((k) => contrast(lum(ROCK_COLORS[k]), worst)));
+  check('the sunlit, banded and body colours (most of every rock) read at 2:1 or better against every painting', lowestBody >= 1.9, lowestBody.toFixed(2));
+}
+
 // ---------------------------------------------------------------- not wired into the renderer yet
 {
   const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');

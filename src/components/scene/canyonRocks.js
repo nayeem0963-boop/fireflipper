@@ -20,12 +20,15 @@ export const ROCK_CONTRACT = Object.freeze({
   silhouetteTolerance: 0.05,
 });
 
-/** The canyon's colours, from the paintings: sunlit yellow-orange strata, orange sandstone, red shade, pale sunlit tops. */
+/**
+ * The canyon's colours, from the paintings: sunlit yellow-orange strata, orange sandstone, red shade, pale sunlit tops. The shade colours are kept light enough to read against the
+ * paintings (their median luminance is 0.09 to 0.15, measured; see PAINTING_MEDIAN_LUMINANCE in scripts/canyon-rocks-test.mjs).
+ */
 export const ROCK_COLORS = Object.freeze({
   lit: '#f6b44e',
-  body: '#e87a30',
-  red: '#c9482b',
-  deep: '#9c3328',
+  body: '#ee8434',
+  red: '#e2632f',
+  deep: '#b84a2c',
   top: '#ffe0a8',
 });
 
