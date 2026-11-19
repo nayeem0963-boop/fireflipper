@@ -66,10 +66,11 @@ export default function ObstacleField({ sim }) {
     const n = {};
     const next = (style, part) => (n[`${style}.${part}`] = (n[`${style}.${part}`] ?? 0) + 1) - 1;
     /** Writes one instance of a rock piece of a kit (no spin: the outlines are tested as drawn). */
+    let curDy = 0; // the obstacle being drawn has moved this far (biome hazards): its collider is in the same place
     const putRock = (kit, set, piece, px, py, sx, sy, sz, pz = 0) => {
       const i = next(`rocks.${kit}`, piece);
       if (i >= rockMax(piece)) return;
-      dummy.position.set(px, py, pz);
+      dummy.position.set(px, py + curDy, pz);
       dummy.rotation.set(0, 0, 0);
       dummy.scale.set(sx, sy, sz);
       dummy.updateMatrix();
@@ -79,6 +80,8 @@ export default function ObstacleField({ sim }) {
       const kit = o.kit;
       const set = refs.current[`rocks.${kit}`];
       if (!set) return;
+      if (!o.solid) return; // interim: a phase barrier that is passable is not drawn (phase 3 draws it translucent, with its warning)
+      curDy = o.dy;
       if (o.kind === 'rock') {
         // a boulder: a round faceted lump, uniform scale (its collider circle sits inside it), free to spin
         const i = next(`rocks.${kit}`, 'boulder');

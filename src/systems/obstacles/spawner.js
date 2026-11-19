@@ -1,5 +1,7 @@
 import { WORLD } from '../physics/constants.js';
 import { PATTERNS, gapFor, pickPattern } from './patterns.js';
+import { speedAt } from '../physics/speed.js';
+import { HAZARDS, runwayAfter } from '../hazards/biomeHazards.js';
 
 /**
  * Procedural track generation.
@@ -13,6 +15,8 @@ export const MAX_RISE_RATE = 3.2; // units/s a player can sustain by tapping
 export const MAX_DROP_RATE = 4.5; // units/s a player can descend and still recover in time
 /** Distance before a section that the player needs to settle into its corridor. */
 const SETTLE_DISTANCE = 2.5;
+/** The longest section a pattern builds (the passage, 7 to 12 m, plus a margin). */
+const SECTION_MAX = 12.5;
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -21,10 +25,7 @@ export function difficultyAt(distance) {
   return clamp((distance - 40) / 1600, 0, 1);
 }
 
-export function speedAt(distance) {
-  const k = clamp(distance / WORLD.speedRampDistance, 0, 1);
-  return WORLD.baseSpeed + (WORLD.maxSpeed - WORLD.baseSpeed) * k;
-}
+export { speedAt };
 
 export function createTrack() {
   return { nextX: 0, free: [0, 0], center: 0, previous: null, corridors: [] };
@@ -45,8 +46,11 @@ export function fillTrack(track, builder, distance, rng) {
     const type = pickPattern(track.nextX, t, rng, track.previous);
     const gap = gapFor(type, t, rng);
     const spacing = 12 + (7.5 - 12) * t + rng.range(0, 2.5);
-    const x = track.nextX + spacing;
-    const time = Math.max(0.25, (spacing - SETTLE_DISTANCE) / speedAt(track.nextX));
+    // With the biome hazards on, a hazard window owns its stretch of the track: a section never starts inside one (the window, its telegraph and the bird's settling time
+    // all fit in open space). The extra runway is deterministic and draws no random number; with the hazards off this is exactly the original spacing.
+    const gapX = track.nextX + spacing;
+    const x = HAZARDS.enabled ? runwayAfter(gapX, SECTION_MAX) : gapX;
+    const time = Math.max(0.25, (x - track.nextX - SETTLE_DISTANCE) / speedAt(track.nextX));
 
     // Corridor centre must be in the playable band...
     const minC = WORLD.groundY + gap / 2 + 0.5;

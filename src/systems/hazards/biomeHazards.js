@@ -1,6 +1,6 @@
 import { PHYSICS } from '../physics/constants.js';
 import { KIT_STARTS, hash01 } from '../obstacles/rockShapes.js';
-import { speedAt } from '../obstacles/spawner.js';
+import { speedAt } from '../physics/speed.js';
 
 /**
  * Biome hazards: pure functions of the RUN DISTANCE (metres), shared by the simulation, the Auto play bot, the renderer's telegraphs and the tests.
@@ -39,11 +39,11 @@ const smooth = (a, b, x) => {
  * `every` / `len`: one window of `len` metres per slot of `every` metres, placed by a position hash.
  */
 export const BIOME_HAZARDS = Object.freeze({
-  canyon: { updraft: { every: 90, len: 14, accel: 20 }, brittle: { dropAhead: 6, capH: 0.7 } },
-  frosty: { gust: { every: 80, len: 10, accel: 9 }, slide: { flapCarry: 0.45, diveRecovery: 18 } },
+  canyon: { updraft: { every: 140, len: 14, accel: 20 }, brittle: { dropAhead: 6, capH: 0.7 } },
+  frosty: { gust: { every: 120, len: 10, accel: 9 }, slide: { flapCarry: 0.45, diveRecovery: 18 } },
   celestial: { phase: { period: 36, solid: 0.55 } },
   palace: { piston: { period: 48, amp: 1.1 } },
-  sanctuary: { lowG: { every: 110, len: 18, gravity: 0.55 }, bob: { amp: 0.12, period: 40 } },
+  sanctuary: { lowG: { every: 160, len: 18, gravity: 0.55 }, bob: { amp: 0.12, period: 40 } },
 });
 
 /** The [id, start] of the zone a distance is in. */
@@ -88,6 +88,27 @@ export function windowsIn(d0, d1, fn) {
       fn(windowKind(H), s, rule.len, lead, H.gust && hash01(n * 7.1 + 9) < 0.5 ? -1 : 1);
     }
   }
+}
+
+/**
+ * The first track position at or after `x` where a section of up to `maxLen` metres can start without touching a hazard window's reserved band. A band is the window with its telegraph and the
+ * settling room around it (the same margins `hazardsAt` keeps free), so with the spawner using this the windows act in open space. Pure and deterministic.
+ */
+export function runwayAfter(x, maxLen) {
+  if (!HAZARDS.enabled) return x;
+  let moved = true;
+  while (moved) {
+    moved = false;
+    windowsIn(x - 80, x + maxLen + 80, (kind, s, len, lead) => {
+      const from = s - lead - 1;
+      const to = s + len + lead + SETTLE;
+      if (x < to && x + maxLen > from) {
+        x = to;
+        moved = true;
+      }
+    });
+  }
+  return x;
 }
 
 /** The bird modifiers of a bird at distance `d`: gravity and flap strength scales, a vertical acceleration, the flap carry and the dive recovery. */
@@ -148,8 +169,11 @@ export function hazardsAt(d, fx, corridors) {
   return fx;
 }
 
+/** Moving and phasing obstacles forgive a little: they are tested with a bird radius 15% smaller (about 0.054), so their hitboxes act as 85% of what is drawn. Static shapes keep exact silhouettes. */
+export const DYNAMIC_INSET = 0.15 * PHYSICS.birdRadius;
+
 /** Scratch state for one obstacle: out-parameter of `obstacleHazard`. */
-export const createObstacleFx = () => ({ solid: true, dy: 0, pulse: 0, rumble: 0 });
+export const createObstacleFx = () => ({ solid: true, dy: 0, pulse: 0, rumble: 0, dyn: false });
 
 /**
  * The dynamic state of obstacle `o` ({ x, kind, cap }) when the bird is at distance `d`: whether it is solid, how far it has moved (`dy`, always away from its corridor),
@@ -160,12 +184,14 @@ export function obstacleHazard(o, d, out) {
   out.dy = 0;
   out.pulse = 0;
   out.rumble = 0;
+  out.dyn = false;
   if (!HAZARDS.enabled) return out;
   const H = BIOME_HAZARDS[zoneAt(o.x)[0]];
   if (!H) return out;
   const lead = speedAt(d) * LEAD_S;
   const away = o.cap > 0 ? -1 : 1; // rising poles retract down, hanging ones up
   if (H.brittle && o.kind === 'column' && o.cap > 0 && hash01(o.x * 3.3) < 0.5) {
+    out.dyn = true;
     const at = o.x - H.brittle.dropAhead; // the cap lets go when the bird is this far before the pole
     if (d >= at - lead && d < at) out.rumble = (d - (at - lead)) / lead;
     else if (d >= at) {
@@ -174,17 +200,20 @@ export function obstacleHazard(o, d, out) {
     }
   }
   if (H.phase && o.kind !== 'rock' && hash01(o.x * 5.5) < 0.4) {
+    out.dyn = true;
     const ul = lead / H.phase.period;
     const u = (((d + o.x * 0.37) / H.phase.period) % 1 + 1) % 1;
     out.solid = u < H.phase.solid;
     out.pulse = u >= 1 - ul ? (u - (1 - ul)) / ul : 0; // warns before it turns solid again
   }
   if (H.piston && o.kind === 'column' && hash01(o.x * 2.2) < 0.5) {
+    out.dyn = true;
     const ph = (d + o.x * 0.21) / H.piston.period;
     out.dy = away * H.piston.amp * 0.5 * (1 - Math.cos(2 * Math.PI * ph));
     const f = ((ph % 1) + 1) % 1;
     out.pulse = f >= 0.5 - lead / H.piston.period && f < 0.5 ? 1 : 0; // the rail glows before the piston comes back
   }
+  if (H.bob && o.kind === 'block') out.dyn = true;
   if (H.bob && o.kind === 'block') out.dy = away * H.bob.amp * (0.5 + 0.5 * Math.sin((2 * Math.PI * d) / H.bob.period + o.x));
   return out;
 }

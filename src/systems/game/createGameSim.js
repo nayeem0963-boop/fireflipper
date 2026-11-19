@@ -1,6 +1,6 @@
 import { DYING_DURATION, PHYSICS, WORLD } from '../physics/constants.js';
 import { applyFlap, stepFlight } from '../physics/flight.js';
-import { createHazardFx, hazardsAt } from '../hazards/biomeHazards.js';
+import { DYNAMIC_INSET, HAZARDS, createHazardFx, createObstacleFx, hazardsAt, obstacleHazard } from '../hazards/biomeHazards.js';
 import { circleGap, circleHitsObstacle } from '../physics/collision.js';
 import { ObjectPool } from '../obstacles/ObjectPool.js';
 import { archPolys, columnPolys, ledgePolys, pickLook, poleInstances, poleReach, polysExtent, rockKit } from '../obstacles/rockShapes.js';
@@ -27,7 +27,7 @@ const FLAP_EVENT = Object.freeze({ type: GAME_EVENTS.FLAP });
 const START_EVENT = Object.freeze({ type: GAME_EVENTS.START });
 
 function createObstacle() {
-  return { kind: 'column', shape: 'box', x: 0, y: 0, z: 0, w: 1, h: 1, d: 1, hw: 0, hh: 0, cr: 0, r: 0, sx: 1, sy: 1, sz: 1, rot: 0, spin: 0, cap: 0, extent: 0, gap: Infinity, nm: false, kit: null, look: null, polys: null, draw: null };
+  return { kind: 'column', shape: 'box', x: 0, y: 0, z: 0, w: 1, h: 1, d: 1, hw: 0, hh: 0, cr: 0, r: 0, sx: 1, sy: 1, sz: 1, rot: 0, spin: 0, cap: 0, extent: 0, gap: Infinity, nm: false, kit: null, look: null, polys: null, draw: null, dy: 0, solid: true, pulse: 0, rumble: 0, dyn: false };
 }
 function createOrb() {
   return { x: 0, y: 0, phase: 0, missed: false };
@@ -38,6 +38,7 @@ export function createGameSim() {
   const obstacles = new ObjectPool(createObstacle, undefined, 64);
   const orbs = new ObjectPool(createOrb, undefined, 32);
   const track = createTrack();
+  const HZ_OB = createObstacleFx(); // scratch for the obstacle hazards, reused
 
   /** Pool-backed builder handed to obstacle patterns. */
   const builder = {
@@ -59,6 +60,11 @@ export function createGameSim() {
       o.extent = w / 2;
       o.gap = Infinity;
       o.nm = false;
+      o.dy = 0;
+      o.solid = true;
+      o.pulse = 0;
+      o.rumble = 0;
+      o.dyn = false;
       o.kit = null;
       o.look = null;
       o.polys = null;
@@ -95,6 +101,11 @@ export function createGameSim() {
       o.extent = o.w / 2;
       o.gap = Infinity;
       o.nm = false;
+      o.dy = 0;
+      o.solid = true;
+      o.pulse = 0;
+      o.rumble = 0;
+      o.dyn = false;
       o.kit = null;
       o.look = null;
       o.polys = null;
@@ -126,6 +137,11 @@ export function createGameSim() {
       o.extent = r;
       o.gap = Infinity;
       o.nm = false;
+      o.dy = 0;
+      o.solid = true;
+      o.pulse = 0;
+      o.rumble = 0;
+      o.dyn = false;
       o.kit = rockKit(x);
       o.look = o.kit ? 'boulder' : null;
       o.polys = null;
@@ -291,6 +307,15 @@ export function createGameSim() {
         obstacles.release(o);
         continue;
       }
+      // the biome hazards move and phase some obstacles (see systems/hazards/biomeHazards.js); their state is a pure function of the bird's distance
+      if (HAZARDS.enabled) {
+        obstacleHazard(o, bx, HZ_OB);
+        o.dy = HZ_OB.dy;
+        o.solid = HZ_OB.solid;
+        o.pulse = HZ_OB.pulse;
+        o.rumble = HZ_OB.rumble;
+        o.dyn = HZ_OB.dyn;
+      }
       const ahead = o.x - bx;
       const band = o.extent + R + NEAR_MISS_GAP;
       if (ahead > band) continue; // broad phase
@@ -303,11 +328,15 @@ export function createGameSim() {
         }
         continue;
       }
-      if (circleHitsObstacle(bx, b.y, R, o)) {
+      if (!o.solid) continue; // a phase barrier that is passable right now: no hit and no near miss
+      // The bird is tested in the obstacle's own moved frame (dy), with 85% hitboxes on the moving ones.
+      const cy = b.y - o.dy;
+      const r = o.dyn ? R - DYNAMIC_INSET : R;
+      if (circleHitsObstacle(bx, cy, r, o)) {
         die(o.kind);
         return;
       }
-      const gap = circleGap(bx, b.y, R, o);
+      const gap = circleGap(bx, cy, r, o);
       if (gap < o.gap) o.gap = gap;
     }
 

@@ -2,7 +2,7 @@ import { PHYSICS, WORLD } from '../physics/constants.js';
 import { applyFlap, stepFlight } from '../physics/flight.js';
 import { circleHitsObstacle } from '../physics/collision.js';
 import { speedAt } from '../obstacles/spawner.js';
-import { createHazardFx, hazardsAt } from '../hazards/biomeHazards.js';
+import { DYNAMIC_INSET, HAZARDS, createHazardFx, createObstacleFx, hazardsAt, obstacleHazard } from '../hazards/biomeHazards.js';
 
 /**
  * Autopilot for the watch-only "Auto play" mode. A feature the owner asked to keep: do not remove it without
@@ -50,6 +50,7 @@ export function createAutopilot(sim) {
   const input = { holding: false, dive: false };
   // The biome hazards at a planned state's distance (the same function the simulation uses), so the bot plans with the real forces.
   const hz = createHazardFx();
+  const ob = createObstacleFx();
 
   /** Search from the bird's current state; returns the first action (0-2) of the best surviving plan. */
   function plan(margin) {
@@ -97,7 +98,16 @@ export function createAutopilot(sim) {
             for (let n = 0; n < near.length; n++) {
               const o = near[n];
               if (Math.abs(o.x - x) > o.extent + R) continue;
-              if (circleHitsObstacle(x, b.y, R, o)) {
+              // moving and phasing obstacles at the planned distance: the same state the simulation will compute (a phased-out barrier is passable; a moved one is tested in its own frame)
+              let cy = b.y;
+              let r = R;
+              if (HAZARDS.enabled) {
+                obstacleHazard(o, x, ob);
+                if (!ob.solid) continue;
+                cy = b.y - ob.dy;
+                if (ob.dyn) r = R - DYNAMIC_INSET;
+              }
+              if (circleHitsObstacle(x, cy, r, o)) {
                 alive = false;
                 break;
               }
