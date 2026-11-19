@@ -484,6 +484,50 @@ function flyBot(seed, upto, visit) {
 }
 function DYNAMIC_INSET_FOR_TEST() { return 0.15 * PHYSICS.birdRadius; }
 
+// ---------------------------------------------------------------- phase 4: stage transitions and retries under stress
+{
+  // teleport across every zone border at many offsets with the hazards on: nothing throws, and the bird, the hazard state and every obstacle stay finite
+  let runs = 0, nonFinite = 0;
+  const errors = [];
+  const fin = (...v) => v.every(Number.isFinite);
+  for (const border of [1500, 2000, 3000, 5000]) {
+    for (let off = -130; off <= 130; off += 13) {
+      try {
+        const sim = createGameSim();
+        sim.reset(7 + runs);
+        sim.flap();
+        sim.distance = sim.prevDistance = border + off;
+        sim.bird.y = 0.5;
+        sim.bird.vy = 0;
+        sim.step(DT);
+        for (let i = 0; i < 420 && sim.phase === PHASE.RUNNING; i++) {
+          const c = sim.track.corridors.find((k) => k.x1 > sim.distance - 0.3);
+          const target = c ? Math.max(c.lo + 0.8, c.center - 0.6) : 0;
+          const { y, vy } = sim.bird;
+          if (vy < 0 && (y < target || (c && y < c.lo + 0.5))) sim.flap();
+          sim.step(DT);
+          const h = sim.hazard;
+          if (!fin(sim.bird.y, sim.bird.vy, sim.bird.pitch, sim.distance, h.accelY, h.gravityScale, h.flapScale, h.flapCarry, h.diveRecovery, h.tele)) nonFinite++;
+          for (const o of sim.obstacles.active) if (!fin(o.dy, o.pulse, o.rumble) || typeof o.solid !== 'boolean') nonFinite++;
+        }
+        runs++;
+        // a reset in the middle of a window leaves nothing behind, and the next step is clean
+        let mid = null;
+        for (let d = sim.distance; d < sim.distance + 400 && mid === null; d += 0.5) { hazardsAt(d, fx, []); if (fx.active) mid = d; }
+        if (mid !== null) { sim.distance = sim.prevDistance = mid; sim.phase = PHASE.RUNNING; sim.step(DT); }
+        sim.reset(3);
+        if (sim.hazard.kind !== '' || sim.hazard.accelY !== 0 || sim.hazard.gravityScale !== 1) nonFinite++;
+        sim.flap();
+        sim.step(DT);
+        if (!fin(sim.bird.y, sim.bird.vy)) nonFinite++;
+      } catch (e) {
+        errors.push(`${border + off}: ${e.message}`);
+      }
+    }
+  }
+  check(`crossing every zone border at 21 offsets (${runs} runs of 3.5 s each): no exception, every value finite, retries are clean`, errors.length === 0 && nonFinite === 0 && runs === 84, errors.slice(0, 2).join(' | ') + ` nonFinite ${nonFinite}`);
+}
+
 // ---------------------------------------------------------------- obstacle states (pure; wired into collisions in phase 2)
 {
   const out = createObstacleFx();
