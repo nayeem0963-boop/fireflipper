@@ -92,6 +92,8 @@ export function JourneyComplete() {
   const featherNew = earned.some((r) => r.id === 'celestial-feather');
   const others = earned.filter((r) => r.id !== 'celestial-feather');
   const owned = REWARDS.filter((r) => journey.rewards[r.id]).length;
+  // Journey Preview: the rewards below are SIMULATED (never granted or saved), and the screen says so
+  const preview = !!result.preview;
 
   return (
     <div className="overlay overlay--journey">
@@ -99,6 +101,7 @@ export function JourneyComplete() {
         <div className="jdone__body">
           <header className="jdone__head">
             <p className="jdone__brand">Fire Flipper</p>
+            {preview && <p className="jdone__preview">Journey Preview &middot; nothing was saved</p>}
             <h2 id="jdone-title" className="jdone__title">Journey Complete</h2>
             <p className="jdone__sub">You&rsquo;ve reached the Celestial City!</p>
           </header>
@@ -106,14 +109,14 @@ export function JourneyComplete() {
           <section className={`jdone__prize${featherNew ? ' is-new' : ''}`} aria-label="Primary reward">
             <RewardArt id="celestial-feather" className="jdone__feather" />
             <div>
-              <p className="jdone__prize-title">{featherNew ? 'Celestial Feather unlocked' : 'Celestial Feather'}</p>
-              <p className="jdone__prize-sub">{featherNew ? getReward('celestial-feather').kicker : 'Already in your collection: you have flown the journey before.'}</p>
+              <p className="jdone__prize-title">{preview ? 'Celestial Feather (preview)' : featherNew ? 'Celestial Feather unlocked' : 'Celestial Feather'}</p>
+              <p className="jdone__prize-sub">{preview ? 'This is what the journey awards. Nothing here was added to your collection.' : featherNew ? getReward('celestial-feather').kicker : 'Already in your collection: you have flown the journey before.'}</p>
             </div>
           </section>
 
           {others.length > 0 && (
             <section className="jdone__others" aria-label="Other rewards unlocked on this journey">
-              <h3 className="jdone__h">Also unlocked on this journey</h3>
+              <h3 className="jdone__h">{preview ? 'Also awarded on this journey (preview)' : 'Also unlocked on this journey'}</h3>
               <ul>
                 {others.map((r) => (
                   <li key={r.id}>
@@ -130,16 +133,27 @@ export function JourneyComplete() {
             <div><dt>Final score</dt><dd>{formatScore(result.score)}{result.isNewBest ? ' · new best!' : ''}</dd></div>
             <div><dt>Orbs collected</dt><dd>{result.orbs}</dd></div>
             <div><dt>Worlds completed</dt><dd>{result.worlds ?? WORLD_COUNT} / {WORLD_COUNT}</dd></div>
-            <div><dt>Rewards unlocked</dt><dd>{earned.length} new · {owned} / {REWARDS.length} owned</dd></div>
+            <div><dt>Rewards unlocked</dt><dd>{preview ? `${earned.length} previewed · none saved` : `${earned.length} new · ${owned} / ${REWARDS.length} owned`}</dd></div>
           </dl>
         </div>
 
         <footer className="jdone__footer">
-          <button type="button" className="play-btn play-btn--compact" onClick={replay} autoFocus>
-            <span>Replay Journey</span>
-          </button>
-          <button type="button" className="ghost-btn" onClick={openRewards}>View Rewards</button>
-          <button type="button" className="ghost-btn" onClick={exitToMenu}>Return to Main Menu</button>
+          {preview ? (
+            <>
+              <button type="button" className="play-btn play-btn--compact" onClick={replay} autoFocus>
+                <span>Watch Again</span>
+              </button>
+              <button type="button" className="ghost-btn" onClick={exitToMenu}>Exit Preview</button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="play-btn play-btn--compact" onClick={replay} autoFocus>
+                <span>Replay Journey</span>
+              </button>
+              <button type="button" className="ghost-btn" onClick={openRewards}>View Rewards</button>
+              <button type="button" className="ghost-btn" onClick={exitToMenu}>Return to Main Menu</button>
+            </>
+          )}
         </footer>
       </div>
     </div>

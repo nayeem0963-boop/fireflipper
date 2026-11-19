@@ -133,6 +133,29 @@ for (const [name, opts] of CASES) {
   await ctx.close();
 }
 
+// Journey Preview (Auto play through the whole journey, nothing saved): it must start from the home screen on every layout with no page error, leave existing data alone and exit cleanly.
+for (const [name, opts] of CASES) {
+  const ctx = await browser.newContext(opts);
+  const p = await ctx.newPage();
+  const errors = [];
+  p.on('pageerror', (e) => errors.push(e.message));
+  p.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await p.addInitScript(() => { if (!localStorage.getItem('fireflipper:bestScore')) localStorage.setItem('fireflipper:bestScore', '4321'); });
+  await p.goto(`http://localhost:${PORT}/`);
+  await p.waitForSelector('.birdchip', { timeout: 20000 });
+  const keys = () => p.evaluate(() => JSON.stringify(Object.keys(localStorage).filter((k) => /journey|bestScore|stats|achievements|daily|flown/.test(k)).sort().map((k) => [k, localStorage.getItem(k)])));
+  const before = await keys();
+  await p.getByRole('button', { name: /journey preview/i }).click();
+  await p.waitForSelector('.demo__badge', { timeout: 20000 });
+  await p.waitForSelector('canvas', { timeout: 20000 });
+  await p.waitForTimeout(6000);
+  check(`${name} (preview): labelled as the Journey Preview, with no page or console error`, /journey preview/i.test(await p.locator('.demo__badge').innerText()) && errors.length === 0, errors.join(' | '));
+  await p.getByRole('button', { name: /^exit$/i }).click();
+  await p.waitForSelector('.birdchip', { timeout: 20000 });
+  check(`${name} (preview): exiting returns to the menu and leaves the saved data untouched`, (await keys()) === before);
+  await ctx.close();
+}
+
 await browser.close();
 server.kill();
 console.log(failures ? `\n${failures} failed` : '\nbrowser smoke tests passed');

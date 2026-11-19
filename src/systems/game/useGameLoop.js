@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber';
 import { useGameStore, STATUS } from '../../store/useGameStore.js';
 import { PHYSICS } from '../physics/constants.js';
 import { createAutopilot } from '../bot/autopilot.js';
-import { GAME_EVENTS, gameEvents } from '../events/gameEvents.js';
+import { gameEvents } from '../events/gameEvents.js';
+import { routeSimEvent } from './routeEvents.js';
 
 const HUD_INTERVAL = 0.1; // seconds; the HUD only needs ~10 updates/s
 
@@ -23,7 +24,8 @@ export function useGameLoop(sim) {
   const bot = useMemo(() => createAutopilot(sim), [sim]);
 
   useEffect(() => {
-    sim.reset();
+    // the Journey Preview flies a verified track seed; a normal run and plain Auto play keep a random one
+    sim.reset(useGameStore.getState().previewSeed ?? undefined);
     bot.reset();
     acc.current = 0;
     hudTimer.current = 0;
@@ -44,11 +46,7 @@ export function useGameLoop(sim) {
 
     if (sim.events.length) {
       for (const e of sim.events) {
-        if (e.type === GAME_EVENTS.START) store.beginRun();
-        else if (e.type === GAME_EVENTS.CRASH) store.crash();
-        else if (e.type === GAME_EVENTS.OVER) store.endRun(sim.results());
-        else if (e.type === GAME_EVENTS.MILESTONE) store.milestoneReached(e);
-        else if (e.type === GAME_EVENTS.COMPLETE) store.endRun(sim.results());
+        routeSimEvent(store, sim, e);
         gameEvents.emit(e.type, e);
       }
       sim.events.length = 0;

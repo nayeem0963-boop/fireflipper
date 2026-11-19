@@ -26,9 +26,9 @@ export default function MilestoneToast() {
     <div className="mtoast" role="status" aria-live="polite" key={milestone.id}>
       <span className="mtoast__star" aria-hidden="true">✦</span>
       <div className="mtoast__text">
-        <p className="mtoast__kicker">World {milestone.index + 1} completed</p>
+        <p className="mtoast__kicker">World {milestone.index + 1} completed{milestone.preview ? ' · preview' : ''}</p>
         <p className="mtoast__name">{milestone.name}</p>
-        {rewards.length > 0 && <p className="mtoast__reward">{rewards.join(' · ')} unlocked</p>}
+        {rewards.length > 0 && <p className="mtoast__reward">{milestone.preview ? `Preview: ${rewards.join(' · ')}` : `${rewards.join(' · ')} unlocked`}</p>}
       </div>
     </div>
   );

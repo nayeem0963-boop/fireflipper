@@ -319,9 +319,9 @@ console.log('\nG. Screens');
   const toast = read('src/components/ui/MilestoneToast.jsx');
   check('the milestone banner ignores the pointer, removes itself and cleans its timer', /pointer-events: none/.test(css) && /clearTimeout\(id\)/.test(toast) && /TOAST_MS/.test(toast));
   const screen = read('src/components/game/GameScreen.jsx');
-  check('the ending is mounted by the COMPLETE status only (once), never for Auto play', /status === STATUS\.COMPLETE && !demo/.test(screen) && /!demo && \(status === STATUS\.RUNNING/.test(screen));
+  check('the ending is mounted by the COMPLETE status only (once), for real play and the Journey Preview, never for plain Auto play', /status === STATUS\.COMPLETE && \(!demo \|\| preview\)/.test(screen) && /\(!demo \|\| preview\) && \(status === STATUS\.RUNNING/.test(screen));
   const loop = read('src/systems/game/useGameLoop.js');
-  check('the loop forwards milestones and the finish line from the simulation to the store', /MILESTONE\) store\.milestoneReached/.test(loop) && /COMPLETE\) store\.endRun/.test(loop));
+  check('the loop forwards milestones and the finish line from the simulation to the store', /routeSimEvent/.test(loop) && /MILESTONE\) store\.milestoneReached/.test(read('src/systems/game/routeEvents.js')) && /COMPLETE\) store\.endRun/.test(read('src/systems/game/routeEvents.js')));
 }
 
 console.log(failures ? `\n${failures} failed` : '\njourney tests passed');

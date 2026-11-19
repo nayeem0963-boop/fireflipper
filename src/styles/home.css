@@ -391,3 +391,18 @@
     justify-content: flex-end;
   }
 }
+
+/* Auto play and Journey Preview: two secondary buttons side by side under Play */
+.home__watch {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.home__watch .home__demo {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: 0.6em;
+}
+.home__preview {
+  border-color: rgba(205, 188, 255, 0.45);
+}

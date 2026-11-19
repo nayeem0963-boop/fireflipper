@@ -19,6 +19,7 @@ export default function HomeScreen() {
   const bestScore = useGameStore((s) => s.bestScore);
   const startGame = useGameStore((s) => s.startGame);
   const startDemo = useGameStore((s) => s.startDemo);
+  const startPreview = useGameStore((s) => s.startPreview);
   const openSettings = useGameStore((s) => s.openSettings);
   const settingsOpen = useGameStore((s) => s.settingsOpen);
   const avatarsOpen = useGameStore((s) => s.avatarsOpen);
@@ -104,17 +105,30 @@ export default function HomeScreen() {
           <PlayIcon />
           <span>Play</span>
         </button>
-        <button
-          type="button"
-          className="ghost-btn home__demo"
-          onClick={() => {
-            unlockAudio();
-            startDemo();
-          }}
-        >
-          Watch auto play
-          <small>A bot plays so you can see how. Nothing is scored.</small>
-        </button>
+        <div className="home__watch">
+          <button
+            type="button"
+            className="ghost-btn home__demo"
+            onClick={() => {
+              unlockAudio();
+              startDemo();
+            }}
+          >
+            Watch auto play
+            <small>A bot plays so you can see how. Nothing is scored.</small>
+          </button>
+          <button
+            type="button"
+            className="ghost-btn home__demo home__preview"
+            onClick={() => {
+              unlockAudio();
+              startPreview();
+            }}
+          >
+            Journey Preview
+            <small>Watch all five worlds and the ending. Nothing is saved.</small>
+          </button>
+        </div>
 
         <div className="home__cards">
           <article className="card">

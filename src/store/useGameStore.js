@@ -15,6 +15,7 @@ import {
 } from '../systems/progression/progression.js';
 import { avatarFor, getAvatar, isAvatarUnlocked, resolveAvatar } from '../systems/avatars/avatars.js';
 import { reachMilestone, sanitizeJourney } from '../systems/rewards/rewards.js';
+import { previewRewardIds, previewSeedFor } from '../systems/rewards/preview.js';
 import { WORLD_COUNT } from '../systems/world/worlds.js';
 
 export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
@@ -50,6 +51,13 @@ export const useGameStore = create((set, get) => ({
   settingsOpen: false,
   /** Auto play (watch-only): a bot flies, nothing is scored or saved. Keep this feature (see CLAUDE.md). */
   demo: false,
+  /**
+   * Journey Preview: Auto play flown through all five worlds to the ending, with the milestone banners, the celebration and a SIMULATED reward screen. Always together with `demo`
+   * (so every persistence path that ignores Auto play ignores this too), and nothing it shows is ever granted or saved: see `persistProgress`.
+   */
+  preview: false,
+  /** The track seed the preview flies (a verified one), or null. */
+  previewSeed: null,
   avatarsOpen: false,
   achievementsOpen: false,
   creditsOpen: false,
@@ -106,15 +114,25 @@ export const useGameStore = create((set, get) => ({
     set((s) => ({
       screen: SCREENS.GAME,
       demo: false,
-      ...freshRun(s),
+      preview: false,
+      ...freshRun(s, false),
     })),
   startDemo: () =>
     set((s) => ({
       screen: SCREENS.GAME,
       demo: true,
-      ...freshRun(s),
+      preview: false,
+      ...freshRun(s, false),
     })),
-  exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE, demo: false }),
+  /** The Journey Preview: Auto play with the whole journey's presentation, and no permanent effect of any kind. */
+  startPreview: () =>
+    set((s) => ({
+      screen: SCREENS.GAME,
+      demo: true,
+      preview: true,
+      ...freshRun(s, true),
+    })),
+  exitToMenu: () => set({ screen: SCREENS.HOME, status: STATUS.IDLE, demo: false, preview: false, previewSeed: null, milestone: null, runRewards: [] }),
   openAvatars: () => set({ avatarsOpen: true }),
   closeAvatars: () => set({ avatarsOpen: false }),
   openAchievements: () => set({ achievementsOpen: true }),
@@ -135,9 +153,16 @@ export const useGameStore = create((set, get) => ({
    */
   milestoneReached: ({ index, at, name }) => {
     const s = get();
-    if (s.demo || s.status !== STATUS.RUNNING || !Number.isInteger(index) || index <= s.milestoneIndex || index >= WORLD_COUNT - 1) return;
+    if (s.status !== STATUS.RUNNING || !Number.isInteger(index) || index <= s.milestoneIndex || index >= WORLD_COUNT - 1) return;
+    if (s.preview) {
+      // Journey Preview: the banner and the simulated unlocks only. The real journey record, the stats and storage are not touched (previewRewardIds is pure).
+      const ids = previewRewardIds(index);
+      set({ milestoneIndex: index, milestone: { id: `${s.runId}:${index}`, index, at, name, granted: ids, preview: true }, runRewards: [...s.runRewards, ...ids] });
+      return;
+    }
+    if (s.demo) return; // Auto play: nothing (and the preview branch above has already returned)
     const { journey, granted } = reachMilestone(s.journey, index, s.stats.runs + 1);
-    saveValue('journey', journey);
+    persistProgress('journey', journey);
     set({
       journey,
       milestoneIndex: index,
@@ -157,8 +182,22 @@ export const useGameStore = create((set, get) => ({
     if (s.status !== STATUS.DYING && s.status !== STATUS.RUNNING) return;
     // A finish line can only be crossed alive: a run that already crashed (DYING) can never complete.
     if (completed && s.status !== STATUS.RUNNING) return;
-    // Auto play never counts: no best score, stats, achievements or daily progress.
-    if (s.demo) {
+    // Journey Preview, finish line: show the ending with SIMULATED rewards. Nothing is granted, counted or saved, and the real record is not read or written.
+    if (s.preview && completed) {
+      const rewards = [...new Set([...s.runRewards, ...previewRewardIds(WORLD_COUNT - 1)])];
+      set({
+        status: STATUS.COMPLETE,
+        overAt: performance.now(),
+        score,
+        distance,
+        orbs,
+        lastResult: { score, distance, orbs, bestStreak, nearMisses, cause: null, completed: true, worlds: WORLD_COUNT, rewards, preview: true, isNewBest: false },
+        runRewards: rewards,
+      });
+      return;
+    }
+    // Auto play never counts: no best score, stats, achievements or daily progress. (A preview run never falls through to the real path below, whatever else its flags say.)
+    if (s.demo || s.preview) {
       set({ status: STATUS.OVER, overAt: performance.now(), lastResult: null });
       return;
     }
@@ -169,14 +208,14 @@ export const useGameStore = create((set, get) => ({
       const done = reachMilestone(journey, WORLD_COUNT - 1, s.stats.runs + 1);
       journey = done.journey;
       runRewards = [...runRewards, ...done.granted.map((r) => r.id)];
-      saveValue('journey', journey);
+      persistProgress('journey', journey);
     }
     const previousBest = s.bestScore;
     const isNewBest = score > previousBest;
-    if (isNewBest) saveValue('bestScore', score);
+    if (isNewBest) persistProgress('bestScore', score);
     const species = resolveAvatar(s.skinId, s.bestScore, s.theme, s.journey.rewards).species;
     const flown = { ...s.flown, [species]: (s.flown[species] ?? 0) + 1 };
-    saveValue('flown', flown);
+    persistProgress('flown', flown);
     const unlockedSkins = newlyUnlocked(previousBest, score, s.theme).map((k) => k.name);
 
     // Progression: lifetime stats, achievements and the daily goal.
@@ -190,9 +229,9 @@ export const useGameStore = create((set, get) => ({
     const dailyGoal = dailyGoalFor(rolled.key);
     const dailyJustMet = !rolled.done && dailyMet(dailyGoal, run);
     const daily = dailyJustMet ? completeDaily(rolled) : rolled;
-    saveValue('stats', stats);
-    saveValue('achievements', earned);
-    saveValue('daily', daily);
+    persistProgress('stats', stats);
+    persistProgress('achievements', earned);
+    persistProgress('daily', daily);
     set({
       stats,
       earned,
@@ -290,6 +329,18 @@ function initialSkins() {
   return { byTheme, active };
 }
 
-function freshRun(s) {
-  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, lastResult: null, runId: s.runId + 1, milestoneIndex: -1, milestone: null, runRewards: [] };
+function freshRun(s, preview = s.preview) {
+  const runId = s.runId + 1;
+  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, lastResult: null, runId, milestoneIndex: -1, milestone: null, runRewards: [], previewSeed: preview ? previewSeedFor(runId) : null };
+}
+
+/**
+ * The ONLY way progression (best score, stats, achievements, daily goal, the journey and its rewards) reaches storage. It refuses during Auto play and the Journey Preview whatever the caller,
+ * so a path that forgets its own check still cannot save anything. (Settings such as sound, theme and quality are saved elsewhere: they are not progression.)
+ */
+function persistProgress(key, value) {
+  const s = useGameStore.getState();
+  if (s.demo || s.preview) return false;
+  saveValue(key, value);
+  return true;
 }

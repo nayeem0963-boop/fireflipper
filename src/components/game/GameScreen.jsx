@@ -27,6 +27,7 @@ const RETRY_GUARD_MS = 450;
 export default function GameScreen() {
   const status = useGameStore((s) => s.status);
   const demo = useGameStore((s) => s.demo);
+  const preview = useGameStore((s) => s.preview);
   const restart = useGameStore((s) => s.restart);
   const playSurface = useRef(null);
 
@@ -77,9 +78,9 @@ export default function GameScreen() {
 
       <GameHUD />
 
-      {demo && <DemoOverlay />}
-      {!demo && (status === STATUS.RUNNING || paused) && <MilestoneToast />}
-      {status === STATUS.COMPLETE && !demo && <JourneyEnding />}
+      {demo && status !== STATUS.COMPLETE && <DemoOverlay />}
+      {(!demo || preview) && (status === STATUS.RUNNING || paused) && <MilestoneToast />}
+      {status === STATUS.COMPLETE && (!demo || preview) && <JourneyEnding />}
       {status === STATUS.READY && !demo && <StartPrompt />}
       {status === STATUS.DYING && <div className="game__flash" aria-hidden="true" />}
       {paused && <PauseMenu />}

@@ -13,6 +13,7 @@ import { PlayIcon } from './Icons.jsx';
 export default function DemoOverlay() {
   const startGame = useGameStore((s) => s.startGame);
   const exitToMenu = useGameStore((s) => s.exitToMenu);
+  const preview = useGameStore((s) => s.preview);
   const [tap, setTap] = useState(0);
   const [hold, setHold] = useState(false);
   const lastTap = useRef(0);
@@ -35,8 +36,8 @@ export default function DemoOverlay() {
       <div className="demo__badge" role="status">
         <span className="demo__dot" aria-hidden="true" />
         <span>
-          <strong>Auto play</strong>
-          <small>A bot is flying. Nothing is scored.</small>
+          <strong>{preview ? 'Journey Preview' : 'Auto play'}</strong>
+          <small>{preview ? 'A bot flies all 10,000 m. Nothing is saved.' : 'A bot is flying. Nothing is scored.'}</small>
         </span>
       </div>
 
