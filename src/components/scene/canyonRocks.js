@@ -1,5 +1,5 @@
 import { BufferAttribute, BufferGeometry, Color, IcosahedronGeometry, Vector3 } from 'three';
-import { ARCH_RISE, FIN_FOOT, LEDGE_DROP, POLE_TABLES, archRise, finLean, ledgeDrop, polePlacements, slabSamples } from '../../systems/obstacles/rockShapes.js';
+import { ARCH_RISE, FIN_FOOT, LEDGE_DROP, POLE_TABLES, archRise, finLean, ledgeDrop, slabSamples } from '../../systems/obstacles/rockShapes.js';
 
 /**
  * Procedural sandstone geometry for the Red Rock Canyon obstacles: hoodoos, rock fins, arch lintels, arch spans, ledges and boulders, in the faceted, banded style of the owner's
@@ -10,7 +10,7 @@ import { ARCH_RISE, FIN_FOOT, LEDGE_DROP, POLE_TABLES, archRise, finLean, ledgeD
  * stem running away from the corridor: down for a rising pole, up for a hanging one); passage slabs are one unit long, stretched to the slab's length. scripts/canyon-rocks-test.mjs compares
  * the assembled silhouettes with the real colliders.
  *
- * Pieces (one InstancedMesh each): hoodooHead, hoodooSegment, lintelHead, lintelSegment, finHeadUp, finHeadDown, finBody, archBand, ledgeBand, slabBody, boulder.
+ * Pieces (one InstancedMesh each): hoodooHead, hoodooSegment, lintelHead, lintelSegment, finHeadUp, finHeadDown, finBody, archBand, ledgeBand, slabBlock, boulder.
  */
 export const ROCK_CONTRACT = Object.freeze({
   /** Boulders: the largest ball inside is at least this (the collider circle is 0.86) and nothing reaches beyond maxRadius (1.4 x the collider). */
@@ -167,25 +167,27 @@ export const createFinBody = () => {
   return g;
 };
 
-/** Faceted front for the passage slabs: depth jitter on the z faces only, so the silhouette across the track is exact. */
-function slabFaces({ xs, bottom, top, z = 0.5, seed, rows, topCap, faceColor }) {
+/**
+ * Faceted front and back for the passage slabs. Each strip is cut into `rows` rows, and the interior vertices are pushed in or out in depth (z) only, so the
+ * silhouette across the track (x and y) is exact: the corners, the ends and the gap-face edge never move.
+ */
+function slabFaces({ xs, bottom, top, z = 0.5, seed, rows = 1, topCap, faceColor, jitter = 0.16 }) {
   const rnd = rng(seed);
-  const tris = [];
-  const quads = [];
   const n = xs.length - 1;
+  const quads = [];
   for (const side of [1, -1]) {
-    for (let i = 0; i < n; i++) {
-      const jit = () => (rnd() - 0.5) * 0.1;
-      const za = side * (z + (i === 0 ? 0 : jit()));
-      const zb = side * (z + (i === n - 1 ? 0 : jit()));
-      quads.push({ q: [[xs[i], bottom[i], za], [xs[i + 1], bottom[i + 1], zb], [xs[i + 1], top[i + 1], zb], [xs[i], top[i], za]], i, kind: side > 0 ? 'front' : 'back' });
-    }
+    const grid = xs.map((x, i) => Array.from({ length: rows + 1 }, (_, j) => {
+      const interior = i > 0 && i < n && j > 0 && j < rows;
+      return [x, bottom[i] + ((top[i] - bottom[i]) * j) / rows, side * (z + (interior ? (rnd() - 0.4) * jitter : 0))];
+    }));
+    for (let i = 0; i < n; i++) for (let j = 0; j < rows; j++) quads.push({ q: [grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]], i, j, rows, kind: side > 0 ? 'front' : 'back' });
   }
   for (let i = 0; i < n; i++) {
-    quads.push({ q: [[xs[i], bottom[i], z], [xs[i + 1], bottom[i + 1], z], [xs[i + 1], bottom[i + 1], -z], [xs[i], bottom[i], -z]], i, kind: 'under' });
-    if (topCap) quads.push({ q: [[xs[i], top[i], z], [xs[i + 1], top[i + 1], z], [xs[i + 1], top[i + 1], -z], [xs[i], top[i], -z]], i, kind: 'top' });
+    quads.push({ q: [[xs[i], bottom[i], z], [xs[i + 1], bottom[i + 1], z], [xs[i + 1], bottom[i + 1], -z], [xs[i], bottom[i], -z]], i, j: 0, rows, kind: 'under' });
+    if (topCap) quads.push({ q: [[xs[i], top[i], z], [xs[i + 1], top[i + 1], z], [xs[i + 1], top[i + 1], -z], [xs[i], top[i], -z]], i, j: rows, rows, kind: 'top' });
   }
-  for (const [x, k] of [[xs[0], 0], [xs[n], n]]) quads.push({ q: [[x, bottom[k], -z], [x, bottom[k], z], [x, top[k], z], [x, top[k], -z]], i: k, kind: 'end' });
+  for (const [x, k] of [[xs[0], 0], [xs[n], n]]) quads.push({ q: [[x, bottom[k], -z], [x, bottom[k], z], [x, top[k], z], [x, top[k], -z]], i: k, j: 0, rows, kind: 'end' });
+  const tris = [];
   const info = [];
   for (const o of quads) {
     const [a, b, c, d] = o.q;
@@ -193,8 +195,22 @@ function slabFaces({ xs, bottom, top, z = 0.5, seed, rows, topCap, faceColor }) 
     info.push(o, o);
   }
   const centre = new Vector3(0, (Math.min(...bottom) + Math.max(...top)) / 2, 0);
-  return fromTriangles(tris, (mid) => mid.clone().sub(centre), (mid, nrm, i) => faceColor(mid, nrm, info[i], rows));
+  return fromTriangles(tris, (mid) => mid.clone().sub(centre), (mid, nrm, i) => faceColor(mid, nrm, info[i]));
 }
+
+/** A stratum: the lower half of a block one colour, the upper half the other (two layers of sandstone per block). */
+const layerColor = (seed) => {
+  const rnd = rng(seed);
+  const j = Array.from({ length: 64 }, () => 0.94 + rnd() * 0.12);
+  return (mid, n, o) => {
+    if (n.y > 0.9) return hex(ROCK_COLORS.top);
+    if (n.y < -0.5) return hex(ROCK_COLORS.deep);
+    const upper = o.j >= o.rows / 2;
+    let h = upper ? ROCK_COLORS.lit : ROCK_COLORS.body;
+    if (n.x < -0.35 && Math.abs(n.y) < 0.4) h = upper ? ROCK_COLORS.body : ROCK_COLORS.red;
+    return hex(h, j[(o.i * 5 + o.j * 11) % 64]);
+  };
+};
 
 const stoneColor = (seed) => {
   const rnd = rng(seed);
@@ -210,18 +226,17 @@ const stoneColor = (seed) => {
 export function createArchBand() {
   const us = slabSamples();
   const xs = us.map((u) => -0.5 + u);
-  return slabFaces({ xs, bottom: us.map((u) => archRise(u)), top: us.map(() => 1.2), seed: 41, faceColor: stoneColor(41) });
+  return slabFaces({ xs, bottom: us.map((u) => archRise(u)), top: us.map(() => 1.2), seed: 41, rows: 2, faceColor: stoneColor(41) });
 }
 /** The band of a ledge at its gap face: the top drops at both ends (ledgeDrop). 1 unit long, 1.2 tall, y = 0 at the gap height, the band running down from there. */
 export function createLedgeBand() {
   const us = slabSamples();
   const xs = us.map((u) => -0.5 + u);
-  return slabFaces({ xs, bottom: us.map(() => -1.2), top: us.map((u) => -ledgeDrop(u)), seed: 42, topCap: true, faceColor: stoneColor(42) });
+  return slabFaces({ xs, bottom: us.map(() => -1.2), top: us.map((u) => -ledgeDrop(u)), seed: 42, rows: 2, topCap: true, faceColor: stoneColor(42) });
 }
-/** The plain body of a slab, stretched from the band to the slab's far end: a unit box, y -0.5 to 0.5. */
-export function createSlabBody() {
-  const xs = [-0.5, 0.5];
-  return slabFaces({ xs, bottom: [-0.5, -0.5], top: [0.5, 0.5], seed: 43, topCap: true, faceColor: stoneColor(43) });
+/** One block of a slab's body: 3 tall (two 1.5-thick layers of sandstone), 1 long (stretched to the slab's length), y from -1.5 to 1.5. The body is a stack of these. */
+export function createSlabBlock() {
+  return slabFaces({ xs: [-0.5, -0.25, 0, 0.25, 0.5], bottom: Array(5).fill(-1.5), top: Array(5).fill(1.5), seed: 43, rows: 4, topCap: true, faceColor: layerColor(43), jitter: 0.2 });
 }
 
 /** A boulder: a faceted lump (an icosphere with each vertex pushed in or out), always at least 0.9 thick in every direction and never beyond 1.2, so it can be spun freely. */
@@ -264,24 +279,10 @@ export function createCanyonRockSet() {
     finBody: createFinBody(),
     archBand: createArchBand(),
     ledgeBand: createLedgeBand(),
-    slabBody: createSlabBody(),
+    slabBlock: createSlabBlock(),
     boulder: createBoulder(),
   };
 }
 
-/**
- * The instances that draw one pole: for a pole of the given look at (gapEndY) with width w, shaped down to `dDraw` widths from its gap end, a list of
- * { key: geometry name in the set, y: where its origin goes, sy: vertical scale, s: scale across (w) }. Built from the same placement list the tests assemble.
- */
-export function poleInstances(look, cap, gapEndY, w, dDraw) {
-  const dir = cap > 0 ? 1 : -1;
-  const yAt = (d) => gapEndY - dir * d * w;
-  return polePlacements(look, dDraw).map(({ part, d0, d1 }) => {
-    if (look === 'fin') {
-      if (part === 'head') return { key: dir > 0 ? 'finHeadUp' : 'finHeadDown', y: yAt(0), sy: w, s: w };
-      return { key: 'finBody', y: yAt((d0 + d1) / 2), sy: (d1 - d0) * w, s: w };
-    }
-    return { key: part === 'head' ? `${look}Head` : `${look}Segment`, y: yAt(d0), sy: w, s: w };
-  });
-}
+export { poleInstances } from '../../systems/obstacles/rockShapes.js';
 export { ARCH_RISE, FIN_FOOT, LEDGE_DROP };

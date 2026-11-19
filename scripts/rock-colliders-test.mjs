@@ -13,7 +13,6 @@ const check = (name, cond, detail = '') => {
     console.log(`  FAIL ${name} ${detail}`);
   } else console.log(`  ok   ${name}${detail ? ` (${detail})` : ''}`);
 };
-// Until the renderer draws the matching geometry the shapes are switched off in the game; the tests turn them on.
 const DEFAULT_ENABLED = ROCK_SHAPES.enabled;
 ROCK_SHAPES.enabled = true;
 const R = PHYSICS.birdRadius;
@@ -211,6 +210,6 @@ function flyTrack(seed, upto, visit) {
   check(`the corridor-following bot flies the shaped canyon on ${ok}/${N} seeds`, ok === N);
 }
 ROCK_SHAPES.enabled = DEFAULT_ENABLED;
-check('the shapes are off by default until the renderer draws them (phase C switches them on)', DEFAULT_ENABLED === false);
+check('the shapes are on by default: the canyon draws and collides with them (ROCK_SHAPES.enabled = false brings the original canyon obstacles back)', DEFAULT_ENABLED === true);
 console.log(failures ? `\n${failures} failed` : '\nrock collider tests passed');
 process.exit(failures ? 1 : 0);

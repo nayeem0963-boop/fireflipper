@@ -33,10 +33,10 @@ export const LEDGE_DROP = 0.6; // the ledge's top drops this much at its ends (n
 export const LEDGE_BEVEL = 0.1; // over this fraction of its length, at each end
 
 /**
- * Master switch. While the renderer still draws the original poles, the canyon keeps its original colliders (a visual that differs from its collider would be unfair);
- * the shapes are switched on when the matching geometry is drawn. The tests turn it on.
+ * Master switch for the canyon's rock shapes. One switch drives both what is drawn and what is collided with (a visual that differs from its collider would be unfair), so setting
+ * it to false brings back the original canyon obstacles (indigo poles, slabs and rocks) with their original colliders, in one line.
  */
-export const ROCK_SHAPES = { enabled: false };
+export const ROCK_SHAPES = { enabled: true };
 
 /** Deterministic 0..1 from a track position (no random numbers are drawn, so tracks are unchanged). */
 export const hash01 = (x) => {
@@ -195,4 +195,21 @@ export function polePlacements(look, dDraw) {
   const out = [{ part: 'head', d0: 0 }];
   for (let d = start; d < dDraw - 1e-9; d += period) out.push({ part: 'segment', d0: d });
   return out;
+}
+
+/**
+ * The instances that draw one pole: for a pole of the given look at `gapEndY` with width w, shaped down to `dDraw` widths from its gap end, a list of
+ * { key: the geometry's name (components/scene/canyonRocks.js), y: where its origin goes, sy: vertical scale, s: scale across (w) }. Built once when the pole spawns
+ * (the renderer allocates nothing per frame) from the same placement list the tests assemble.
+ */
+export function poleInstances(look, cap, gapEndY, w, dDraw) {
+  const dir = cap > 0 ? 1 : -1;
+  const yAt = (d) => gapEndY - dir * d * w;
+  return polePlacements(look, dDraw).map(({ part, d0, d1 }) => {
+    if (look === 'fin') {
+      if (part === 'head') return { key: dir > 0 ? 'finHeadUp' : 'finHeadDown', y: yAt(0), sy: w, s: w };
+      return { key: 'finBody', y: yAt((d0 + d1) / 2), sy: (d1 - d0) * w, s: w };
+    }
+    return { key: part === 'head' ? `${look}Head` : `${look}Segment`, y: yAt(d0), sy: w, s: w };
+  });
 }

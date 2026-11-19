@@ -122,11 +122,11 @@ function drawnPole(look, cap, gapEndY, w, yB, yT) {
   check('ledge: the drawn top is the collider outline', worstLedge < 0.01, worstLedge.toFixed(5));
   check(`arch band stays within its gap-face rule: the lowest point is the gap height, the highest underside +${ARCH_RISE}`, Math.abs(Math.min(...arch.flat().map((v) => v.y))) < 1e-9 && Math.max(...ap.flatMap((p) => [p[1], p[3]])) <= ARCH_RISE + 1e-9);
   check(`ledge band stays within its rule: the highest point is the gap height, the lowest top ${LEDGE_DROP} below`, Math.abs(Math.max(...ledge.flat().map((v) => v.y)) - 0) < 1e-9);
-  for (const [name, g] of [['arch band', arch], ['ledge band', ledge], ['slab body', placed(set.slabBody, {})]]) {
+  for (const [name, g] of [['arch band', arch], ['ledge band', ledge], ['slab block', placed(set.slabBlock, {})]]) {
     const xs = g.flat().map((v) => v.x);
     check(`${name}: the ends are square at x = +-0.5 (the collider spans the slab's full length)`, Math.abs(Math.min(...xs) + 0.5) < 1e-9 && Math.abs(Math.max(...xs) - 0.5) < 1e-9);
   }
-  check('the arch band is 1.2 tall and its body starts at its top (the renderer stacks them without a gap)', Math.abs(Math.max(...arch.flat().map((v) => v.y)) - 1.2) < 1e-6 && Math.abs(Math.min(...ledge.flat().map((v) => v.y)) + 1.2) < 1e-6);
+  check('the arch band is 1.2 tall and the ledge band 1.2 deep (the renderer stacks the 3-tall blocks from there without a gap)', Math.abs(Math.max(...arch.flat().map((v) => v.y)) - 1.2) < 1e-6 && Math.abs(Math.min(...ledge.flat().map((v) => v.y)) + 1.2) < 1e-6);
 }
 
 // ---------------------------------------------------------------- boulder: can be spun freely
@@ -202,7 +202,7 @@ function inradius(g) {
   const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
   const sim = ['src/systems/game/createGameSim.js', 'src/systems/physics/collision.js', 'src/systems/obstacles/patterns.js', 'src/systems/obstacles/spawner.js'].map(read).join('');
   check('the simulation, collision and patterns never import canyonRocks', !/canyonRocks/.test(sim));
-  check('the game screen does not draw these yet (phase C)', !/canyonRocks/.test(read('src/components/scene/ObstacleField.jsx')));
+  check('the game screen draws these (ObstacleField uses the set and the sim-computed draw lists)', /createCanyonRockSet/.test(read('src/components/scene/ObstacleField.jsx')) && /o\.draw/.test(read('src/components/scene/ObstacleField.jsx')));
   check('canyonRocks imports only the outline tables, never the simulation', !/createGameSim|collision/.test(read('src/components/scene/canyonRocks.js')));
 }
 console.log(failures ? `\n${failures} failed` : '\ncanyon rock tests passed');

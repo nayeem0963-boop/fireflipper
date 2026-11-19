@@ -295,3 +295,9 @@ off until the matching geometry is drawn, so the game plays exactly as before fo
 silhouette across the track is the collider's outline. `poleInstances()` lists the instances that draw one pole (a head, whole stem segments or a stretched foot), the same placement list the tests assemble.
 Eleven pieces, one InstancedMesh each: hoodoo head and segment, lintel head and segment, fin head (up and down) and foot, arch band, ledge band, slab body, boulder (about 650 triangles all together). Not drawn in the game yet (phase C).
 `npm run test:rocks` compares the assembled silhouettes with the real colliders (worst difference 0.0000); preview with `npm run dev` and `/gallery.html?set=canyon&z=26&cx=3`.
+
+### Canyon obstacle redesign, phase C: drawn and collided in the canyon
+
+Before 1500 m the canyon now has hoodoos, rock fins (rising and hanging), arch lintels, arch spans over terraced ledges (passages) and faceted boulders, drawn from the geometry of phase B and collided with the
+polygons of phase A (`ROCK_SHAPES.enabled`, on by default; set it to `false` in `systems/obstacles/rockShapes.js` to bring the original indigo canyon obstacles and their colliders back, in one line). Each pole's draw list is
+worked out once when it spawns, so the renderer allocates nothing per frame. Passage slabs are a band at the gap face plus stacked 3-tall blocks of layered sandstone. From 1500 m on, obstacles are unchanged.

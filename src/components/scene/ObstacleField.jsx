@@ -5,6 +5,7 @@ import { WORLD } from '../../systems/physics/constants.js';
 import { ACTIVE_OBSTACLE_LOOKS, BIOMES, obstacleStyleAt } from '../../systems/world/biomes.js';
 import { useTheme } from '../../hooks/useTheme.js';
 import { createObstacleStyle, styleGeometries } from './obstacleStyles.js';
+import { createCanyonRockSet } from './canyonRocks.js';
 
 /** Deterministic 0..1 from a number, so an obstacle always picks the same animal and spot. */
 const hash = (n) => {
@@ -23,6 +24,10 @@ const hash = (n) => {
  * Meshes with nothing to draw are hidden, so a look costs nothing when it is not on screen.
  */
 const MAX = { column: 48, block: 12, rock: 112, up: 16, down: 48, deco: 192 };
+/** The canyon's rock pieces (components/scene/canyonRocks.js), one instanced mesh each: how many can be drawn at once. */
+const ROCK_MAX = { hoodooHead: 24, hoodooSegment: 48, lintelHead: 24, lintelSegment: 48, finHeadUp: 24, finHeadDown: 24, finBody: 48, archBand: 12, ledgeBand: 12, slabBlock: 72, boulder: 112 };
+const BAND_HEIGHT = 1.2; // the arch and ledge bands are 1.2 tall; the slab's body (stacked 3-tall blocks) continues from there
+const BLOCK_HEIGHT = 3;
 /** How much of a pole is dressed (metres from the gap end): the rest is off screen or under the water / ground. */
 const DECO_REACH = 9;
 const CAP_THICKNESS = 0.14;
@@ -46,6 +51,9 @@ export default function ObstacleField({ sim }) {
   // Looks with their own shapes (animals, plants, pillars) are only built when a track range is mapped to them (none are, now: see ACTIVE_OBSTACLE_LOOKS).
   const styles = useMemo(() => Object.fromEntries(ACTIVE_OBSTACLE_LOOKS.map((id) => [id, createObstacleStyle(id)])), []);
   useEffect(() => () => Object.values(styles).forEach((st) => styleGeometries(st).forEach((g) => g.dispose())), [styles]);
+  // The canyon's hoodoos, fins, arches, ledges and boulders (before 1500 m): drawn from the lists the simulation worked out when each obstacle spawned.
+  const rocks = useMemo(() => createCanyonRockSet(), []);
+  useEffect(() => () => Object.values(rocks).forEach((g) => g.dispose()), [rocks]);
 
   useFrame(() => {
     const def = refs.current.default;
@@ -55,10 +63,53 @@ export default function ObstacleField({ sim }) {
     // per (style, part) write index
     const n = {};
     const next = (style, part) => (n[`${style}.${part}`] = (n[`${style}.${part}`] ?? 0) + 1) - 1;
+    const rockSet = refs.current.rocks;
+    /** Writes one instance of a canyon rock piece (no spin: the outlines are tested as drawn). */
+    const putRock = (key, px, py, sx, sy, sz, pz = 0) => {
+      const i = next('rocks', key);
+      if (i >= ROCK_MAX[key]) return;
+      dummy.position.set(px, py, pz);
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(sx, sy, sz);
+      dummy.updateMatrix();
+      rockSet[key].setMatrixAt(i, dummy.matrix);
+    };
+    const drawRock = (o, x) => {
+      if (!rockSet) return;
+      if (o.kind === 'rock') {
+        // a boulder: a round faceted lump, uniform scale (its collider circle sits inside it), free to spin
+        const i = next('rocks', 'boulder');
+        if (i >= ROCK_MAX.boulder) return;
+        dummy.position.set(x, o.y, o.z);
+        dummy.rotation.set(o.rot + t * o.spin, o.rot * 1.3 + t * o.spin * 0.7, o.rot * 0.5);
+        dummy.scale.setScalar(o.r);
+        dummy.updateMatrix();
+        rockSet.boulder.setMatrixAt(i, dummy.matrix);
+      } else if (o.kind === 'column') {
+        const list = o.draw;
+        if (list) for (let k = 0; k < list.length; k++) putRock(list[k].key, x, list[k].y, list[k].s, list[k].sy, list[k].s);
+      } else if (o.look === 'arch') {
+        // an arch span: the band at the gap face (curved underside), then stacked blocks up to the top of the screen (beyond the ceiling nothing can be reached)
+        const yb = o.y - o.h / 2;
+        putRock('archBand', x, yb, o.w, 1, o.d);
+        const reach = Math.min(o.h - BAND_HEIGHT, WORLD.ceilingY + 3 - (yb + BAND_HEIGHT));
+        for (let k = 0; k * BLOCK_HEIGHT < reach; k++) putRock('slabBlock', x, yb + BAND_HEIGHT + BLOCK_HEIGHT * (k + 0.5), o.w, 1, o.d);
+      } else {
+        // a ledge: the band at the gap face (bevelled ends), then stacked blocks down into the floor
+        const yt = o.y + o.h / 2;
+        putRock('ledgeBand', x, yt, o.w, 1, o.d);
+        const reach = Math.min(o.h - BAND_HEIGHT, yt - BAND_HEIGHT - (WORLD.groundY - 0.3));
+        for (let k = 0; k * BLOCK_HEIGHT < reach; k++) putRock('slabBlock', x, yt - BAND_HEIGHT - BLOCK_HEIGHT * (k + 0.5), o.w, 1, o.d);
+      }
+    };
 
     for (const o of sim.obstacles.active) {
       const x = o.x - dist;
       if (x < -20 - o.extent || x > 60) continue;
+      if (o.look) {
+        drawRock(o, x);
+        continue;
+      }
       // The look follows the obstacle's own position: the original shapes in the zone's own colours ('tinted-...'), or the original look.
       // In the Celestial Realm (2000 to 3000 m) the original shapes are drawn in the realm's own colours ('tinted').
       let style = obstacleStyleAt(o.x) ?? 'default';
@@ -244,6 +295,9 @@ export default function ObstacleField({ sim }) {
         <meshStandardMaterial color={scene.rock.color} emissive={scene.rock.emissive} emissiveIntensity={0.55} roughness={0.8} flatShading />
       </instancedMesh>
 
+      {/* The Red Rock Canyon (before 1500 m): hoodoos, fins, arches, ledges and boulders */}
+      <RockSet reg={reg} geo={rocks} />
+
       {/* Recoloured zones (Celestial Realm, Rose Sky Palace): the same shapes in the zone's own colours */}
       {Object.entries(TINTED_ZONES).map(([id, Z]) => (
         <TintedSet key={id} id={`tinted-${id}`} reg={reg} Z={Z} />
@@ -323,6 +377,19 @@ function TintedSet({ id, reg, Z }) {
         <icosahedronGeometry args={[1, 1]} />
         <meshBasicMaterial color={Z.rock.rim} side={BackSide} transparent opacity={0.9} toneMapped={false} depthWrite={false} />
       </instancedMesh>
+    </group>
+  );
+}
+
+/** One instanced mesh per canyon rock piece, all sharing one sandstone material (vertex colours carry the strata). */
+function RockSet({ reg, geo }) {
+  return (
+    <group>
+      {Object.entries(ROCK_MAX).map(([key, max]) => (
+        <instancedMesh key={key} ref={reg('rocks', key)} args={[geo[key], undefined, max]} frustumCulled={false}>
+          <meshStandardMaterial vertexColors flatShading roughness={0.9} emissive="#4a1a0c" emissiveIntensity={0.55} />
+        </instancedMesh>
+      ))}
     </group>
   );
 }
