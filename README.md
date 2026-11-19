@@ -353,3 +353,11 @@ Everything the player must see before a hazard acts is now drawn (only with `?ha
 - **Bobbing platforms** (Sanctuary) bob (they move with their colliders). They do not tilt: a tilted slab would no longer match its collider.
 - Draw calls: the telegraph is 4 draw items with at most 3 visible at once; with the hazards on the zone-border peak stays at 78 on phone (the budget is 80). Everything stands behind the gameplay plane or beside an obstacle, so it cannot cover the bird, an obstacle or an orb.
 `MATRIX_HAZARDS=1 npm run test:matrix` runs the browser matrix with the hazards on.
+
+### Biome hazards, phase 4: sign-off (still off by default)
+
+- **Stress and soak.** `npm run test:hazards` now also crosses every zone border at 21 offsets (84 runs: no exception, every value finite, a reset mid-window leaves nothing behind). `npm run test:hazards-soak` (minutes, not part of `test:all`; run it alone, a busy machine inflates the timings):
+  the corridor-following bot flies 60 of 60 seeds to 8 km and Auto play 10 of 10 to 5.6 km with the hazards on; Auto play's planning takes a median of 1.4 ms (p99 5.4 ms) with them on against 1.1 ms (p99 3.7 ms) off; the hazards add about 1.5 us to a 120 Hz simulation step (0.02% of its budget);
+  `hazardsAt` costs about 0.09 us and `obstacleHazard` about 0.23 us per call.
+- **Browser.** `npm run test:e2e` now also loads the production build with `?hazards=1` on desktop and both phone layouts, runs Auto play for 8 s and starts a manual run with no page or console error. `MATRIX_HAZARDS=1 npm run test:matrix`: 62 cases, at most 61 draw calls and 28 GPU textures; with the hazards on the zone-border peak is 78 on phone (budget 80).
+- **Switching on.** The hazards are enabled by `HAZARDS.enabled = true` in `systems/hazards/biomeHazards.js` (or `?hazards=1` for a preview). The flag is read once at load: switching it mid-run is not supported (obstacles keep their last hazard state until the next retry).
