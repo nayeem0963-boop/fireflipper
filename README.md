@@ -275,3 +275,9 @@ disposed 100 m after the cut). Obstacles keep their original look. The zone weig
   no value changes between two frames by more than the run's own movement.
 - `npm run test:matrix` (needs Playwright; starts the dev server, so not part of `test:all`): all 19 distances on desktop 1534x630, phone portrait and phone landscape (no page or console errors, painted scene, HUD on screen, draw calls <= 70, GPU textures <= 32), then pause (scenery frozen
   at a canyon, a Frosty and a sanctuary distance), three retry laps (GPU textures do not grow), and a 0 to 20000 m soak. `MATRIX_ONLY=pause,retry` runs only some parts.
+
+### Canyon obstacle redesign, phase 1: geometry and fairness contract
+
+`src/components/scene/canyonRocks.js` builds the canyon's new obstacle geometry (hoodoo shaft and cap, rock fin, arch lintel, passage slab, boulder) from the owner's four reference paintings, as vertex-coloured faceted
+low-poly meshes (about 700 triangles for all six). Nothing is wired into the game yet. Collision is unchanged, so every shape keeps a contract with its collider (never narrower than the hitbox, a flat gap face, boulders at least as
+large as their circle); `npm run test:rocks` checks it against the real geometry. Preview: `npm run dev`, then `/gallery.html?set=canyon&z=17`.
