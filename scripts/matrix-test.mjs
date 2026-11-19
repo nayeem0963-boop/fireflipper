@@ -25,6 +25,9 @@ const SCREENS = [
   ['phone portrait', { ...devices['iPhone 13'] }],
   ['phone landscape', { ...devices['iPhone 13 landscape'] }],
 ];
+// MATRIX_ONLY=pause,retry (any of: screens, pause, retry, soak) runs just those parts
+const ONLY = process.env.MATRIX_ONLY?.split(',');
+const want = (part) => !ONLY || ONLY.includes(part);
 const BUDGET = { drawCalls: 70, textures: 32 };
 let failures = 0;
 const rows = [];
@@ -43,7 +46,7 @@ const jump = (p, d) =>
   }, d);
 const stats = (p) => p.evaluate(() => ({ calls: window.__fireflipper.gl.info.render.calls, textures: window.__fireflipper.gl.info.memory.textures, tris: window.__fireflipper.gl.info.render.triangles }));
 
-for (const [name, opt] of SCREENS) {
+for (const [name, opt] of want('screens') ? SCREENS : []) {
   const ctx = await browser.newContext(opt);
   const p = await ctx.newPage();
   const errors = [];
@@ -71,7 +74,7 @@ for (const [name, opt] of SCREENS) {
 }
 
 // pause: with the run paused the scenery must not move at all (two screenshots a second apart are identical), at a canyon, a frosty and a sanctuary distance
-{
+if (want('pause')) {
   const ctx = await browser.newContext({ viewport: { width: 1534, height: 630 } });
   const p = await ctx.newPage();
   const errors = [];
@@ -79,20 +82,29 @@ for (const [name, opt] of SCREENS) {
   await p.goto(`http://localhost:${PORT}`);
   await p.waitForTimeout(2000);
   for (const d of [700, 1900, 6500]) {
-    await p.getByRole('button', { name: /play|start|fly/i }).first().click().catch(() => {});
+    await p.getByRole('button', { name: /play|start|fly/i }).first().click({ timeout: 15000 }).catch(() => {});
+    await p.waitForTimeout(1500);
     await p.keyboard.press('Space');
     await p.waitForTimeout(300);
-    await jump(p, d);
-    await p.waitForTimeout(1200);
-    await p.getByRole('button', { name: /pause/i }).first().click().catch(() => {});
-    await p.waitForTimeout(600);
+    // jump and press Pause in the same instant (the bird would crash on the teleported track within a second, which disables Pause)
+    const paused = await p.evaluate((d) => {
+      const g = window.__fireflipper.game;
+      g.distance = g.prevDistance = d;
+      g.bird.y = -0.5;
+      g.bird.vy = 0;
+      const btn = [...document.querySelectorAll('button')].find((b) => /pause/i.test(b.getAttribute('aria-label') || b.textContent || '') && !b.disabled);
+      btn?.click();
+      return !!btn;
+    }, d);
+    if (!paused) fail(`pause @${d} m: could not press Pause (the run was not running)`);
+    await p.waitForTimeout(1500); // the paused scene is drawn once more, then rendering stops
     const a = await p.screenshot();
     await p.waitForTimeout(1200);
     const b = await p.screenshot();
     const frozen = a.equals(b);
     rows.push({ screen: 'pause', d, frozen });
     if (!frozen) fail(`pause @${d} m: the scenery moved while paused`);
-    await p.getByRole('button', { name: /resume/i }).first().click().catch(() => {});
+    await p.evaluate(() => [...document.querySelectorAll('button')].find((b) => /resume/i.test(b.getAttribute('aria-label') || b.textContent || ''))?.click());
     await p.evaluate(() => window.__fireflipper.game.reset?.());
     await p.waitForTimeout(500);
   }
@@ -101,7 +113,7 @@ for (const [name, opt] of SCREENS) {
 }
 
 // retry from far along: texture count must not grow, the start of the track must be painted again
-{
+if (want('retry')) {
   const ctx = await browser.newContext({ viewport: { width: 1534, height: 630 } });
   const p = await ctx.newPage();
   const errors = [];
@@ -114,24 +126,28 @@ for (const [name, opt] of SCREENS) {
   await p.waitForTimeout(1500);
   const base = (await stats(p)).textures;
   let worst = base;
+  const lapEnd = [];
   for (let lap = 0; lap < 3; lap++) {
     for (const d of [1700, 3500, 7100, 20]) {
       await jump(p, d);
       await p.waitForTimeout(1300);
       worst = Math.max(worst, (await stats(p)).textures);
     }
+    lapEnd.push((await stats(p)).textures);
   }
   const end = await stats(p);
   const shot = await p.screenshot();
-  rows.push({ screen: 'retry x3', baseTextures: base, worstTextures: worst, endTextures: end.textures });
-  if (end.textures > base + 8) fail('retry: texture count did not settle', `${base} -> ${end.textures}`);
+  rows.push({ screen: 'retry x3', baseTextures: base, worstTextures: worst, lapEnd });
+  // the zones' small canvas textures (sky, floor, masks) stay once uploaded; what must not happen is growth from lap to lap
+  if (lapEnd[2] > lapEnd[0]) fail('retry: GPU textures grow from lap to lap', lapEnd.join(' -> '));
+  if (end.textures > BUDGET.textures) fail('retry: GPU texture budget exceeded', String(end.textures));
   if (shot.length < 60_000) fail('retry: the start of the track is not painted');
   if (errors.length) fail('retry: page errors', errors.join(' | '));
   await ctx.close();
 }
 
 // soak: sweep 0 -> 20000 m in steps and make sure the GPU texture count stays flat and bounded
-{
+if (want('soak')) {
   const ctx = await browser.newContext({ viewport: { width: 1534, height: 630 } });
   const p = await ctx.newPage();
   await p.goto(`http://localhost:${PORT}`);
@@ -151,9 +167,8 @@ for (const [name, opt] of SCREENS) {
 
 await browser.close();
 server.kill();
-const maxCalls = Math.max(...rows.filter((r) => r.calls).map((r) => r.calls));
-const maxTex = Math.max(...rows.filter((r) => r.textures).map((r) => r.textures));
+const withCalls = rows.filter((r) => r.calls);
 console.log(JSON.stringify(rows));
-console.log(`cases: ${rows.length}, max draw calls ${maxCalls}, max GPU textures ${maxTex}`);
+if (withCalls.length) console.log(`cases: ${rows.length}, max draw calls ${Math.max(...withCalls.map((r) => r.calls))}, max GPU textures ${Math.max(...withCalls.map((r) => r.textures))}`);
 console.log(failures ? `\n${failures} matrix check(s) failed` : '\nmatrix tests passed');
 process.exit(failures ? 1 : 0);

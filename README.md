@@ -268,3 +268,10 @@ is capped (`SLIDE_CAP`, 0.2 units per metre) so the backdrop never outruns the 3
 This replaces the original scenery after 5000 m (the owner's later request): the Cloud Sanctuary zone starts at 5000 m (cross-fading with the palace) and never ends. Its five paintings are shown for 1000 m each (dragon, cat, deer, tiger,
 empty clouds) and the cycle repeats for ever (`cyclePlan` in `scrollDriver.js`, `LoopingPaintings` in `ZoneParts.jsx`). At most two paintings are on the GPU at a time (the next loads 150 m ahead, the previous is
 disposed 100 m after the cut). Obstacles keep their original look. The zone weights now add up to 1 at every distance, so the original mountains never come back.
+
+### Step 6: test matrix
+
+- `npm run test:fps` (part of `test:all`): every distance-driven scenery value at the 19 test distances (0, 450, 500, 950, 1000, 1450, 1500, 1665, 1830, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000 m) is identical for runs rendered at 30, 60 and 120 fps and with uneven pacing, and
+  no value changes between two frames by more than the run's own movement.
+- `npm run test:matrix` (needs Playwright; starts the dev server, so not part of `test:all`): all 19 distances on desktop 1534x630, phone portrait and phone landscape (no page or console errors, painted scene, HUD on screen, draw calls <= 70, GPU textures <= 32), then pause (scenery frozen
+  at a canyon, a Frosty and a sanctuary distance), three retry laps (GPU textures do not grow), and a 0 to 20000 m soak. `MATRIX_ONLY=pause,retry` runs only some parts.
