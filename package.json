@@ -19,8 +19,10 @@
     "test:scroll": "node scripts/scroll-test.mjs",
     "test:foreground": "node scripts/foreground-test.mjs",
     "test:ambient": "node scripts/ambient-test.mjs",
+    "test:fps": "node scripts/fps-test.mjs",
     "test:e2e": "node scripts/e2e-smoke.mjs",
-    "test:all": "npm run test:sim && npm run test:avatars && npm run test:progression && npm run test:autoplay && npm run test:store && npm run test:theme && npm run test:biome && npm run test:obstacles && npm run test:scroll && npm run test:foreground && npm run test:ambient"
+    "test:matrix": "node scripts/matrix-test.mjs",
+    "test:all": "npm run test:sim && npm run test:avatars && npm run test:progression && npm run test:autoplay && npm run test:store && npm run test:theme && npm run test:biome && npm run test:obstacles && npm run test:scroll && npm run test:foreground && npm run test:ambient && npm run test:fps"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
