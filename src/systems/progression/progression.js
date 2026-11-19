@@ -37,6 +37,8 @@ const ROWS = [
   ['distance', 'dist-500', 'Valley Crosser', 'Fly 500 m in one run', 'bestDistance', 500],
   ['distance', 'dist-1000', 'Long Haul', 'Fly 1,000 m in one run', 'bestDistance', 1000],
   ['distance', 'dist-2000', 'Skyburner', 'Fly 2,000 m in one run', 'bestDistance', 2000],
+  ['distance', 'dist-5000', 'Halfway There', 'Fly 5,000 m in one run', 'bestDistance', 5000],
+  ['distance', 'dist-10000', 'Celestial Arrival', 'Reach the Celestial City: fly 10,000 m in one run', 'bestDistance', 10000],
   ['collection', 'orbs-50', 'Spark Collector', 'Collect 50 fire orbs in total', 'totalOrbs', 50],
   ['collection', 'orbs-250', 'Orb Hoarder', 'Collect 250 fire orbs in total', 'totalOrbs', 250],
   ['collection', 'orbs-1000', 'Inferno Keeper', 'Collect 1,000 fire orbs in total', 'totalOrbs', 1000],
