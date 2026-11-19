@@ -57,6 +57,14 @@ export const KIT_STYLE = Object.freeze({
     looks: { column: { sides: 10, a: 0, b: 1.0 }, obelisk: { sides: 6, a: 0.3, b: 0.45, slant: 2 }, finial: { sides: 6, a: 0.2, b: 0.8, slant: 0 }, corbel: { sides: 8, a: 0, b: 1.2 } },
     boulder: { cap: 'lit', capNormal: 0.55 },
   },
+  // from the Cloud Sanctuary paintings (bright cloud sea, gold, and the sapphire robes of the figures): sapphire stone banded with white, white caps (paintings' median luminance 0.38 to 0.51, bright)
+  sanctuary: {
+    palette: { top: '#ffffff', lit: '#f4f8ff', body: '#1d3f9a', shade: '#162f78', deep: '#0d1d4d' },
+    emissive: '#0a1a4a',
+    emissiveIntensity: 0.5,
+    looks: { pillar: { sides: 8, a: 0, b: 1.05 }, goldspire: { sides: 6, a: 0.3, b: 0.45, slant: 3 }, pendant: { sides: 6, a: 0.2, b: 0.8, slant: 0 }, keystone: { sides: 8, a: 0, b: 1.2 } },
+    boulder: { cap: 'top', capNormal: 0.5 },
+  },
 });
 
 function rng(seed) {

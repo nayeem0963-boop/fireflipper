@@ -67,13 +67,25 @@ export const KITS = Object.freeze({
     hanging: ['finial', 'corbel'],
     passage: { rise: 0.7, drop: 0.6, bevel: 0.1, power: 0.7 },
   },
+  /** Cloud Sanctuary (5000 m on, without end): bulging cloud pillars, golden spires, hanging pendants and gilded keystones, a cloud arch over a ledge. */
+  sanctuary: {
+    poles: {
+      pillar: capped([[0, 0.42, 0.42], [0.12, 0.54, 0.54], [0.4, 0.54, 0.54], [0.55, 0.42, 0.42]], PERIODIC(0.55, 1.6, [[0, 0.42], [0.4, 0.5], [0.8, 0.42], [1.2, 0.5], [1.6, 0.42]])),
+      goldspire: blade([[0, 0.03, 0], [1.4, 0.16, 0.04], [2.8, 0.32, 0.02], [4.0, 0.46, 0], [4.6, 0.5, 0]]),
+      pendant: blade([[0, 0.04, 0], [1.0, 0.18, 0], [2.0, 0.34, 0], [3.0, 0.46, 0], [3.6, 0.5, 0]]),
+      keystone: capped([[0, 0.46, 0.46], [0.1, 0.56, 0.56], [0.4, 0.56, 0.56], [0.55, 0.4, 0.4]], PERIODIC(0.55, 1.4, [[0, 0.4], [0.5, 0.48], [0.7, 0.48], [1.0, 0.4], [1.4, 0.4]])),
+    },
+    rising: ['pillar', 'goldspire'],
+    hanging: ['pendant', 'keystone'],
+    passage: { rise: 0.65, drop: 0.6, bevel: 0.1, power: 0.7 },
+  },
 });
 
 /**
  * Master switches. `enabled` turns every kit off at once; `kits` turns one off. One switch drives both what is drawn and what is collided with (a visual that differs from its
  * collider would be unfair), so a kit set to false brings back the zone's original obstacles with their original colliders, in one line. The tests turn everything on.
  */
-export const ROCK_SHAPES = { enabled: true, kits: { canyon: true, frosty: true, celestial: true, palace: true, sanctuary: false } };
+export const ROCK_SHAPES = { enabled: true, kits: { canyon: true, frosty: true, celestial: true, palace: true, sanctuary: true } };
 
 /** Where each kit's zone begins along the track (a test checks these equal the scenery zones' starts: the simulation cannot read the zones itself). */
 export const KIT_STARTS = Object.freeze([['canyon', 0], ['frosty', 1500], ['celestial', 2000], ['palace', 3000], ['sanctuary', 5000]]);

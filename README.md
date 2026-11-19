@@ -312,10 +312,16 @@ and only the undersides (`#b84a2c`) blend in. `npm run test:rocks` keeps these r
 The canyon's rock obstacles became a general system of per-zone **kits** (`KITS` in `systems/obstacles/rockShapes.js`): each kit lists its pole looks (rising and hanging; `capped` = a head and a repeating stem, `blade` = tip to foot), a passage's arch span and
 ledge shape, and a palette (`KIT_STYLE` in `components/scene/rockSets.js`). The simulation picks the kit from the track position (`KIT_STARTS`, checked against the scenery zones' starts) and each shape's look from a hash of its position, so generated tracks stay
 identical. Colliders and geometry come from the same tables for every kit (`npm run test:colliders`, `npm run test:rocks`). Built so far: **canyon** (hoodoos, fins, lintels) and **Frosty Polar** (ice spires, ice blades, icicles, ice keystones, an ice arch over a snow-capped shelf, ice floes).
-Switch a kit off with `ROCK_SHAPES.kits.<kit> = false` (the zone's original obstacles and colliders come back); sanctuary is still `false`. Draw calls: about 33 of the frame's total are the player bird, up to about 24 the two zones' scenery at a border and up to about 20 obstacles; the matrix budget is 80.
+Switch a kit off with `ROCK_SHAPES.kits.<kit> = false` (the zone's original obstacles and colliders come back); every zone now has a kit. Draw calls: about 33 of the frame's total are the player bird, up to about 24 the two zones' scenery at a border and up to about 20 obstacles; the matrix budget is 80.
 
 ### Zone obstacle kits, step 2: Celestial City and Rose Sky Palace
 
 **Celestial City** (2000 to 3000 m): crystal gems on beaded stems and monoliths rising, hanging shards and crystal clusters, a star-gate arch over a cloud ledge, glowing asteroid boulders, in bright lavender crystal with white highlights (the paintings are dark, median luminance 0.10 to 0.19).
 **Rose Sky Palace** (3000 to 5000 m): fluted marble columns with capitals and obelisks rising, finials and corbels hanging, a grand arch over a terrace, garden-stone boulders, in deep teal marble with white capitals (the paintings are bright, 0.25 to 0.30).
 Same rules and tests as the other kits (`npm run test:colliders`, `npm run test:rocks`: silhouette equals collider, nothing in a guaranteed corridor, tracks unchanged, palette readable against the zone's paintings).
+
+### Zone obstacle kits, step 3: Cloud Sanctuary
+
+**Cloud Sanctuary** (5000 m onwards): bulging cloud pillars and golden spires rising, hanging pendants and gilded keystones, a cloud arch over a ledge, cloud-puff boulders, in sapphire stone banded with white and white caps
+(the paintings are bright, median luminance 0.38 to 0.51, and the figures wear sapphire robes). Every zone from 0 m to infinity now has its own obstacle kit; the tests cover all five (`npm run test:colliders` flies six tracks to 6400 m and checks 3,500 obstacles and about a million corridor points,
+and a corridor-following bot to 5800 m on 16 seeds). Draw calls at the 5000 m border: up to about 70.
