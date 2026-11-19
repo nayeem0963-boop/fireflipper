@@ -326,38 +326,37 @@ Same rules and tests as the other kits (`npm run test:colliders`, `npm run test:
 (the paintings are bright, median luminance 0.38 to 0.51, and the figures wear sapphire robes). Every zone from 0 m to infinity now has its own obstacle kit; the tests cover all five (`npm run test:colliders` flies six tracks to 6400 m and checks 3,500 obstacles and about a million corridor points,
 and a corridor-following bot to 5800 m on 16 seeds). Draw calls at the 5000 m border: up to about 70.
 
-### Biome hazards, phase 1: the modifiers, the flight hooks and the bot (off by default)
+### Biome hazards, phase 1: the modifiers, the flight hooks and the bot (now on by default)
 
 `src/systems/hazards/biomeHazards.js` holds the hazard rules of each zone as **pure functions of the run distance** (no clock, no random numbers, so pause, retry and stage changes need no reset and generated tracks are unchanged):
 `hazardsAt(d, fx, corridors)` fills the bird modifiers (gravity scale, flap strength, a vertical acceleration for updrafts and gusts, the flap carry and dive recovery for the frosty slide) and `obstacleHazard(o, d, out)` the dynamic state of an obstacle
 (brittle canyon caps, phase barriers, pistons, bobbing platforms; every offset points away from the obstacle's corridor). Every window is telegraphed 0.65 s ahead (`LEAD_S`), and a zone's hazards fade in and out over 40 m at its borders.
-`flight.js` takes an optional `fx` (identical physics without it, checked bit for bit); the simulation computes `sim.hazard` each step and the Auto play bot plans with the same function. `HAZARDS.enabled` is **off by default** (an unannounced force would be unfair until the telegraphs
-are drawn in phase 3); `?hazards=1` switches them on for a preview. `npm run test:hazards` covers it.
+`flight.js` takes an optional `fx` (identical physics without it, checked bit for bit); the simulation computes `sim.hazard` each step and the Auto play bot plans with the same function. `HAZARDS.enabled` is **on by default** (every hazard is telegraphed, see phase 3); `?hazards=0` switches them off for comparison or rollback. `npm run test:hazards` covers it.
 
-### Biome hazards, phase 2: reserved runway and obstacle hazards in the collisions (still off by default)
+### Biome hazards, phase 2: reserved runway and obstacle hazards in the collisions (on by default)
 
 - **Reserved runway.** The bird-modifier windows (updraft, gust, low-gravity pocket) are only allowed in open space, but the track left only 3 to 7 m between sections, so on real tracks they acted on about 3% of the canyon and nowhere else. With the hazards on, the spawner now keeps every section out of a window's band
   (`runwayAfter` in `biomeHazards.js`: the window, its 0.65 s telegraph and the settling room), drawing no random number. Windows are rarer (`every`: 140 m canyon, 120 m frosty, 160 m sanctuary) and now act on 9.4% of the canyon, 6.0% of Frosty and 10.5% of the Sanctuary, at their full nominal length;
-  the cost is 11% fewer obstacle sections over a run. With the hazards off the spawner is unchanged. (`speedAt` moved to `systems/physics/speed.js` to avoid a circular import; the spawner still re-exports it.)
+  the cost is 11% fewer obstacle sections over a run. With the hazards off (`?hazards=0`) the spawner is unchanged. Because they are now on by default, **generated tracks differ from the versions before the hazards** (same seed, fewer and shifted sections). (`speedAt` moved to `systems/physics/speed.js` to avoid a circular import; the spawner still re-exports it.)
 - **Moving and phasing obstacles.** The simulation computes `o.dy`, `o.solid`, `o.pulse`, `o.rumble`, `o.dyn` for every obstacle from the bird's distance. The bird is tested in the obstacle's own moved frame (`b.y - o.dy`), a phased-out barrier is skipped (no hit, no near miss), and moving obstacles use an 85% hitbox
   (the bird radius shrinks by `DYNAMIC_INSET`, about 0.054; static shapes keep exact silhouettes). The Auto play bot plans with the same function. The renderer applies `dy` to every piece; until phase 3 a passable phase barrier is simply not drawn.
 - Tests: `npm run test:hazards` now also covers the telegraph on real tracks (80 windows, 0.62 to 0.65 s), the reserved bands, the collisions (a retracted piston's vacated space is survivable and the unmoved collider would have hit; a translucent barrier is passable and a solid one kills) and Auto play to 5600 m.
 
-### Biome hazards, phase 3: the telegraphs (still off by default)
+### Biome hazards, phase 3: the telegraphs (on by default)
 
-Everything the player must see before a hazard acts is now drawn (only with `?hazards=1`; nothing is drawn or computed otherwise). Pure maths in `systems/hazards/telegraph.js`, the renderer in `scenes/EmberValley/HazardTelegraph.jsx`:
+Everything the player must see before a hazard acts is drawn (nothing is drawn or computed with `?hazards=0`). Pure maths in `systems/hazards/telegraph.js`, the renderer in `scenes/EmberValley/HazardTelegraph.jsx`:
 - **Windows** (updraft, gust, low-gravity pocket): a soft column with crisp edge lines over the stretch of track, brightening through the 0.65 s lead and pulsing while it acts, plus particles inside it (rising heat, blowing snow, slow glints).
   The canyon's updraft is warm additive light; Frosty Polar's gust (blue) and the Sanctuary's low gravity (violet) are tinted with darker particles, because additive white vanished on snow and cloud (the particle colours are tested against the paintings' measured luminance).
 - **Phase barriers** (Celestial City): drawn as a dithered translucent ghost while passable (three's `alphaHash` with a per-instance alpha, so no sorting and no depth problems), firming up over their warning, then solid. They glow warm just before they turn solid.
 - **Pistons** (Palace): a glowing rail beside the pole spanning its travel, brighter just before the piston comes back. **Brittle caps** (canyon): a warm glow and a tremble of at most 0.05 (inside the moving obstacles' 15% forgiveness) before the cap sinks.
 - **Bobbing platforms** (Sanctuary) bob (they move with their colliders). They do not tilt: a tilted slab would no longer match its collider.
 - Draw calls: the telegraph is 4 draw items with at most 3 visible at once; with the hazards on the zone-border peak stays at 78 on phone (the budget is 80). Everything stands behind the gameplay plane or beside an obstacle, so it cannot cover the bird, an obstacle or an orb.
-`MATRIX_HAZARDS=1 npm run test:matrix` runs the browser matrix with the hazards on.
+`npm run test:matrix` now runs with the hazards on; `MATRIX_HAZARDS=0 npm run test:matrix` runs it with them off.
 
-### Biome hazards, phase 4: sign-off (still off by default)
+### Biome hazards, phase 4: sign-off (on by default)
 
 - **Stress and soak.** `npm run test:hazards` now also crosses every zone border at 21 offsets (84 runs: no exception, every value finite, a reset mid-window leaves nothing behind). `npm run test:hazards-soak` (minutes, not part of `test:all`; run it alone, a busy machine inflates the timings):
   the corridor-following bot flies 60 of 60 seeds to 8 km and Auto play 10 of 10 to 5.6 km with the hazards on; Auto play's planning takes a median of 1.4 ms (p99 5.4 ms) with them on against 1.1 ms (p99 3.7 ms) off; the hazards add about 1.5 us to a 120 Hz simulation step (0.02% of its budget);
   `hazardsAt` costs about 0.09 us and `obstacleHazard` about 0.23 us per call.
-- **Browser.** `npm run test:e2e` now also loads the production build with `?hazards=1` on desktop and both phone layouts, runs Auto play for 8 s and starts a manual run with no page or console error. `MATRIX_HAZARDS=1 npm run test:matrix`: 62 cases, at most 61 draw calls and 28 GPU textures; with the hazards on the zone-border peak is 78 on phone (budget 80).
-- **Switching on.** The hazards are enabled by `HAZARDS.enabled = true` in `systems/hazards/biomeHazards.js` (or `?hazards=1` for a preview). The flag is read once at load: switching it mid-run is not supported (obstacles keep their last hazard state until the next retry).
+- **Browser.** `npm run test:e2e` runs every flow with the hazards on and also loads the production build with `?hazards=0` on desktop and both phone layouts, running Auto play for 8 s and a manual run with no page or console error. `npm run test:matrix`: 62 cases, at most 61 draw calls and 28 GPU textures; with the hazards on the zone-border peak is 78 on phone (budget 80).
+- **On by default.** `HAZARDS.enabled` is `true` in `systems/hazards/biomeHazards.js`; `?hazards=0` turns them off (rollback: set it to `false`). Not yet tried on a physical phone; force strengths and window frequency are untuned by feel. The flag is read once at load: switching it mid-run is not supported (obstacles keep their last hazard state until the next retry).

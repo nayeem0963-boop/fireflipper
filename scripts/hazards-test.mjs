@@ -21,8 +21,9 @@ const DT = PHYSICS.fixedStep;
 const DEFAULT_ENABLED = HAZARDS.enabled;
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
-// ---------------------------------------------------------------- off by default, and physics is bit-identical without fx
-check('the hazards are off by default until their telegraphs are drawn', DEFAULT_ENABLED === false);
+// ---------------------------------------------------------------- on by default; physics is bit-identical without fx
+check('the hazards are on by default (every one is telegraphed)', DEFAULT_ENABLED === true);
+HAZARDS.enabled = false;
 {
   const fx = hazardsAt(2500, createHazardFx(), []);
   check('with the switch off every distance is neutral', fx.accelY === 0 && fx.gravityScale === 1 && fx.flapScale === 1 && fx.flapCarry === PHYSICS.flapCarry && fx.diveRecovery === PHYSICS.diveRecovery && !fx.active && fx.tele === 0);
@@ -567,7 +568,7 @@ function DYNAMIC_INSET_FOR_TEST() { return 0.15 * PHYSICS.birdRadius; }
   HAZARDS.enabled = true;
 }
 HAZARDS.enabled = DEFAULT_ENABLED;
-check('the preview flag exists (?hazards=1) and the default is off', /hazards'\) === '1'/.test(read('src/systems/game/gameInstance.js')) && HAZARDS.enabled === false);
+check('the opt-out flag exists (?hazards=0) and the default is on', /hazards'\) === '0'/.test(read('src/systems/game/gameInstance.js')) && HAZARDS.enabled === true);
 check('the simulation and the bot use the same hazard function', /hazardsAt/.test(read('src/systems/game/createGameSim.js')) && /hazardsAt/.test(read('src/systems/bot/autopilot.js')));
 check('birds never reach the hazards (no avatar or skin data in the module)', !/avatar|skin|bird\./i.test(read('src/systems/hazards/biomeHazards.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')));
 console.log(failures ? `\n${failures} failed` : '\nhazard tests passed');

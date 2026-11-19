@@ -19,8 +19,8 @@ import { speedAt } from '../physics/speed.js';
  * Fair play: every hazard is telegraphed LEAD_S seconds before it acts (0.5 to 0.8 s), and fades in over ZONE_RAMP metres at the start of its zone and out over the last ZONE_RAMP metres.
  */
 
-/** Master switch. Off until the telegraphs are drawn (an unannounced force would be unfair); the tests and the `?hazards=1` preview flag turn it on. */
-export const HAZARDS = { enabled: false };
+/** Master switch. On by default (every hazard is telegraphed); the `?hazards=0` flag turns it off for comparison or rollback. It is read once at load. */
+export const HAZARDS = { enabled: true };
 
 export const LEAD_S = 0.65;
 export const ZONE_RAMP = 40;

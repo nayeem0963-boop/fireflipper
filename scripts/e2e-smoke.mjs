@@ -105,31 +105,31 @@ for (const [name, opts, themeId] of CASES) {
   await ctx.close();
 }
 
-// The biome hazards are opt-in (?hazards=1): the production build must load, run Auto play and a manual run with them on without a page error, on every screen.
+// The biome hazards are on by default (every flow above runs with them); ?hazards=0 is the opt-out: it must also load and run on every screen.
 for (const [name, opts] of CASES) {
   const ctx = await browser.newContext(opts);
   const p = await ctx.newPage();
   const errors = [];
   p.on('pageerror', (e) => errors.push(e.message));
   p.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-  await p.goto(`http://localhost:${PORT}/?hazards=1`);
+  await p.goto(`http://localhost:${PORT}/?hazards=0`);
   await p.waitForSelector('.birdchip', { timeout: 20000 });
   await p.getByRole('button', { name: /watch auto play/i }).click();
   await p.waitForSelector('.demo__badge', { timeout: 20000 });
   await p.waitForSelector('canvas', { timeout: 20000 });
   await p.waitForTimeout(8000);
-  check(`${name} (hazards on): Auto play runs with no page or console error`, errors.length === 0, errors.join(' | '));
+  check(`${name} (hazards off, ?hazards=0): Auto play runs with no page or console error`, errors.length === 0, errors.join(' | '));
   const painted = (await p.screenshot()).length > 60_000;
-  check(`${name} (hazards on): the scene is painted`, painted);
+  check(`${name} (hazards off, ?hazards=0): the scene is painted`, painted);
   await p.getByRole('button', { name: /back|exit|menu/i }).first().click().catch(() => {});
-  if (!(await p.locator('.birdchip').count())) await p.goto(`http://localhost:${PORT}/?hazards=1`);
+  if (!(await p.locator('.birdchip').count())) await p.goto(`http://localhost:${PORT}/?hazards=0`);
   await p.waitForSelector('.birdchip');
   await p.getByRole('button', { name: /^play/i }).first().click();
   await p.waitForSelector('.start-prompt', { timeout: 20000 });
   await p.waitForTimeout(1500);
   if (opts.hasTouch) await p.touchscreen.tap(200, 150); else await p.mouse.click(400, 300);
   await p.waitForTimeout(2500);
-  check(`${name} (hazards on): a manual run starts with no page or console error`, errors.length === 0, errors.join(' | '));
+  check(`${name} (hazards off, ?hazards=0): a manual run starts with no page or console error`, errors.length === 0, errors.join(' | '));
   await ctx.close();
 }
 

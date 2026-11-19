@@ -16,8 +16,8 @@ try {
 }
 const { chromium, devices } = playwright;
 const PORT = 4188;
-// MATRIX_HAZARDS=1 runs the whole matrix with the biome hazards switched on (?hazards=1)
-const QUERY = process.env.MATRIX_HAZARDS === '1' ? '/?hazards=1' : '';
+// The biome hazards are on by default; MATRIX_HAZARDS=0 runs the whole matrix with them switched off (?hazards=0)
+const QUERY = process.env.MATRIX_HAZARDS === '0' ? '/?hazards=0' : '';
 const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
 await new Promise((r) => setTimeout(r, 4000));
 

@@ -5,6 +5,7 @@ import { circleGap, circleHitsObstacle, circleIntersectsBox, circleIntersectsPol
 import { WORLD, PHYSICS } from '../src/systems/physics/constants.js';
 import { KITS, KIT_STARTS, ROCK_SHAPES, archPolys, columnPolys, controlPoints, hash01, ledgePolys, pickLook, polysExtent, rockKit } from '../src/systems/obstacles/rockShapes.js';
 import { BIOMES } from '../src/systems/world/biomes.js';
+import { HAZARDS } from '../src/systems/hazards/biomeHazards.js';
 
 let failures = 0;
 const check = (name, cond, detail = '') => {
@@ -179,6 +180,9 @@ function flyTrack(seed, upto, visit) {
 {
   // 2. layouts unchanged: a fingerprint of every generated obstacle and orb (kind, position, size, cap, spin) for 8 seeds out to 3000 m, recorded before the shapes were added
   const GOLDEN = ['7482155bbc42ca1e:966', 'ae86d796d42c9d34:1028', '1c85b5c5a9774a2e:1037', '4c880bf96b1b906b:1015', '67d500f2d340b846:1069', '810ad0f6b7a5203b:1000', 'aacc18790eb082a5:1052', 'a6fce5762cd71148:1029'];
+  // the hazards reserve runway in the spawner (on by default), so the pre-shapes layouts are only reproduced with them off
+  const hazardsWere = HAZARDS.enabled;
+  HAZARDS.enabled = false;
   let same = true;
   const got = [];
   for (let seed = 1; seed <= 8; seed++) {
@@ -192,6 +196,7 @@ function flyTrack(seed, upto, visit) {
     got.push(fp);
     if (fp !== GOLDEN[seed - 1] || sim.distance < 3000) same = false;
   }
+  HAZARDS.enabled = hazardsWere;
   check('every generated track is identical to the one before the shapes (8 seeds, 3000 m, all obstacles and orbs)', same, same ? '' : got.join(' '));
 }
 {
