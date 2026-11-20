@@ -399,7 +399,7 @@ export function createGameSim() {
     }
 
     // Flying hazards (systems/fliers): only near their encounter can one touch the bird. Smoke is harmless, a ring's rim and the tornado and disc are lethal (75% hitboxes); a shield absorbs one.
-    if (FLIERS.enabled) {
+    if (FLIERS.enabled && !FLIERS.unseen) { // (unseen: their picture is missing, see FLIERS in fliers.js: never hurt the bird from where it cannot be seen)
       for (let i = 0; i < FLIER_SLOTS.length; i++) {
         const sl = FLIER_SLOTS[i];
         if (sl.e < bx - 4 || sl.e > bx + 4) continue;

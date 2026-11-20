@@ -40,17 +40,22 @@ export default function FlierField({ sim }) {
 
   const atlas = useMemo(
     () =>
-      createLazyAtlas(ATLAS_URL, (tex) => {
-        material.map = tex;
-        material.needsUpdate = true;
-        loaded.current = true;
-      }),
+      createLazyAtlas(
+        ATLAS_URL,
+        (tex) => {
+          material.map = tex;
+          material.needsUpdate = true;
+          loaded.current = true;
+        },
+        () => console.warn('Fire Flipper: the flying-hazard picture could not be loaded; flying hazards are switched off for this session so that none can hurt you unseen.'),
+      ),
     [material],
   );
 
   useEffect(
     () => () => {
       loaded.current = false;
+      FLIERS.unseen = false; // leaving the game: the next simulation starts from the default
       atlas.dispose();
       material.dispose();
       geometries.forEach((g) => g.dispose());
@@ -60,6 +65,7 @@ export default function FlierField({ sim }) {
 
   useFrame(() => {
     const dist = sim.renderDistance();
+    FLIERS.unseen = atlas.state !== 'loaded'; // fail-open: a hazard whose picture is not on screen cannot hurt the bird (a failed load stays this way for the session)
     if (FLIERS.enabled && dist >= LOAD_AT) atlas.request(); // once: later calls do nothing (and nothing is downloaded with ?fliers=0)
     counts.fill(0);
     if (FLIERS.enabled && loaded.current) {

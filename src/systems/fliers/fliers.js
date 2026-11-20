@@ -20,6 +20,12 @@ import { windowsIn } from '../hazards/biomeHazards.js';
 
 /** Master switch: false has no hazards and no reserved bands (the tests use it to compare with the track without them). */
 export const FLIERS = { enabled: true };
+/**
+ * Fail-open switch, set by the renderer (components/scene/FlierField.jsx) and false by default (so every headless simulation and test is unchanged): true while the hazards cannot be DRAWN
+ * (their picture has not loaded, or failed to load for good). While it is true no hazard can hurt the bird, so a hazard can never be invisible and lethal. When the picture has loaded, as it
+ * has long before the first hazard in normal play, it is false and nothing differs from before.
+ */
+FLIERS.unseen = false;
 
 export const KINDS = Object.freeze(['smoke', 'firering', 'energyring', 'tornado', 'disc']);
 /** The world (index 0 to 4) each type is introduced in. */
