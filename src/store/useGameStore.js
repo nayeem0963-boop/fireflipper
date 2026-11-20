@@ -70,6 +70,8 @@ export const useGameStore = create((set, get) => ({
   orbs: 0,
   /** Power-ups held: seconds of magnet left (rounded up) and whether the shield is up. HUD display only (the simulation owns them). */
   magnet: 0,
+  /** Seconds of shield left (rounded up; 0 when none is held). HUD display only. */
+  shieldLeft: 0,
   shield: false,
   runId: 0, // bumped on every (re)start; the game loop resets the sim on change
   overAt: 0,
@@ -282,9 +284,9 @@ export const useGameStore = create((set, get) => ({
   },
 
   /** Throttled HUD snapshot from the game loop. Skips no-op updates. */
-  setHud: (distance, score, orbs, magnet = 0, shield = false) => {
+  setHud: (distance, score, orbs, magnet = 0, shield = false, shieldLeft = 0) => {
     const s = get();
-    if (s.distance !== distance || s.score !== score || s.orbs !== orbs || s.magnet !== magnet || s.shield !== shield) set({ distance, score, orbs, magnet, shield });
+    if (s.distance !== distance || s.score !== score || s.orbs !== orbs || s.magnet !== magnet || s.shield !== shield || s.shieldLeft !== shieldLeft) set({ distance, score, orbs, magnet, shield, shieldLeft });
   },
 
   // --- settings ---
@@ -334,7 +336,7 @@ function initialSkins() {
 
 function freshRun(s, preview = s.preview) {
   const runId = s.runId + 1;
-  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, magnet: 0, shield: false, lastResult: null, runId, milestoneIndex: -1, milestone: null, runRewards: [], previewSeed: preview ? previewSeedFor(runId) : null };
+  return { status: STATUS.READY, score: 0, distance: 0, orbs: 0, magnet: 0, shield: false, shieldLeft: 0, lastResult: null, runId, milestoneIndex: -1, milestone: null, runRewards: [], previewSeed: preview ? previewSeedFor(runId) : null };
 }
 
 /**

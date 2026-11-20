@@ -26,7 +26,7 @@ export default function PlayerBird({ sim }) {
     if (b) {
       const on = sim.shield || sim.grace > 0;
       b.visible = on;
-      if (on && bubbleMat.current) bubbleMat.current.opacity = sim.grace > 0 ? (Math.sin(sim.time * 36) > 0 ? 0.3 : 0.08) : 0.2 + Math.sin(sim.time * 3) * 0.05;
+      if (on && bubbleMat.current) bubbleMat.current.opacity = sim.grace > 0 ? (Math.sin(sim.time * 36) > 0 ? 0.3 : 0.08) : sim.shieldLeft > 0 && sim.shieldLeft <= 3 ? (Math.sin(sim.time * 14) > 0 ? 0.22 : 0.07) : 0.2 + Math.sin(sim.time * 3) * 0.05; // blinks in its last 3 s
     }
   });
 

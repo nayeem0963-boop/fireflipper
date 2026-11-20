@@ -14,6 +14,7 @@ export default function GameHUD() {
   const orbs = useGameStore((s) => s.orbs);
   const magnet = useGameStore((s) => s.magnet);
   const shield = useGameStore((s) => s.shield);
+  const shieldLeft = useGameStore((s) => s.shieldLeft);
   const status = useGameStore((s) => s.status);
   const togglePause = useGameStore((s) => s.togglePause);
   const restart = useGameStore((s) => s.restart);
@@ -66,8 +67,9 @@ export default function GameHUD() {
             </div>
           )}
           {shield && (
-            <div className="stat stat--power" role="status" aria-label="Shield ready">
+            <div className={`stat stat--power${shieldLeft > 0 && shieldLeft <= 3 ? ' stat--ending' : ''}`} role="status" aria-label={shieldLeft > 0 ? `Shield, ${shieldLeft} seconds left` : 'Shield ready'}>
               <ShieldIcon />
+              {shieldLeft > 0 && <span className="stat__value">{shieldLeft}s</span>}
             </div>
           )}
         </div>

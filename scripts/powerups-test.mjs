@@ -10,7 +10,7 @@ import { GAME_EVENTS } from '../src/systems/events/gameEvents.js';
 import { PHYSICS, WORLD } from '../src/systems/physics/constants.js';
 import { windowsIn } from '../src/systems/hazards/biomeHazards.js';
 import { SCORING } from '../src/systems/physics/constants.js';
-import { GRACE_S, ITEM_BEFORE, ITEM_RADIUS, KINDS, MAGNET_PULL, MAGNET_RANGE, MAGNET_S, POWERUPS, SLOTS } from '../src/systems/powerups/powerups.js';
+import { GRACE_S, ITEM_BEFORE, ITEM_RADIUS, KINDS, MAGNET_PULL, MAGNET_RANGE, MAGNET_S, POWERUPS, SHIELD_S, SLOTS } from '../src/systems/powerups/powerups.js';
 import { JOURNEY_LENGTH, FINISH_CLEAR } from '../src/systems/world/worlds.js';
 import { FLIERS } from '../src/systems/fliers/fliers.js';
 // This test flies a corridor-following bird, which cannot dodge the flying hazards (systems/fliers): they are switched off here and covered by scripts/fliers-test.mjs.
@@ -169,6 +169,17 @@ console.log('\n5. The shield');
   const it = a.items.acquire(); it.kind = 'shield'; it.x = a.distance + 0.2; it.y = a.bird.y; it.phase = 0;
   hold(a); a.step(DT);
   check('picking up a shield holds it (once: a second one does not stack) and raises the event', a.shield === true && events(a, GAME_EVENTS.POWERUP)[0]?.kind === 'shield' && [...a.items.active].length === 0);
+  check('the pickup starts the shield timer at the full SHIELD_S and a second pickup refreshes it (never stacks)', a.shieldLeft === SHIELD_S && SHIELD_S === 15);
+  for (let i = 0; i < 240; i++) { hold(a); a.step(DT); }
+  const midLeft = a.shieldLeft;
+  const it2 = a.items.acquire(); it2.kind = 'shield'; it2.x = a.distance + 0.2; it2.y = a.bird.y; it2.phase = 0;
+  hold(a); a.step(DT);
+  check('the timer counts down in real simulation time (2 s gone after 240 steps) and a new shield refreshes it', midLeft < SHIELD_S - 1.9 && midLeft > SHIELD_S - 2.1 && a.shieldLeft === SHIELD_S);
+  // the timer runs out unused
+  const t = stage();
+  t.shield = true; t.shieldLeft = 0.05;
+  for (let i = 0; i < 12 && t.shield; i++) { hold(t); t.step(DT); }
+  check('when the timer runs out the shield is gone unused (no immunity, no break event)', t.shield === false && t.shieldLeft === 0 && t.grace === 0 && events(t, GAME_EVENTS.SHIELD_BREAK).length === 0);
   // lava
   const lava = stage();
   lava.shield = true;
@@ -263,7 +274,9 @@ console.log('\n7. The HUD state');
   off();
   check('an unchanged snapshot causes no update (no needless re-render)', renders === 0);
   st().setHud(12, 12, 0);
-  check('the old three-number call still works and clears them', st().magnet === 0 && st().shield === false);
+  check('the old three-number call still works and clears them', st().magnet === 0 && st().shield === false && st().shieldLeft === 0);
+  st().setHud(12, 12, 0, 0, true, 9);
+  check('the HUD carries the shield seconds left', st().shieldLeft === 9 && st().shield === true);
   st().setHud(15, 15, 1, 3, true);
   st().restart();
   check('a retry clears the HUD chips', st().magnet === 0 && st().shield === false);
@@ -308,7 +321,7 @@ console.log('\n9. The pictures and the sources');
   check('the spawner draws no random number for an item (the only rng calls are the section\'s own)', (() => { const sp = strip(read('src/systems/obstacles/spawner.js')); const block = sp.slice(sp.indexOf('POWERUPS.enabled && builder.item'), sp.indexOf('const section = PATTERNS')); return !/rng/.test(block); })());
   check('the bot plans for items like orbs', /sim\.items\.active/.test(read('src/systems/bot/autopilot.js')));
   const hud = read('src/components/ui/GameHUD.jsx');
-  check('the HUD shows the magnet seconds and the shield only while held', /magnet > 0/.test(hud) && /\{shield &&/.test(hud));
+  check('the HUD shows the magnet seconds and the shield (with its seconds left) only while held', /magnet > 0/.test(hud) && /\{shield &&/.test(hud) && /shieldLeft > 0 &&/.test(hud));
   const bird = read('src/components/scene/PlayerBird.jsx');
   check('the shield bubble is drawn behind the bird, flickers during the immunity and is a look only', /sim\.shield \|\| sim\.grace > 0/.test(bird) && /position=\{\[0, 0, -0\.3\]\}/.test(bird));
 }

@@ -3,7 +3,7 @@
  *
  *  - Magnet: for MAGNET_S seconds, score orbs within MAGNET_RANGE metres of the bird drift toward it (MAGNET_PULL m/s). Collecting is unchanged: an orb still counts when the existing circle test
  *    says it touches the bird, so the magnet only brings orbs into reach.
- *  - Shield: absorbs ONE crash (an obstacle or the lava). The bird is put back in the guaranteed gap (or bounced off the floor), flashes, and is immune for GRACE_S seconds; then the shield is gone.
+ *  - Shield: lasts SHIELD_S seconds (a timer in the HUD) and absorbs ONE crash (an obstacle, the lava or a flying hazard). The bird is put back in the guaranteed gap (or bounced off the floor), flashes, and is immune for GRACE_S seconds; then the shield is gone. If the timer runs out first, the shield is gone unused.
  *
  * Where they appear: about one every 800 to 1,200 m (SLOTS, from position hashes, alternating magnet and shield: about nine in the journey). A slot is filled by the first obstacle section
  * after it that has no orb trail, with the item placed ITEM_BEFORE metres before that section's start, in line with the middle of its guaranteed gap (so it is always reachable and never
@@ -16,6 +16,7 @@ import { FINISH_CLEAR, JOURNEY_LENGTH } from '../world/worlds.js';
 export const POWERUPS = { enabled: true };
 
 export const MAGNET_S = 8;
+export const SHIELD_S = 15;
 export const MAGNET_RANGE = 4;
 export const MAGNET_PULL = 14;
 export const GRACE_S = 1.5;

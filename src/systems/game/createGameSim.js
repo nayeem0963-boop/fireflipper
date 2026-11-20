@@ -9,7 +9,7 @@ import { computeScore, toMetres } from '../scoring/scoring.js';
 import { GAME_EVENTS } from '../events/gameEvents.js';
 import { createRng, randomSeed } from '../../utils/random.js';
 import { JOURNEY_LENGTH, MILESTONES, WORLD_COUNT, worldsCompleted } from '../world/worlds.js';
-import { GRACE_S, ITEM_RADIUS, MAGNET_PULL, MAGNET_RANGE, MAGNET_S } from '../powerups/powerups.js';
+import { GRACE_S, ITEM_RADIUS, MAGNET_PULL, MAGNET_RANGE, MAGNET_S, SHIELD_S } from '../powerups/powerups.js';
 import { FLIERS, SLOTS as FLIER_SLOTS, flierHits, flierPlace, flierRescueY } from '../fliers/fliers.js';
 
 /**
@@ -199,6 +199,8 @@ export function createGameSim() {
     /** Power-ups: seconds of magnet left, whether the shield is held, and seconds of immunity left after it took a crash. */
     magnetLeft: 0,
     shield: false,
+    /** Seconds the held shield has left (it runs out unused at 0); a shield set directly (tests) with 0 here never expires. */
+    shieldLeft: 0,
     grace: 0,
     deathTime: 0,
     /** Interpolation factor between the last two fixed steps (set by the loop). */
@@ -248,6 +250,7 @@ export function createGameSim() {
       items.releaseAll();
       sim.magnetLeft = 0;
       sim.shield = false;
+      sim.shieldLeft = 0;
       sim.grace = 0;
       sim.phase = PHASE.READY;
       sim.time = 0;
@@ -331,6 +334,10 @@ export function createGameSim() {
     }
     stepFlight(b, sim.input, dt, hz);
     if (sim.magnetLeft > 0) sim.magnetLeft = Math.max(0, sim.magnetLeft - dt);
+    if (sim.shieldLeft > 0) {
+      sim.shieldLeft = Math.max(0, sim.shieldLeft - dt);
+      if (sim.shieldLeft === 0) sim.shield = false; // the timer ran out before any crash: the shield is gone unused
+    }
     if (sim.grace > 0) sim.grace = Math.max(0, sim.grace - dt);
 
     sim.speed = speedAt(sim.distance);
@@ -433,7 +440,10 @@ export function createGameSim() {
         const kind = it.kind;
         items.release(it);
         if (kind === 'magnet') sim.magnetLeft = MAGNET_S;
-        else sim.shield = true;
+        else {
+          sim.shield = true;
+          sim.shieldLeft = SHIELD_S; // a second shield refreshes the timer, never stacks
+        }
         sim.fx.fovKick += 1.8;
         sim.events.push({ type: GAME_EVENTS.POWERUP, kind, x: it.x, y: it.y });
       }
@@ -481,6 +491,7 @@ export function createGameSim() {
   function shieldSave(cause, bx, toY) {
     if (!sim.shield) return false;
     sim.shield = false;
+    sim.shieldLeft = 0;
     sim.grace = GRACE_S;
     const b = sim.bird;
     if (toY !== undefined) {

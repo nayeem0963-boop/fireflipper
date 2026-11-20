@@ -66,10 +66,29 @@ export default function FlierField({ sim }) {
         if (ci < 0 || counts[ci] >= MAX) continue;
         const harmless = ROLE[sl.kind] === 'harmless';
         dummy.position.set(place.dx, place.y, harmless ? -1.4 : 0.2);
-        // the disc spins, the tornado sways, the rings wobble a little, the smoke breathes (all functions of the distance: frozen by pause)
-        const rot = sl.kind === 'disc' ? dist * 0.9 : sl.kind === 'tornado' ? Math.sin(dist * 0.3) * 0.07 : harmless ? 0 : Math.sin(dist * 0.2 + sl.e) * 0.06;
+        // Every hazard is alive (all functions of the distance and the hazard's own place, so a pause freezes them and a retry replays them; looks only, the hitbox never moves):
+        // the disc spins fast and throbs, the rings spin and flicker like flames/sparks, the tornado twists (sways, squeezes and stretches), the crystal burst tilts and pulses.
+        const t = dist + sl.e * 0.37;
+        let rot;
+        let sx;
+        let sy;
+        if (sl.kind === 'disc') {
+          rot = dist * 1.4;
+          sx = sy = 1 + Math.sin(t * 1.3) * 0.03;
+        } else if (sl.kind === 'tornado') {
+          rot = Math.sin(t * 0.45) * 0.1;
+          sx = 1 + Math.sin(t * 0.9) * 0.1;
+          sy = 1 - Math.sin(t * 0.9) * 0.05 + Math.sin(t * 2.3) * 0.02;
+        } else if (harmless) {
+          rot = Math.sin(t * 0.16) * 0.09;
+          sx = 1 + Math.sin(t * 0.55) * 0.06;
+          sy = 1 + Math.sin(t * 0.55 + 1.2) * 0.05;
+        } else {
+          rot = dist * (sl.kind === 'firering' ? 0.5 : -0.7); // the swirl turns (the energy ring the other way)
+          sx = sy = 1 + Math.sin(t * 2.1) * 0.025 + Math.sin(t * 3.7 + 1) * 0.015; // flicker
+        }
         dummy.rotation.set(0, 0, rot);
-        dummy.scale.setScalar(harmless ? 1 + Math.sin(dist * 0.05 + sl.e) * 0.04 : 1);
+        dummy.scale.set(sx, sy, 1);
         dummy.updateMatrix();
         meshes.current[key].setMatrixAt(counts[ci]++, dummy.matrix);
       }

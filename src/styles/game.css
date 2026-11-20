@@ -365,6 +365,22 @@
   align-items: center;
   gap: 6px;
 }
+.stat--ending {
+  animation: power-ending 0.5s ease-in-out infinite alternate;
+}
+@keyframes power-ending {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stat--ending {
+    animation: none;
+  }
+}
 .stat--power svg {
   width: 24px;
   height: 24px;
