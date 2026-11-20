@@ -1,0 +1,5 @@
+# Fire Flipper: everything on the site may be crawled.
+User-agent: *
+Allow: /
+
+Sitemap: https://fireflipper.com/sitemap.xml

@@ -135,6 +135,19 @@ each in three skins (Fire, Blue, White): 15 in all. The Flipper and the Scarlet 
 birds share one hitbox and one physics model (`npm run test:avatars` guards against gameplay fields on a bird).
 Bird models are third-party (CC BY 4.0); see `public/models/CREDITS.md` and the in-app credits.
 
+## Search engines and sharing (SEO)
+
+The game is one page (`https://fireflipper.com/`) drawn on a canvas, so its search presence is the page head plus a block of real text inside `#root` of `index.html` that React replaces when the game loads (crawlers and visitors without JavaScript see it; it also paints before the JavaScript arrives). What is there, all checked by `npm run test:seo` against a real production build:
+
+- **Head:** a 41-character title, a 153-character description, a canonical URL on the production domain, a robots directive (`index, follow` with large image previews), Open Graph and X/Twitter card tags (`summary_large_image`) with the social image `public/images/og-image.jpg` (1200 x 630, 98 KB, the canyon painting with the game's title; only crawlers download it), language, theme colour, icons (`favicon.ico`, the SVG, 192/512 px PNGs, `apple-touch-icon.png`) and `site.webmanifest`.
+- **Structured data:** one JSON-LD block with a `WebSite` and a `VideoGame` (free, single player, browser). It states only what is true: no author, publisher, rating or review.
+- **Crawlable text:** one `h1` ("Fire Flipper"), then `h2`s: Five worlds, How to play, Features. The game's own home screen has the same single `h1`.
+- **Files:** `public/robots.txt` (allow all, names the sitemap), `public/sitemap.xml` (the one URL), `public/404.html` (custom, `noindex`, links home; Netlify serves it for unknown URLs).
+- **Previews stay out of search:** a Netlify deploy preview or branch deploy (`CONTEXT` is not `production`) is built with `noindex, nofollow` and a `robots.txt` that disallows everything (`vite.config.js`); its canonical still points at the production domain.
+- **Cache rules:** the new small files are revalidated (`public/_headers`).
+
+To do by hand (they need your accounts): add `https://fireflipper.com/` in Google Search Console (and Bing Webmaster Tools), submit `https://fireflipper.com/sitemap.xml`, request indexing of the home page, and make sure the Netlify primary domain is `fireflipper.com` (redirect `www` to it) so it matches the canonical URL. Update `lastmod` in `sitemap.xml` when you ship a notable change.
+
 ## Progression
 
 Run loop: fly, collect orbs and streaks, dodge for near misses, beat your best, unlock skins, go again with a goal.
