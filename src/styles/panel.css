@@ -9,13 +9,13 @@
   place-items: center;
   padding: calc(var(--safe-top) + 16px) calc(var(--safe-right) + 16px) calc(var(--safe-bottom) + 16px)
     calc(var(--safe-left) + 16px);
-  background: rgba(6, 4, 3, 0.72);
+  background: rgba(var(--bg-rgb), 0.72);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   animation: overlay-in 0.18s ease-out;
 }
 .overlay--soft {
-  background: rgba(6, 4, 3, 0.5);
+  background: rgba(var(--bg-rgb), 0.5);
 }
 @keyframes overlay-in {
   from {
@@ -31,7 +31,7 @@
   border: 1px solid var(--line-strong);
   border-radius: calc(var(--radius) + 4px);
   background: linear-gradient(180deg, var(--bg-elevated), var(--bg-raised));
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 90, 20, 0.12);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 40px rgba(var(--accent-rgb), 0.12);
 }
 .panel:focus {
   outline: none;
@@ -58,7 +58,7 @@
 .panel__title--big {
   font-size: 2rem;
   color: var(--fire-200);
-  text-shadow: 0 0 18px rgba(255, 120, 30, 0.5);
+  text-shadow: 0 0 18px rgba(var(--accent-rgb), 0.5);
 }
 .panel__row {
   display: flex;
@@ -72,68 +72,309 @@
   color: var(--text-dim);
 }
 
-/* Game over */
+/* Game over: compact results; the Retry footer is fixed, only the body may scroll. */
 .overlay--gameover {
   animation: overlay-in 0.3s ease-out;
 }
 .gameover {
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 100%);
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px);
+  padding: 0;
+  overflow: hidden;
   animation: panel-rise 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
+.gameover--record {
+  border-color: var(--fire-300);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(var(--accent-rgb), 0.35);
+}
+.gameover__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto; /* secondary content scrolls only when the viewport is too small */
+  overscroll-behavior: contain;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 16px 22px;
+  padding: 18px 22px 12px;
+}
+.gameover__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
 .gameover__kicker {
-  font-size: 0.72rem;
+  margin: 0;
+  font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--text-dim);
 }
+.gameover .panel__title--big {
+  margin: 0;
+  font-size: clamp(1.5rem, 5vw, 2rem);
+}
+.gameover__cause {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.gameover__scorewrap {
+  position: relative;
+  margin-top: 4px;
+}
 .gameover__score {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(2.6rem, 11vw, 3.6rem);
+  font-size: clamp(2.4rem, 9vw, 3.4rem);
   line-height: 1;
   font-variant-numeric: tabular-nums;
   background: linear-gradient(180deg, var(--fire-100), var(--fire-300) 50%, var(--fire-500));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 0 16px rgba(255, 110, 30, 0.5));
+  filter: drop-shadow(0 0 16px rgba(var(--accent-rgb), 0.5));
 }
+.gameover__score.is-done {
+  animation: score-pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.gameover--record .gameover__score.is-done {
+  filter: drop-shadow(0 0 26px rgba(var(--accent-rgb), 0.85));
+}
+@keyframes score-pop {
+  40% {
+    transform: scale(1.18);
+  }
+}
+
+.gameover__unlock {
+  margin: 2px 0 0;
+  padding: 4px 12px;
+  border: 1px solid var(--fire-300);
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb), 0.14);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--fire-200);
+}
+
+/* Progress toward personal best */
+.pb {
+  width: min(300px, 100%);
+  margin-top: 6px;
+}
+.pb__track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(var(--bg-rgb), 0.7);
+  border: 1px solid var(--line);
+}
+.pb__fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--fire-600), var(--fire-300));
+  transition: width 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.pb__fill--record {
+  background: linear-gradient(90deg, var(--fire-300), var(--fire-100));
+  box-shadow: var(--glow-sm);
+}
+.pb__text {
+  margin: 6px 0 0;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
 .gameover__stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  width: 100%;
-  margin: 4px 0 8px;
+  margin: 0;
 }
-.gameover__stats div {
+.stat {
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: rgba(11, 9, 7, 0.5);
+  background: rgba(var(--bg-rgb), 0.5);
+  animation: stat-in 0.4s ease-out both;
+  animation-delay: calc(0.12s * var(--i, 0) + 0.15s);
 }
-.gameover__stats dt {
-  font-size: 0.66rem;
+.stat--hot {
+  border-color: var(--fire-300);
+  background: rgba(var(--accent-rgb), 0.14);
+  box-shadow: var(--glow-sm);
+}
+.stat dt {
+  font-size: 0.64rem;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
-.gameover__stats dd {
+.stat dd {
   margin: 0;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+@keyframes stat-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 .gameover__sub {
   font-weight: 500;
   font-size: 0.8em;
   color: var(--fire-300);
 }
+
+.rewards {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 10px;
+}
+.reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(var(--bg-rgb), 0.5);
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+.reward strong {
+  color: var(--text);
+}
+.reward--earned {
+  border-color: var(--fire-300);
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--fire-200);
+  animation: stat-in 0.4s ease-out both 0.9s;
+}
+.reward__bar {
+  width: 56px;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.reward__bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--fire-600), var(--fire-300));
+}
+
+/* Fixed footer: always visible, never scrolls away */
+.gameover__footer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 14px;
+  padding: 12px 22px;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--bg-elevated), var(--bg-raised));
+}
+.gameover__hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+/* Personal-best celebration */
+.badge--pop {
+  animation: badge-pop 0.6s cubic-bezier(0.2, 1.5, 0.4, 1), badge-glow 1.6s ease-in-out 0.6s infinite;
+}
+@keyframes badge-pop {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}
+@keyframes badge-glow {
+  50% {
+    box-shadow: 0 0 22px rgba(255, 210, 100, 0.9);
+  }
+}
+.confetti {
+  /* fixed so the burst never adds to the scrollable body's height */
+  position: fixed;
+  inset: 42% auto auto 50%;
+  z-index: 2;
+  pointer-events: none;
+}
+.confetti i {
+  position: absolute;
+  width: 7px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--hue);
+  animation: confetti 1.3s cubic-bezier(0.2, 0.7, 0.3, 1) var(--delay) both;
+}
+@keyframes confetti {
+  from {
+    transform: translate(0, 0) rotate(0);
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--dx), calc(var(--dy) + 90px)) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+
+/* Narrow / portrait: single column, three stat columns stay compact */
+@media (max-width: 640px), (max-aspect-ratio: 1/1) {
+  .gameover__body {
+    grid-template-columns: 1fr;
+    padding: 16px 16px 10px;
+  }
+  .gameover__footer {
+    padding-inline: 16px;
+  }
+}
+/* Very short landscape viewports: tighten spacing further */
+@media (max-height: 520px) {
+  .gameover__body {
+    gap: 8px 16px;
+    padding-block: 10px 6px;
+  }
+  .stat {
+    padding: 5px 8px;
+  }
+  .gameover__footer {
+    padding-block: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gameover,
+  .stat,
+  .gameover__score.is-done,
+  .badge--pop,
+  .confetti i {
+    animation: none;
+  }
+  .pb__fill {
+    transition: none;
+  }
+}
 .badge {
   padding: 4px 12px;
   border-radius: 999px;
   background: linear-gradient(180deg, var(--fire-300), var(--fire-500));
-  color: #1a0904;
+  color: var(--on-accent);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -181,7 +422,7 @@
   transition: transform 0.15s, background 0.15s;
 }
 .switch.is-on {
-  background: rgba(255, 110, 30, 0.25);
+  background: rgba(var(--accent-rgb), 0.25);
 }
 .switch.is-on .switch__thumb {
   transform: translateX(22px);
@@ -209,5 +450,70 @@
 }
 .segmented button.is-active {
   background: linear-gradient(180deg, var(--fire-400), var(--fire-600));
-  color: #1a0904;
+  color: var(--on-accent);
+}
+
+/* Phone held sideways (about 340-400px tall): compact results so the stats fit without scrolling */
+@media (max-height: 420px) {
+  .gameover {
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px);
+  }
+  .gameover__body {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 6px 14px;
+    padding: 8px 14px 4px;
+  }
+  .gameover__kicker,
+  .gameover__cause {
+    display: none;
+  }
+  .gameover .panel__title--big {
+    font-size: 1.25rem;
+  }
+  .gameover__score {
+    font-size: 2.1rem;
+  }
+  .gameover__hero {
+    gap: 3px;
+  }
+  .pb {
+    margin-top: 2px;
+  }
+  .pb__text {
+    margin-top: 3px;
+    font-size: 0.7rem;
+  }
+  .gameover__stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+  }
+  .stat {
+    padding: 4px 6px;
+  }
+  .stat dt {
+    font-size: 0.56rem;
+    letter-spacing: 0.08em;
+  }
+  .stat dd {
+    font-size: 0.85rem;
+  }
+  .rewards {
+    gap: 4px 6px;
+  }
+  .reward {
+    padding: 2px 9px;
+    font-size: 0.68rem;
+  }
+  .gameover__footer {
+    padding: 6px 14px;
+  }
+  .gameover__footer .play-btn {
+    min-height: 42px;
+  }
+  .gameover__footer .ghost-btn {
+    min-height: 38px;
+  }
+  .gameover__hint {
+    display: none;
+  }
 }

@@ -1,8 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGameStore, STATUS } from '../../store/useGameStore.js';
 import { PHYSICS } from '../physics/constants.js';
-import { GAME_EVENTS, gameEvents } from '../events/gameEvents.js';
+import { createAutopilot } from '../bot/autopilot.js';
+import { gameEvents } from '../events/gameEvents.js';
+import { routeSimEvent } from './routeEvents.js';
 
 const HUD_INTERVAL = 0.1; // seconds; the HUD only needs ~10 updates/s
 
@@ -18,12 +20,16 @@ export function useGameLoop(sim) {
   const runId = useGameStore((s) => s.runId);
   const acc = useRef(0);
   const hudTimer = useRef(0);
+  // Auto play: the bot presses the same inputs a player would, once per fixed step.
+  const bot = useMemo(() => createAutopilot(sim), [sim]);
 
   useEffect(() => {
-    sim.reset();
+    // the Journey Preview flies a verified track seed; a normal run and plain Auto play keep a random one
+    sim.reset(useGameStore.getState().previewSeed ?? undefined);
+    bot.reset();
     acc.current = 0;
     hudTimer.current = 0;
-  }, [runId, sim]);
+  }, [runId, sim, bot]);
 
   useFrame((_, rawDelta) => {
     const store = useGameStore.getState();
@@ -32,6 +38,7 @@ export function useGameLoop(sim) {
     const step = PHYSICS.fixedStep;
     acc.current += Math.min(rawDelta, PHYSICS.maxFrameDelta);
     while (acc.current >= step) {
+      if (store.demo) bot.control();
       sim.step(step);
       acc.current -= step;
     }
@@ -39,9 +46,7 @@ export function useGameLoop(sim) {
 
     if (sim.events.length) {
       for (const e of sim.events) {
-        if (e.type === GAME_EVENTS.START) store.beginRun();
-        else if (e.type === GAME_EVENTS.CRASH) store.crash();
-        else if (e.type === GAME_EVENTS.OVER) store.endRun(sim.results());
+        routeSimEvent(store, sim, e);
         gameEvents.emit(e.type, e);
       }
       sim.events.length = 0;
@@ -50,7 +55,7 @@ export function useGameLoop(sim) {
     hudTimer.current += rawDelta;
     if (hudTimer.current >= HUD_INTERVAL) {
       hudTimer.current = 0;
-      store.setHud(sim.metres, sim.score, sim.orbsCollected);
+      store.setHud(sim.metres, sim.score, sim.orbsCollected, Math.ceil(sim.magnetLeft), sim.shield, Math.ceil(sim.shieldLeft));
     }
   });
 }

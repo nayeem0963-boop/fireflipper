@@ -17,23 +17,23 @@ import {
 } from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { getGlowTexture } from '../../utils/textures.js';
-import { STROKE_TIME } from './PlaceholderFirebird.jsx';
+import { modelUrl } from '../../systems/avatars/avatars.js';
 
-export const EAGLE_URL = `${import.meta.env.BASE_URL}models/eagle.glb`;
+const STROKE_TIME = 0.26; // seconds for one powered wing stroke (the same as the Firebird's)
 
 /**
- * The GLB fire eagle (see public/models/CREDITS.md). The source model is a
+ * The Fire Eagle avatar (see public/models/CREDITS.md and systems/avatars/avatars.js). The source model is a
  * grey-and-brown bald eagle with a rigged "Fly" clip; here it is re-skinned
- * at runtime into a blazing firebird:
+ * at runtime into a blazing firebird, in the colours of the chosen avatar:
  *
- *  - the 8-texel palette texture is swapped for a fire palette, with a
+ *  - the 8-texel palette texture is swapped for the avatar's palette, with a
  *    matching emissive map so the bird glows from within;
  *  - a flicker/rim-light patch on the standard material adds heat shimmer;
  *  - a skinned "flame shell" (back faces, additive) is pushed out along the
  *    normals and licks backwards like a trailing flame;
  *  - glow sprites follow the wing tips, tail tip and crest.
  *
- * It faces +X like the placeholder bird and takes the same props.
+ * It faces +X like the Firebird and takes its props, plus `avatar`.
  */
 
 const MODEL_SCALE = 0.95; // eagle body ≈ the primitive bird's body
@@ -42,11 +42,8 @@ const WING_SCALE = 1.7; // the source wings are tiny; make them read in profile
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
-// Texel order matches the source palette: 0 pale, 1 body, 2 wing, 3 beak,
-// 4 feet, 5 pale, 6 head, 7 eye.
-const FIRE_PALETTE = ['#ffc04a', '#e83a08', '#a51402', '#fff0a0', '#ffa72a', '#ffd070', '#ffe9a8', '#1b0804'];
-// How strongly each texel glows (eyes stay dark so the bird keeps a face).
-const GLOW_PALETTE = ['#ffffff', '#ff9a6a', '#ff5a2a', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#000000'];
+// How strongly each palette texel glows: body, wings and so on glow, the eye (texel 7) stays dark so the bird keeps a face.
+const GLOW_WEIGHTS = [1, 0.8, 0.6, 1, 1, 1, 1, 0];
 
 function paletteTexture(hexes, srgb = true) {
   const data = new Uint8Array(hexes.length * 4);
@@ -68,11 +65,12 @@ function paletteTexture(hexes, srgb = true) {
   return tex;
 }
 
-function createFireMaterial(uTime) {
+function createFireMaterial(uTime, palette) {
+  const glowTexels = GLOW_WEIGHTS.map((w) => `rgb(${Math.round(w * 255)},${Math.round(w * 255)},${Math.round(w * 255)})`);
   const mat = new MeshStandardMaterial({
-    map: paletteTexture(FIRE_PALETTE),
-    emissiveMap: paletteTexture(GLOW_PALETTE),
-    emissive: new Color('#ff7a2a'),
+    map: paletteTexture(palette.texels),
+    emissiveMap: paletteTexture(glowTexels),
+    emissive: new Color(palette.glow),
     emissiveIntensity: 0.8,
     roughness: 0.55,
     metalness: 0,
@@ -99,7 +97,7 @@ function createFireMaterial(uTime) {
 }
 
 /** Back-face additive shell that grows along normals and streams backwards like flame. */
-function createFlameShellMaterial(uTime) {
+function createFlameShellMaterial(uTime, palette) {
   const mat = new MeshBasicMaterial({
     side: BackSide,
     transparent: true,
@@ -109,6 +107,8 @@ function createFlameShellMaterial(uTime) {
   });
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = uTime;
+    shader.uniforms.uFlameA = { value: new Color(palette.flameA) };
+    shader.uniforms.uFlameB = { value: new Color(palette.flameB) };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying float vBack;')
       .replace(
@@ -122,10 +122,10 @@ function createFlameShellMaterial(uTime) {
         transformed += normalize(objectNormal) * (0.04 + back * 0.17 * lick + jitter);`,
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vBack;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uFlameA;\nuniform vec3 uFlameB;\nvarying float vBack;')
       .replace(
         '#include <opaque_fragment>',
-        `vec3 flame = mix(vec3(1.0, 0.72, 0.2), vec3(1.0, 0.16, 0.02), vBack);
+        `vec3 flame = mix(uFlameA, uFlameB, vBack);
         gl_FragColor = vec4(flame, mix(0.5, 0.28, vBack));`,
       );
   };
@@ -156,8 +156,9 @@ function pickVertex(mesh, boneIndex, score) {
   return best;
 }
 
-export default function FireEagle({ float = 0.12, wingSpeed = 7, glow = 0.55, lightIntensity = 6, flight, ...props }) {
-  const gltf = useGLTF(EAGLE_URL);
+export default function FireEagle({ avatar, float = 0.12, wingSpeed = 7, glow = 0.55, lightIntensity = 6, flight, ...props }) {
+  const gltf = useGLTF(modelUrl(avatar));
+  const palette = avatar.palette;
   const root = useRef();
   const halo = useRef();
   const pivot = useRef();
@@ -174,10 +175,10 @@ export default function FireEagle({ float = 0.12, wingSpeed = 7, glow = 0.55, li
     const bones = mesh.skeleton.bones;
     const idx = (name) => bones.findIndex((b) => b.name === name);
 
-    mesh.material = createFireMaterial(uTime);
+    mesh.material = createFireMaterial(uTime, palette);
     mesh.frustumCulled = false;
 
-    const shell = new SkinnedMesh(mesh.geometry, createFlameShellMaterial(uTime));
+    const shell = new SkinnedMesh(mesh.geometry, createFlameShellMaterial(uTime, palette));
     shell.position.copy(mesh.position);
     shell.quaternion.copy(mesh.quaternion);
     shell.scale.copy(mesh.scale);
@@ -188,18 +189,18 @@ export default function FireEagle({ float = 0.12, wingSpeed = 7, glow = 0.55, li
 
     // Anchor vertices the glow sprites follow, found once on the rest pose.
     const anchors = [
-      { v: pickVertex(mesh, idx('wingL'), (p) => -p.x), size: 1.5, color: '#ff8a2a', op: 0.7 },
-      { v: pickVertex(mesh, idx('wingR'), (p) => p.x), size: 1.5, color: '#ff8a2a', op: 0.7 },
-      { v: pickVertex(mesh, null, (p) => -p.z), size: 2.1, color: '#ff6a18', op: 0.8 }, // tail tip
-      { v: pickVertex(mesh, idx('hair02'), (p) => p.y), size: 1.1, color: '#ffd27a', op: 0.85 }, // crest
+      { v: pickVertex(mesh, idx('wingL'), (p) => -p.x), size: 1.5, color: palette.glow, op: 0.7 },
+      { v: pickVertex(mesh, idx('wingR'), (p) => p.x), size: 1.5, color: palette.glow, op: 0.7 },
+      { v: pickVertex(mesh, null, (p) => -p.z), size: 2.1, color: palette.flameB, op: 0.8 }, // tail tip
+      { v: pickVertex(mesh, idx('hair02'), (p) => p.y), size: 1.1, color: palette.high, op: 0.85 }, // crest
     ];
 
     const body = bones.find((b) => b.name === 'body');
     scene.updateMatrixWorld(true);
     const center = body.getWorldPosition(new Vector3());
 
-    return { scene, mesh, anchors, center, wingBones: [bones[idx('wingL')], bones[idx('wingR')]] };
-  }, [gltf, uTime]);
+    return { scene, mesh, shell, anchors, center, wingBones: [bones[idx('wingL')], bones[idx('wingR')]] };
+  }, [gltf, uTime, palette]);
 
   const mixer = useMemo(() => {
     const m = new AnimationMixer(rig.scene);
@@ -224,6 +225,7 @@ export default function FireEagle({ float = 0.12, wingSpeed = 7, glow = 0.55, li
       rig.mesh.material.map?.dispose();
       rig.mesh.material.emissiveMap?.dispose();
       rig.mesh.material.dispose();
+      rig.shell.material.dispose();
     },
     [mixer, rig],
   );
@@ -288,14 +290,14 @@ export default function FireEagle({ float = 0.12, wingSpeed = 7, glow = 0.55, li
   return (
     <group {...props}>
       <group ref={root}>
-        <pointLight color="#ff7a2a" intensity={lightIntensity} distance={8} decay={1.6} position={[0.2, 0.3, 0.8]} />
+        <pointLight color={palette.glow} intensity={lightIntensity} distance={8} decay={1.6} position={[0.2, 0.3, 0.8]} />
 
         {/* Halo */}
         <sprite scale={[4.6, 4.6, 1]} renderOrder={-1}>
           <spriteMaterial
             ref={halo}
             map={glowMap}
-            color="#ff7a24"
+            color={palette.glow}
             transparent
             opacity={glow}
             depthWrite={false}
@@ -331,5 +333,3 @@ export default function FireEagle({ float = 0.12, wingSpeed = 7, glow = 0.55, li
     </group>
   );
 }
-
-useGLTF.preload(EAGLE_URL);

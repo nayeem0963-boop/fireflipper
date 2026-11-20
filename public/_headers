@@ -1,0 +1,17 @@
+# Cache rules for the static host (Netlify format; Cloudflare Pages reads the same file). Copied to the site root by the build.
+# `npm run test:deploy` checks these patterns against the real files of a production build.
+
+# Vite writes every JS/CSS file under /assets/ with a hash of its content in the name, so a changed file always gets a new name: cache for a year, never revalidate.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The page itself and everything in /images and /models keep fixed file names, so a replaced file must show up at once: the browser may keep a copy but must ask
+# the server (a cheap 304 when nothing changed) before using it. The sprite atlases are tied to code that knows their layout, so they must never be stale.
+/
+  Cache-Control: public, max-age=0, must-revalidate
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+/images/*
+  Cache-Control: public, max-age=0, must-revalidate
+/models/*
+  Cache-Control: public, max-age=0, must-revalidate

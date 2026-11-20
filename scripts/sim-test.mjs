@@ -6,6 +6,7 @@ import { createGameSim, PHASE } from '../src/systems/game/createGameSim.js';
 import { circleIntersectsBox, circleIntersectsCircle, circleHitsObstacle } from '../src/systems/physics/collision.js';
 import { PHYSICS, WORLD, SCORING } from '../src/systems/physics/constants.js';
 import { computeScore } from '../src/systems/scoring/scoring.js';
+import { FLIERS } from '../src/systems/fliers/fliers.js';
 
 const DT = PHYSICS.fixedStep;
 let failures = 0;
@@ -85,6 +86,64 @@ section('Flight physics');
     return s.bird.vy;
   };
   check('dive falls faster', fall(true) < fall(false) - 3);
+}
+
+// ---------------------------------------------------------------- run stats
+section('Run stats');
+{
+  const sim = createGameSim();
+  sim.reset(21);
+  sim.obstacles.releaseAll();
+  sim.orbs.releaseAll();
+  sim.track.nextX = 1e9;
+  // Column whose edge the bird (flying level) skims past, then a lava death.
+  const o = sim.obstacles.acquire();
+  Object.assign(o, { kind: 'column', shape: 'box', x: 4, y: 12, hw: 0.4, hh: 10, extent: 0.5, gap: Infinity, nm: false });
+  sim.flap();
+  for (let i = 0; i < 120 * 5 && sim.phase === PHASE.RUNNING; i++) {
+    sim.bird.y = 1.5; // 0.14 clearance under the column's lower edge
+    sim.bird.vy = 0;
+    sim.step(DT);
+    if (sim.distance > 8) break;
+  }
+  check('near miss counted once', sim.nearMisses === 1, `got ${sim.nearMisses}`);
+  while (sim.phase === PHASE.RUNNING) sim.step(DT);
+  check('lava cause recorded', sim.results().cause === 'lava');
+  const r = sim.results();
+  check('results carry stats', 'bestStreak' in r && 'nearMisses' in r && 'cause' in r);
+}
+{
+  const sim = createGameSim();
+  sim.reset(22);
+  sim.obstacles.releaseAll();
+  sim.orbs.releaseAll();
+  sim.track.nextX = 1e9;
+  const y = sim.bird.y;
+  for (const x of [3, 5]) Object.assign(sim.orbs.acquire(), { x, y, phase: 0, missed: false });
+  Object.assign(sim.orbs.acquire(), { x: 7, y: 20, phase: 0, missed: false }); // unreachable: breaks the streak
+  for (const x of [9]) Object.assign(sim.orbs.acquire(), { x, y, phase: 0, missed: false });
+  sim.flap();
+  for (let i = 0; i < 120 * 3 && sim.distance < 11; i++) {
+    sim.bird.y = y;
+    sim.bird.vy = 0;
+    sim.step(DT);
+  }
+  check('best streak tracks consecutive orbs', sim.bestStreak === 2 && sim.orbStreak === 1, `${sim.bestStreak}/${sim.orbStreak}`);
+}
+{
+  const sim = createGameSim();
+  sim.reset(23);
+  sim.obstacles.releaseAll();
+  sim.track.nextX = 1e9;
+  const o = sim.obstacles.acquire();
+  Object.assign(o, { kind: 'rock', shape: 'circle', x: 3, y: 0.4, cr: 1, extent: 1, gap: Infinity, nm: false });
+  sim.flap();
+  for (let i = 0; i < 120 * 3 && sim.phase === PHASE.RUNNING; i++) {
+    sim.bird.y = 0.4;
+    sim.bird.vy = 0;
+    sim.step(DT);
+  }
+  check('obstacle cause recorded', sim.crashCause === 'rock', String(sim.crashCause));
 }
 
 // ---------------------------------------------------------------- crash
@@ -173,6 +232,9 @@ section('Fairness: autopilot over generated tracks');
   // A simple controller that only sees corridors (as a player would) and flaps
   // to stay near the upcoming corridor centre. If generation ever produced an
   // impossible arrangement, it would crash.
+  // This controller sees only the corridors, so it cannot dodge a flying hazard; it checks the obstacle tracks, so the flying hazards are off here (they have their own tests).
+  const fliersWere = FLIERS.enabled;
+  FLIERS.enabled = false;
   const TARGET = 3000;
   const SEEDS = 40;
   let survived = 0;
@@ -206,6 +268,7 @@ section('Fairness: autopilot over generated tracks');
   console.log(`  autopilot survived ${survived}/${SEEDS} runs to ${TARGET} m (avg ${(totalOrbs / SEEDS).toFixed(0)} orbs)`);
   crashes.forEach((c) => console.log(`    crash: ${c}`));
   check('every generated track navigable', survived === SEEDS);
+  FLIERS.enabled = fliersWere;
 }
 
 console.log(`\n${passes} passed, ${failures} failed`);

@@ -5,19 +5,23 @@ import { isFullscreen, isFullscreenSupported, toggleFullscreen } from '../../uti
 import IconButton from './IconButton.jsx';
 import SoundToggle from './SoundToggle.jsx';
 import { ExitIcon, FullscreenIcon, PauseIcon, PlayIcon, RestartIcon } from './Icons.jsx';
+import { MagnetIcon, ShieldIcon } from './PowerIcons.jsx';
 
 /** In-game heads-up display. Pure UI: reads the store, calls store actions. */
 export default function GameHUD() {
   const score = useGameStore((s) => s.score);
   const distance = useGameStore((s) => s.distance);
   const orbs = useGameStore((s) => s.orbs);
+  const magnet = useGameStore((s) => s.magnet);
+  const shield = useGameStore((s) => s.shield);
+  const shieldLeft = useGameStore((s) => s.shieldLeft);
   const status = useGameStore((s) => s.status);
   const togglePause = useGameStore((s) => s.togglePause);
   const restart = useGameStore((s) => s.restart);
   const exitToMenu = useGameStore((s) => s.exitToMenu);
   const paused = status === STATUS.PAUSED;
   const canPause = status === STATUS.RUNNING || paused;
-  const showStats = status !== STATUS.OVER;
+  const showStats = status !== STATUS.OVER && status !== STATUS.COMPLETE;
 
   const [fs, setFs] = useState(isFullscreen);
   useEffect(() => {
@@ -56,6 +60,18 @@ export default function GameHUD() {
               {orbs}
             </span>
           </div>
+          {magnet > 0 && (
+            <div className="stat stat--power" role="status" aria-label={`Magnet, ${magnet} seconds left`}>
+              <MagnetIcon />
+              <span className="stat__value">{magnet}s</span>
+            </div>
+          )}
+          {shield && (
+            <div className={`stat stat--power${shieldLeft > 0 && shieldLeft <= 3 ? ' stat--ending' : ''}`} role="status" aria-label={shieldLeft > 0 ? `Shield, ${shieldLeft} seconds left` : 'Shield ready'}>
+              <ShieldIcon />
+              {shieldLeft > 0 && <span className="stat__value">{shieldLeft}s</span>}
+            </div>
+          )}
         </div>
       )}
 

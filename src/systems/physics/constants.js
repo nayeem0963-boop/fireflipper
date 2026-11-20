@@ -35,8 +35,8 @@ export const WORLD = Object.freeze({
   birdStartY: 0.4,
   baseSpeed: 6.5,
   maxSpeed: 10.5,
-  /** Distance over which speed ramps from base to max. */
-  speedRampDistance: 1500,
+  /** Distance over which speed ramps from base to max: 60% of the 10,000 m journey, so the pace keeps rising through worlds 1 to 3 instead of topping out in the first 1,500 m. */
+  speedRampDistance: 6000,
   /** Obstacles are generated this far ahead of the bird (off-screen). */
   spawnAhead: 46,
   /** ...and recycled this far behind it. */
