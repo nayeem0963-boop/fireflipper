@@ -1,7 +1,8 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending } from 'three';
-import { getGlowTexture } from '../../utils/textures.js';
+import { getGlowTexture, getNeutralGlowTexture } from '../../utils/textures.js';
+import { useTheme } from '../../hooks/useTheme.js';
 
 /**
  * Rising embers as a single THREE.Points draw call. Positions are mutated
@@ -13,7 +14,8 @@ import { getGlowTexture } from '../../utils/textures.js';
  *  - area:    [width, height, depth] of the spawn box, centred on the group
  *  - scroll:  optional () => number giving horizontal world speed (parallax)
  */
-export default function EmberParticles({ count = 120, area = [14, 9, 6], size = 0.13, scroll, ...props }) {
+export default function EmberParticles({ count = 120, area = [14, 9, 6], size = 0.13, scroll, color, ...props }) {
+  const theme = useTheme();
   const points = useRef();
   const [w, h, d] = area;
 
@@ -31,7 +33,7 @@ export default function EmberParticles({ count = 120, area = [14, 9, 6], size = 
     return { positions, speeds, seeds };
   }, [count, w, h, d]);
 
-  const glowMap = useMemo(getGlowTexture, []);
+  const glowMap = useMemo(() => (theme.neutralGlow ? getNeutralGlowTexture() : getGlowTexture()), [theme]);
 
   useFrame((state, delta) => {
     const geom = points.current?.geometry;
@@ -62,7 +64,7 @@ export default function EmberParticles({ count = 120, area = [14, 9, 6], size = 
       </bufferGeometry>
       <pointsMaterial
         map={glowMap}
-        color="#ffae4a"
+        color={color ?? theme.scene.ember}
         size={size}
         sizeAttenuation
         transparent

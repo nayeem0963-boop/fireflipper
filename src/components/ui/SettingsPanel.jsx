@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useGameStore, QUALITY } from '../../store/useGameStore.js';
+import ThemeSwitch from './ThemeSwitch.jsx';
 import IconButton from './IconButton.jsx';
 import { CloseIcon } from './Icons.jsx';
 import '../../styles/panel.css';
@@ -41,6 +42,11 @@ export default function SettingsPanel() {
           <button type="button" className={`switch ${soundEnabled ? 'is-on' : ''}`} role="switch" aria-checked={soundEnabled} onClick={toggleSound}>
             <span className="switch__thumb" />
           </button>
+        </div>
+
+        <div className="setting">
+          <span className="setting__label">Theme</span>
+          <ThemeSwitch />
         </div>
 
         <div className="setting">

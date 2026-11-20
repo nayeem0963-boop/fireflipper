@@ -1,7 +1,9 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import Firebird from '../../components/scene/Firebird.jsx';
+import AvatarBird from '../../components/scene/AvatarBird.jsx';
+import { useSkin } from '../../hooks/useSkin.js';
 import EmberParticles from '../../components/scene/EmberParticles.jsx';
+import { useTheme } from '../../hooks/useTheme.js';
 import { useRenderSettings } from '../../hooks/useRenderSettings.js';
 import { damp } from '../../utils/math.js';
 
@@ -12,27 +14,29 @@ import { damp } from '../../utils/math.js';
  */
 export default function ShowcaseScene() {
   const { emberCount } = useRenderSettings();
+  const skin = useSkin();
+  const { scene } = useTheme();
 
   return (
     <>
-      <ambientLight intensity={0.25} color="#ffb27a" />
-      <hemisphereLight args={['#ff9a4a', '#120805', 0.6]} />
-      <directionalLight position={[-4, 5, 3]} intensity={1.1} color="#ffd2a0" />
+      <ambientLight intensity={0.25} color={scene.ambient} />
+      <hemisphereLight args={[scene.hemiSky, scene.hemiGround, 0.6]} />
+      <directionalLight position={[-4, 5, 3]} intensity={1.1} color={scene.key} />
 
       <CameraParallax />
 
       <group position={[0, 0.1, 0]}>
-        <Firebird rotation={[0, -0.55, 0]} float={0.16} wingSpeed={5.5} />
-        <FireRing />
+        <AvatarBird avatar={skin} rotation={[0, -0.55, 0]} float={0.16} wingSpeed={5.5} />
+        <FireRing a={scene.ringA} b={scene.ringB} />
       </group>
 
-      <EmberParticles count={Math.round(emberCount * 0.75)} area={[12, 8, 6]} position={[0, 0, -1]} />
+      <EmberParticles count={Math.round(emberCount * 0.75)} color={scene.ember} area={[12, 8, 6]} position={[0, 0, -1]} />
     </>
   );
 }
 
 /** Thin glowing rings slowly rotating behind the bird. */
-function FireRing() {
+function FireRing({ a, b }) {
   const ring = useRef();
   useFrame((state) => {
     if (!ring.current) return;
@@ -44,11 +48,11 @@ function FireRing() {
     <group ref={ring} position={[0, 0, -1.2]}>
       <mesh>
         <torusGeometry args={[2.1, 0.022, 8, 128]} />
-        <meshBasicMaterial color="#ff8a2a" transparent opacity={0.85} toneMapped={false} />
+        <meshBasicMaterial color={a} transparent opacity={0.85} toneMapped={false} />
       </mesh>
       <mesh rotation={[0, 0, 0.6]}>
         <torusGeometry args={[2.45, 0.008, 6, 128, Math.PI * 1.4]} />
-        <meshBasicMaterial color="#ffc46b" transparent opacity={0.5} toneMapped={false} />
+        <meshBasicMaterial color={b} transparent opacity={0.5} toneMapped={false} />
       </mesh>
     </group>
   );

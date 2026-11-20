@@ -1,54 +1,106 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, Object3D } from 'three';
+import { Color, MeshBasicMaterial, Object3D, PlaneGeometry, SRGBColorSpace, TextureLoader } from 'three';
+import { ORB_FAMILIES, ORB_FAMILY_IDS, orbFamilyAt } from '../../systems/world/orbFamilies.js';
 
 /**
- * Fire orbs: a bright core and an additive halo, each a single
- * InstancedMesh (2 draw calls total). Orbs bob and pulse gently.
+ * Score orbs, as five painted families (Solar, Frost, Cosmic, Nature, Celestial: systems/world/orbFamilies.js says which appears where) cut out of public/images/orbs/orbs.webp, ONE atlas texture
+ * with one 192 px cell per family. VISUAL ONLY: an orb's collection, hitbox, value and position all come from the simulation exactly as before; this component reads `orb.x`, `orb.y` and
+ * `orb.phase` and draws, and the bob, pulse and rocking tilt below only move the picture, never `orb.y`.
+ * Draw calls: one InstancedMesh per family that has an orb on screen (a family with none is hidden and costs nothing; usually one or two), no outline or glow disc. One small texture, loaded once;
+ * until it arrives the orbs simply are not drawn. Nothing is allocated per frame.
  */
 const MAX_ORBS = 64;
+/** Half the size of the picture's quad: the orb is drawn 1.0 across (radius 0.5), the size of the old glow (0.53) and within the unchanged collection reach (0.71). */
+const HALF = 0.5;
+const CELLS = ORB_FAMILY_IDS.length;
+const CONFIGS = ORB_FAMILY_IDS.map((id) => ORB_FAMILIES[id]);
+const ATLAS = `${import.meta.env?.BASE_URL ?? '/'}images/orbs/orbs.webp`;
+
+/** A square quad whose texture coordinates cover family `i`'s cell of the atlas. */
+function quad(i) {
+  const g = new PlaneGeometry(HALF * 2, HALF * 2);
+  const uv = g.attributes.uv;
+  for (let k = 0; k < uv.count; k++) uv.setX(k, (i + uv.getX(k)) / CELLS);
+  return g;
+}
 
 export default function OrbField({ sim }) {
-  const cores = useRef();
-  const halos = useRef();
   const dummy = useMemo(() => new Object3D(), []);
+  const bodies = useRef([]);
+  const loaded = useRef(false);
+  const counts = useMemo(() => new Int32Array(CELLS), []);
+  const geometries = useMemo(() => ORB_FAMILY_IDS.map((_, i) => quad(i)), []);
+  const bodyMat = useMemo(() => new MeshBasicMaterial({ transparent: true, depthWrite: false, toneMapped: false }), []);
+  const glows = useMemo(() => CONFIGS.map((f) => new Color(f.glow, f.glow, f.glow)), []); // multiplies the picture: above 1 lifts a dark one
+
+  useEffect(() => {
+    let alive = true;
+    const tex = new TextureLoader().load(ATLAS, () => {
+      if (!alive) return;
+      bodyMat.map = tex;
+      bodyMat.needsUpdate = true;
+      loaded.current = true;
+    });
+    tex.colorSpace = SRGBColorSpace;
+    return () => {
+      alive = false;
+      loaded.current = false;
+      tex.dispose();
+      bodyMat.dispose();
+      geometries.forEach((g) => g.dispose());
+    };
+  }, [bodyMat, geometries]);
 
   useFrame(() => {
-    if (!cores.current) return;
+    if (!bodies.current[0]) return;
     const dist = sim.renderDistance();
     const t = sim.time;
-    let n = 0;
+    counts.fill(0);
     for (const orb of sim.orbs.active) {
       const x = orb.x - dist;
-      if (x < -15 || x > 60 || n >= MAX_ORBS) continue;
-      const y = orb.y + Math.sin(t * 2.6 + orb.phase) * 0.12;
-      const pulse = 1 + Math.sin(t * 6 + orb.phase) * 0.12;
+      if (x < -15 || x > 60) continue;
+      const fi = ORB_FAMILY_IDS.indexOf(orbFamilyAt(orb.x));
+      if (counts[fi] >= MAX_ORBS) continue;
+      const f = CONFIGS[fi];
+      // small per-orb differences in phase (the orb's own animation phase), so a trail never moves in lockstep
+      const y = orb.y + Math.sin(t * f.bobSpeed + orb.phase) * f.bob;
+      const pulse = 1 + Math.sin(t * f.pulseSpeed + orb.phase) * f.pulse;
 
-      dummy.position.set(x, y, 0);
-      dummy.rotation.set(0, 0, 0);
-      dummy.scale.setScalar(pulse);
-      dummy.updateMatrix();
-      cores.current.setMatrixAt(n, dummy.matrix);
-      dummy.scale.setScalar(pulse * 1.15);
-      dummy.updateMatrix();
-      halos.current.setMatrixAt(n, dummy.matrix);
-      n++;
+      if (loaded.current) {
+        dummy.position.set(x, y, 0);
+        dummy.rotation.set(0, 0, Math.sin(t * f.swaySpeed + orb.phase) * f.sway); // a gentle rocking tilt (a steady spin would turn the painted highlights)
+        dummy.scale.setScalar(pulse);
+        dummy.updateMatrix();
+        bodies.current[fi].setColorAt(counts[fi], glows[fi]);
+        bodies.current[fi].setMatrixAt(counts[fi]++, dummy.matrix);
+      }
     }
-    cores.current.count = halos.current.count = n;
-    cores.current.instanceMatrix.needsUpdate = true;
-    halos.current.instanceMatrix.needsUpdate = true;
+    for (let i = 0; i < CELLS; i++) {
+      const body = bodies.current[i];
+      body.count = counts[i];
+      body.visible = counts[i] > 0; // a family with nothing on screen is not drawn at all
+      if (counts[i] > 0) {
+        body.instanceMatrix.needsUpdate = true;
+        if (body.instanceColor) body.instanceColor.needsUpdate = true;
+      }
+    }
   });
 
   return (
     <group>
-      <instancedMesh ref={cores} args={[undefined, undefined, MAX_ORBS]} frustumCulled={false}>
-        <icosahedronGeometry args={[0.2, 2]} />
-        <meshBasicMaterial color="#fff0b8" toneMapped={false} />
-      </instancedMesh>
-      <instancedMesh ref={halos} args={[undefined, undefined, MAX_ORBS]} frustumCulled={false} renderOrder={2}>
-        <icosahedronGeometry args={[0.46, 2]} />
-        <meshBasicMaterial color="#ff8a24" transparent opacity={0.35} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
-      </instancedMesh>
+      {geometries.map((geometry, i) => (
+        <instancedMesh
+          key={ORB_FAMILY_IDS[i]}
+          ref={(m) => {
+            bodies.current[i] = m;
+          }}
+          args={[geometry, bodyMat, MAX_ORBS]}
+          frustumCulled={false}
+          renderOrder={3}
+          visible={false}
+        />
+      ))}
     </group>
   );
 }

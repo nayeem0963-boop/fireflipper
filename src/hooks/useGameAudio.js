@@ -11,8 +11,24 @@ export function useGameAudio() {
     };
     const offs = [
       gameEvents.on(GAME_EVENTS.FLAP, play(sfx.flap)),
-      gameEvents.on(GAME_EVENTS.ORB, play(sfx.orb)),
+      gameEvents.on(GAME_EVENTS.ORB, (e) => {
+        if (useGameStore.getState().soundEnabled) sfx.orb(e.streak);
+      }),
+      gameEvents.on(GAME_EVENTS.NEAR, play(sfx.near)),
       gameEvents.on(GAME_EVENTS.CRASH, play(sfx.crash)),
+      gameEvents.on(GAME_EVENTS.POWERUP, (e) => {
+        if (useGameStore.getState().soundEnabled) sfx.powerup(e.kind);
+      }),
+      gameEvents.on(GAME_EVENTS.SHIELD_BREAK, play(sfx.shieldBreak)),
+      // the milestone chime and the finish fanfare belong to real play and the Journey Preview; plain Auto play stays quiet about them
+      gameEvents.on(GAME_EVENTS.MILESTONE, () => {
+        const s = useGameStore.getState();
+        if (s.soundEnabled && (!s.demo || s.preview)) sfx.milestone();
+      }),
+      gameEvents.on(GAME_EVENTS.COMPLETE, () => {
+        const s = useGameStore.getState();
+        if (s.soundEnabled && (!s.demo || s.preview)) sfx.journey();
+      }),
     ];
     return () => offs.forEach((off) => off());
   }, []);

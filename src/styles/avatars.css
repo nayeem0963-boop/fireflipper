@@ -1,0 +1,331 @@
+/* ==========================================================================
+   Bird picker: preview + collection on one side, a scrolling list on the other.
+   Only .birds__list scrolls; the header and footer stay put.
+   ========================================================================== */
+.birds {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'head head'
+    'stage list'
+    'foot foot';
+  width: min(980px, 100%);
+  height: min(580px, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px));
+  padding: 0;
+  overflow: hidden;
+}
+.birds__header {
+  grid-area: head;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 22px;
+  border-bottom: 1px solid var(--line);
+}
+.birds__header .panel__title {
+  margin-right: auto;
+}
+.birds__count {
+  padding: 3px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--fire-200);
+  font-variant-numeric: tabular-nums;
+}
+
+.birds__stage {
+  grid-area: stage;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 10px 12px 10px 22px;
+}
+.birds__preview {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 150px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: radial-gradient(ellipse at 50% 55%, rgba(var(--accent-rgb), 0.16), transparent 70%), var(--bg);
+}
+.birds__preview canvas {
+  display: block;
+}
+.birds__info {
+  flex: none;
+  padding-top: 8px;
+  text-align: center;
+}
+.birds__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+.birds__colour {
+  margin-left: 6px;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fire-300);
+}
+.birds__tagline {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.birds__trail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 6px 0 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.birds__trail i {
+  width: 120px;
+  height: 6px;
+  border-radius: 999px;
+  box-shadow: var(--glow-sm);
+}
+
+/* The one scrolling region */
+.birds__list {
+  grid-area: list;
+  min-height: 0;
+  padding: 10px 22px 10px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.birds__group + .birds__group {
+  margin-top: 14px;
+}
+.birds__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 0 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.birds__sub {
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+.birds__skins {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.birds__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.skin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--tap);
+  padding: 8px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(var(--bg-rgb), 0.5);
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.skin:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+.skin:focus-visible {
+  outline: 2px solid var(--fire-300);
+  outline-offset: 2px;
+}
+.skin.is-active {
+  border-color: var(--fire-300);
+  background: rgba(var(--accent-rgb), 0.14);
+  box-shadow: var(--glow-sm);
+}
+.skin__swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--skin, #ff6a1a), var(--skin-2, #ffb347));
+  box-shadow: 0 0 10px var(--skin, #ff6a1a);
+}
+.skin__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.skin__meta,
+.skin__lock {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  line-height: 1.25;
+}
+.skin.is-locked {
+  cursor: not-allowed;
+}
+.skin.is-locked .skin__swatch {
+  filter: grayscale(1) brightness(0.55);
+  box-shadow: none;
+}
+.skin.is-locked .skin__name {
+  color: var(--text-muted);
+}
+
+.birds__credit {
+  margin: 14px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+.birds__credit a,
+.link-btn {
+  color: var(--fire-300);
+}
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Fixed footer */
+.birds__footer {
+  grid-area: foot;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'bar bar'
+    'note done';
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 22px 12px;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--bg-elevated), var(--bg-raised));
+}
+.birds__bar {
+  grid-area: bar;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(var(--bg-rgb), 0.7);
+  border: 1px solid var(--line);
+}
+.birds__bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--fire-600), var(--fire-300));
+  transition: width 0.4s ease;
+}
+.birds__note {
+  grid-area: note;
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+.birds__footer .play-btn {
+  grid-area: done;
+  min-width: 140px;
+  min-height: 44px;
+}
+
+/* Portrait / narrow: preview on top, the list scrolls beneath it */
+@media (max-width: 720px), (max-aspect-ratio: 1/1) {
+  .birds {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(130px, 34%) minmax(0, 1fr) auto;
+    grid-template-areas:
+      'head'
+      'stage'
+      'list'
+      'foot';
+    height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px);
+    max-height: 760px;
+  }
+  .birds__stage {
+    padding: 8px 14px 4px;
+  }
+  .birds__info {
+    display: none;
+  }
+  .birds__list {
+    padding: 8px 14px;
+  }
+  .birds__footer {
+    padding: 8px 14px 10px;
+  }
+  .birds__note {
+    display: none;
+  }
+  .birds__footer .play-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skin,
+  .birds__bar i {
+    transition: none;
+  }
+}
+
+/* Credits modal (third-party bird models) */
+.panel--wide {
+  width: min(640px, 100%);
+}
+.credits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.credits__item {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.credits__title {
+  margin: 0;
+  font-weight: 700;
+}
+.credits__sub {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.credits__line,
+.credits__changes {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.credits a {
+  color: var(--fire-300);
+}
+@media (max-width: 720px) {
+  .birds__header .panel__title {
+    font-size: 1.05rem;
+    white-space: nowrap;
+  }
+}

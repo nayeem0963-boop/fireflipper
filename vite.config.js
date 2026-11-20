@@ -11,8 +11,21 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
-    // three.js + R3F make up most of the bundle (~1.1 MB min / ~320 kB gzip).
-    // Revisit vendor chunk splitting once gameplay code grows.
-    chunkSizeWarningLimit: 1300,
+    // Vendor code is split from the application so a code-only deploy leaves the (large, rarely changing) library chunks with the same
+    // fingerprinted file names, and returning visitors keep them cached (see public/_headers). Three groups, so none is needlessly large:
+    // React (with the small state library), three.js (with its helpers) and the react-three-fiber renderer glue.
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: 'vendor-react', test: /node_modules[\\/](react|react-dom|scheduler|zustand|use-sync-external-store)[\\/]/, priority: 30 },
+            { name: 'vendor-three', test: /node_modules[\\/](three|three-stdlib)[\\/]/, priority: 20 },
+            { name: 'vendor-r3f', test: /node_modules[\\/](@react-three|its-fine|react-use-measure|suspend-react|react-reconciler)[\\/]/, priority: 10 },
+          ],
+        },
+      },
+    },
+    // three.js is the one big library (about 820 kB minified, 210 kB gzip, in its own chunk).
+    chunkSizeWarningLimit: 900,
   },
 });
