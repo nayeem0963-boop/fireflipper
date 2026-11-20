@@ -2,7 +2,7 @@ import { SKINS, colorUnlockScore, isUnlocked } from '../skins/skins.js';
 import { DEFAULT_THEME, getTheme } from '../theme/themes.js';
 
 /**
- * Every bird the player can fly as: seven species, each in three colours (Fire, Blue and White), so 21 avatars.
+ * Every bird the player can fly as: five species, each in three colours (Fire, Blue and White), so 15 avatars. (The Flipper is no longer in the list; its model is kept only for the Celestial reward skin.)
  * A species is named for what it is (never for its colour); the colour is chosen separately.
  *
  * Each avatar carries its species' fields plus `species` (the species id), `color` ('fire' | 'blue' | 'white'),
@@ -29,29 +29,6 @@ import { DEFAULT_THEME, getTheme } from '../theme/themes.js';
  */
 const MODEL_BASE = Object.freeze([
   {
-    id: 'scarlet-macaw',
-    name: 'Scarlet Macaw',
-    tagline: 'A macaw trailing a ribbon of flame',
-    file: 'scarlet-macaw.glb',
-    facing: Math.PI / 2,
-    pitch: 0,
-    length: 2.0,
-    lift: 0,
-    // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
-    flap: { start: 0.2, full: 0.5, hingeFrac: 0.4, strength: 0.8 },
-    // Eyes (model units from the model's centre): `at` is one eye's centre, mirrored for the other.
-    eye: { at: [0.036, 0.075, 0.23], size: 0.014 },
-    palette: {
-      low: '#a3120a',
-      mid: '#ff5a14',
-      high: '#ffd36b',
-      glow: '#ff7a2a',
-      mix: 0.85,
-      glowStrength: 0.9,
-      lumFloor: 0.2,
-    },
-  },
-  {
     id: 'macaw-flying',
     name: 'Rainbow Macaw',
     tagline: 'A painted macaw in full flight',
@@ -77,7 +54,7 @@ const MODEL_BASE = Object.freeze([
   },
   {
     id: 'macaw-blue-yellow',
-    name: 'Blue-and-Yellow Macaw',
+    name: 'Honeybell',
     tagline: 'A big-hearted macaw, wings spread wide',
     file: 'macaw-blue-yellow.glb',
     facing: Math.PI / 2,
@@ -282,7 +259,6 @@ export const COLOURS = Object.freeze([
 const FIRE_TRAILS = {
   flipper: { stops: ['#fff3b0', '#3a8cff', '#0b3fb8'], spark: '#ffd84a', style: 'shimmer' }, // the macaw leaves a blue shimmer with gold sparks
   bulbuli: { stops: ['#ffb347', '#ff2e1a', '#7a0d08'], spark: '#ff9a2e', style: 'sparks' },
-  'scarlet-macaw': { stops: ['#ffe08a', '#ff3b2a', '#8f1f06'], spark: '#ffd36b', style: 'flame' },
   'macaw-flying': { stops: ['#ffe14a', '#ff4a8a', '#3a7bff'], spark: '#7dffb0', style: 'shimmer' },
   'macaw-blue-yellow': { stops: ['#ffe14a', '#2ea6ff', '#0b3fb8'], spark: '#d8f6ff', style: 'flame' },
   'toco-toucan': { stops: ['#ffd36b', '#e0361a', '#5a0a06'], spark: '#ffb33a', style: 'sparks' },
@@ -299,7 +275,7 @@ function trailFor(speciesId, colorId) {
   return Object.freeze(cool ? { ...cool, style: fire.style } : { ...fire });
 }
 
-/** The original bird as a species: its colours come from skins.js (which also holds their unlock scores). */
+/** The original bird. It is no longer a pickable species; it is only worn as the Celestial reward skin below (its colours come from skins.js). */
 const FLIPPER_SPECIES = {
   id: 'flipper',
   name: 'Flipper',
@@ -327,10 +303,6 @@ function make(species, color, extra) {
 
 /** The full list: every species in each colour, species in the order the picker shows them. */
 export const AVATARS = Object.freeze([
-  ...COLOURS.map((c) => {
-    const skin = SKINS.find((k) => k.color === c.id);
-    return make(FLIPPER_SPECIES, c, { palette: skin.palette });
-  }),
   ...COLOURS.map((c) =>
     make(BULBULI_SPECIES, c, {
       kind: 'bird',
@@ -350,7 +322,7 @@ export const AVATAR_SPECIES = Object.freeze(
 );
 
 /**
- * Reward skins: earned by journey rewards, never by score, and NOT part of the 21-skin collection above (its counts and the picker are unchanged). Purely cosmetic: like every
+ * Reward skins: earned by journey rewards, never by score, and NOT part of the 15-skin collection above (its counts and the picker are unchanged). Purely cosmetic: like every
  * bird it only changes how the bird LOOKS; the simulation never reads an avatar, so the hitbox, the physics and the scoring are the same.
  */
 const CELESTIAL_PALETTE = {
@@ -384,13 +356,19 @@ export const DEFAULT_AVATAR_ID = AVATARS[0].id;
 
 /** Choices saved before birds had colours, mapped to the nearest bird and colour that exists now. */
 const LEGACY_IDS = {
-  ember: 'flipper-fire',
-  azure: 'flipper-blue',
-  verdant: 'flipper-blue',
-  void: 'flipper-white',
+  ember: 'bulbuli-fire',
+  azure: 'bulbuli-blue',
+  verdant: 'bulbuli-blue',
+  void: 'bulbuli-white',
+  'flipper-fire': 'bulbuli-fire',
+  'flipper-blue': 'bulbuli-blue',
+  'flipper-white': 'bulbuli-white',
   'bulbuli-sunburst': 'bulbuli-fire',
   'bulbuli-obsidian': 'bulbuli-fire',
-  'scarlet-macaw': 'scarlet-macaw-fire',
+  'scarlet-macaw': 'macaw-flying-fire',
+  'scarlet-macaw-fire': 'macaw-flying-fire',
+  'scarlet-macaw-blue': 'macaw-flying-blue',
+  'scarlet-macaw-white': 'macaw-flying-white',
   'macaw-flying': 'macaw-flying-fire',
   'macaw-blue-yellow': 'macaw-blue-yellow-blue',
   'toco-toucan': 'toco-toucan-fire',
@@ -405,6 +383,7 @@ export function getAvatar(id) {
 /** The avatar of a species in a colour (or the species' Fire one if that colour does not exist). */
 export function avatarFor(speciesId, colorId) {
   const all = AVATARS.filter((a) => a.species === speciesId);
+  if (!all.length) return avatarFor(AVATARS[0].species, colorId); // a species that is not in the list (the Flipper) shows the first bird instead
   return all.find((a) => a.color === colorId) ?? all[0];
 }
 

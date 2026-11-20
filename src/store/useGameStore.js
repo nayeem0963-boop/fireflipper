@@ -90,7 +90,7 @@ export const useGameStore = create((set, get) => ({
 
   /** Selected bird skin id (species + colour). Cosmetic only: no effect on physics or collisions. */
   skinId: initialSkins().active,
-  /** Each theme remembers its own bird choice: { red: 'flipper-fire', blue: 'toco-toucan-blue', ... }. */
+  /** Each theme remembers its own bird choice: { red: 'bulbuli-fire', blue: 'toco-toucan-blue', ... }. */
   skinsByTheme: initialSkins().byTheme,
   /** Completed runs per bird species, for collection progress: { species: runs }. */
   flown: loadValue('flown', {}),
@@ -327,8 +327,8 @@ function initialTheme() {
 function initialSkins() {
   const theme = getTheme(loadValue('theme', DEFAULT_THEME)).id;
   const saved = loadValue('skinsByTheme', null);
-  const byTheme = saved ?? { red: loadValue('skinId', 'flipper-fire') };
-  const active = byTheme[theme] ?? avatarFor(getAvatar(byTheme.red ?? 'flipper-fire').species, getTheme(theme).freeSkin).id;
+  const byTheme = saved ?? { red: loadValue('skinId', 'bulbuli-fire') };
+  const active = byTheme[theme] ?? avatarFor(getAvatar(byTheme.red ?? 'bulbuli-fire').species, getTheme(theme).freeSkin).id;
   return { byTheme, active };
 }
 

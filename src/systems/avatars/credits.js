@@ -16,16 +16,6 @@ export const FIRE_FLIPPER_CHANGES = Object.freeze([
 
 export const CREDITS = Object.freeze([
   {
-    id: 'scarlet-macaw',
-    title: 'Scarlet Macaw',
-    author: 'Mateus Schwaab',
-    authorUrl: 'https://sketchfab.com/Mehrus',
-    sourceUrl: 'https://sketchfab.com/3d-models/scarlet-macaw-0bb61160866b4811bd79b6d11e3d8907',
-    changes: [
-      'Flying pose baked into a static model (skeleton and animations removed), scaled to life size, material converted, re-centred.',
-    ],
-  },
-  {
     id: 'macaw-flying',
     title: 'Low poly Rainbow Macaw In Flying 3D Model Free',
     author: 'iRahulRajput',

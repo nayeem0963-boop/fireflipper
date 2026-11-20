@@ -13,10 +13,10 @@ const seed = {
   stats: { runs: 7, totalDistance: 9000, totalOrbs: 120, totalNearMisses: 30, bestDistance: 2600, bestStreak: 9, bestNearMisses: 6, bestOrbs: 31, personalBests: 3 },
   achievements: { 'dist-100': 1, 'dist-250': 1, 'dist-500': 2 },
   daily: { key: '2020-01-01', done: true, streakDays: 4, lastDoneKey: '2020-01-01' },
-  flown: { flipper: 7 },
+  flown: { bulbuli: 7 },
   journey: { rewards: { 'treasure-cache': 3 }, completions: 0, milestones: [1, 0, 0, 0, 0] },
   theme: 'red',
-  skinsByTheme: { red: 'flipper-fire' },
+  skinsByTheme: { red: 'bulbuli-fire' },
   soundEnabled: true,
   quality: 'auto',
 };

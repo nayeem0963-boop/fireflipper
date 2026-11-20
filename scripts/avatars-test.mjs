@@ -15,9 +15,9 @@ const check = (name, cond, detail = '') => {
   }
 };
 
-const NAMES = ['Flipper', 'Bulbuli', 'Scarlet Macaw', 'Rainbow Macaw', 'Blue-and-Yellow Macaw', 'Toco Toucan', 'Morpho Butterfly'];
-check('all seven birds exist', NAMES.every((n) => AVATAR_SPECIES.some((s) => s.name === n)), AVATAR_SPECIES.map((s) => s.name).join(', '));
-check('21 skins', AVATARS.length === 21);
+const NAMES = ['Bulbuli', 'Rainbow Macaw', 'Honeybell', 'Toco Toucan', 'Morpho Butterfly'];
+check('exactly these five birds exist (no Flipper, no Scarlet Macaw)', NAMES.length === AVATAR_SPECIES.length && NAMES.every((n) => AVATAR_SPECIES.some((s) => s.name === n)), AVATAR_SPECIES.map((s) => s.name).join(', '));
+check('15 skins', AVATARS.length === 15);
 check('unique ids', new Set(AVATARS.map((a) => a.id)).size === AVATARS.length);
 for (const sp of AVATAR_SPECIES) {
   const fire = avatarFor(sp.id, 'fire');
@@ -33,8 +33,8 @@ check('every species has a distinct Fire trail', new Set(fireTrails).size === AV
 
 const none = collectionProgress(0, {});
 check('collection starts at the free skins', none.unlocked === AVATAR_SPECIES.length && none.nextUnlock > 0, JSON.stringify(none));
-const all = collectionProgress(1e9, { flipper: 2 });
-check('collection completes', all.unlocked === 21 && all.nextUnlock === null && all.flownSpecies === 1);
+const all = collectionProgress(1e9, { bulbuli: 2 });
+check('collection completes', all.unlocked === 15 && all.nextUnlock === null && all.flownSpecies === 1);
 
 // Mechanical equivalence: the simulation never sees the avatar, and a bird carries no gameplay fields.
 const FORBIDDEN = /gravity|impulse|speed|radius|hitbox|collision|score|multiplier|bonus/i;
@@ -54,7 +54,7 @@ const run = (seed) => {
 };
 check('same input gives same run regardless of bird', run(5) === run(5));
 
-// ---- the Flipper is a blue-and-yellow macaw (components/scene/Firebird.jsx)
+// ---- the Flipper model is a blue-and-yellow macaw (components/scene/Firebird.jsx); it is only worn as the Celestial reward skin now
 {
   const { readFileSync } = await import('node:fs');
   const { REWARD_AVATARS } = await import('../src/systems/avatars/avatars.js');
@@ -65,10 +65,7 @@ check('same input gives same run regardless of bird', run(5) === run(5));
   check('its own colours are a macaw\'s: a blue back and wings, a yellow belly, a green forehead, a white face patch and a dark beak', hue(get('body')) > 205 && hue(get('body')) < 240 && hue(get('wing')) > 205 && hue(get('wing')) < 240 && hue(get('belly')) > 35 && hue(get('belly')) < 55 && hue(get('crown')) > 120 && hue(get('crown')) < 170 && /^#f[0-9a-f]f[0-9a-f][ef][0-9a-f]$/i.test(get('face')) && parseInt(get('beak').slice(1, 3), 16) < 0x40);
   check('it has the macaw\'s parts and none of the old flame crest', /face patch/.test(src) && /hooked beak/.test(src) && /green forehead/.test(src) && /chin strap/.test(src) && !/crest/i.test(src.replace(/crown/gi, '')));
   check('a long graduated tail of five leaf-shaped blue feathers with yellow tips, and wings with splayed primaries (a long narrow swept wing) over a yellow lining', /graduated tail: five leaf-shaped blue feathers/.test(src) && /\[0\.08, 0\.0, 2\.8, 0\.05\]/.test(src) && /createLiningShape/.test(src) && /splayed primary feathers/.test(src));
-  const flipperSkins = AVATARS.filter((a) => a.species === 'flipper');
-  check('the Blue and White colourways and the gold reward skin recolour the same macaw, with their own head colours', [...flipperSkins.filter((a) => a.color !== 'fire'), ...REWARD_AVATARS].every((a) => ['crown', 'face', 'chin'].every((k) => /^#[0-9a-f]{6}$/i.test(a.palette[k]))));
-  check('the base colour (called Fire, like every bird\'s base colour) uses the macaw\'s own defaults', Object.keys(avatarFor('flipper', 'fire').palette).length === 0);
-  check('the trail is a blue shimmer with gold sparks, no longer a flame', avatarFor('flipper', 'fire').trail.style === 'shimmer' && hue(avatarFor('flipper', 'fire').trail.stops[1]) > 205 && /#ffd84a/i.test(avatarFor('flipper', 'fire').trail.spark));
+    check('the Flipper is not in the list, but its gold Celestial reward skin still recolours the macaw with its own head colours', !AVATARS.some((a) => a.species === 'flipper') && REWARD_AVATARS.every((a) => ['crown', 'face', 'chin'].every((k) => /^#[0-9a-f]{6}$/i.test(a.palette[k]))));
   check('the redesign is cosmetic: the simulation, collision and physics import no avatar and the hitbox is the same 0.36 circle', ['src/systems/game/createGameSim.js', 'src/systems/physics/collision.js', 'src/systems/physics/flight.js'].every((f) => !/avatar|Firebird/i.test(readFileSync(new URL(`../${f}`, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''))) && PHYSICS.birdRadius === 0.36);
 }
 
