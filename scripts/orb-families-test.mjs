@@ -88,7 +88,7 @@ console.log('\nVisual only');
   check('nothing is allocated per frame in the render loop (no new, no array or object literals in useFrame)', (() => { const body = field.slice(field.indexOf('useFrame(')); const loop = body.slice(0, body.indexOf('return (\n    <group>')); return !/\bnew [A-Z]/.test(loop) && !/\[\s*\]|\{\s*\}/.test(loop.replace(/=> \{/g, '')); })());
   check('a family with no orb on screen is hidden (zero draw calls); one mesh per family', /visible = counts\[i\] > 0/.test(field) && (field.match(/<instancedMesh/g) ?? []).length === 1 && /geometries\.map/.test(field));
   // a track made with orbs is the same as before: orbs come from the same rng calls (the sim does not read the family)
-  const make = () => { const s = createGameSim(); s.reset(9); s.flap(); s.distance = s.prevDistance = 400; s.step(1 / 120); return s; };
+  const make = () => { const s = createGameSim(); s.reset(9); s.flap(); s.distance = s.prevDistance = 1100; s.step(1 / 120); return s; };
   const a = make();
   const b = make();
   const pos = (s) => [...s.orbs.active].map((o) => `${o.x.toFixed(4)},${o.y.toFixed(4)},${o.phase.toFixed(4)}`).join('|');

@@ -12,6 +12,9 @@ import { windowsIn } from '../src/systems/hazards/biomeHazards.js';
 import { SCORING } from '../src/systems/physics/constants.js';
 import { GRACE_S, ITEM_BEFORE, ITEM_RADIUS, KINDS, MAGNET_PULL, MAGNET_RANGE, MAGNET_S, POWERUPS, SLOTS } from '../src/systems/powerups/powerups.js';
 import { JOURNEY_LENGTH, FINISH_CLEAR } from '../src/systems/world/worlds.js';
+import { FLIERS } from '../src/systems/fliers/fliers.js';
+// This test flies a corridor-following bird, which cannot dodge the flying hazards (systems/fliers): they are switched off here and covered by scripts/fliers-test.mjs.
+FLIERS.enabled = false;
 
 let failures = 0;
 const check = (name, cond, detail = '') => {

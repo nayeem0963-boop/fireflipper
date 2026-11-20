@@ -9,6 +9,9 @@ import { KIT_STARTS } from '../src/systems/obstacles/rockShapes.js';
 import { ACTIVE_GLOW, BAND_BOTTOM, BAND_HEIGHT, BAND_Z, FAR_GLOW, KIND_STYLE, MAX_RAILS, MAX_WINDOWS, PARTICLES, particleAt, railFor, windowGlow } from '../src/systems/hazards/telegraph.js';
 import { Color } from 'three';
 import { BIOME_HAZARDS, HAZARDS, HAZARD_FREE_START, LEAD_S, ZONE_RAMP, createHazardFx, createObstacleFx, hazardsAt, obstacleHazard, windowsIn, zoneAt } from '../src/systems/hazards/biomeHazards.js';
+import { FLIERS } from '../src/systems/fliers/fliers.js';
+// This test flies a corridor-following bird, which cannot dodge the flying hazards (systems/fliers): they are switched off here and covered by scripts/fliers-test.mjs.
+FLIERS.enabled = false;
 
 let failures = 0;
 const check = (name, cond, detail = '') => {

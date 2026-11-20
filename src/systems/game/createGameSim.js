@@ -10,6 +10,7 @@ import { GAME_EVENTS } from '../events/gameEvents.js';
 import { createRng, randomSeed } from '../../utils/random.js';
 import { JOURNEY_LENGTH, MILESTONES, WORLD_COUNT, worldsCompleted } from '../world/worlds.js';
 import { GRACE_S, ITEM_RADIUS, MAGNET_PULL, MAGNET_RANGE, MAGNET_S } from '../powerups/powerups.js';
+import { FLIERS, SLOTS as FLIER_SLOTS, flierHits, flierPlace, flierRescueY } from '../fliers/fliers.js';
 
 /**
  * The whole game simulation as plain JavaScript: no React, no Three.js.
@@ -50,6 +51,7 @@ export function createGameSim() {
   const items = new ObjectPool(createItem, undefined, 8);
   const track = createTrack();
   const HZ_OB = createObstacleFx(); // scratch for the obstacle hazards, reused
+  const FP = { x: 0, dx: 0, y: 0 }; // scratch for a flying hazard's place, reused
 
   /** Pool-backed builder handed to obstacle patterns. */
   const builder = {
@@ -389,6 +391,19 @@ export function createGameSim() {
       if (gap < o.gap) o.gap = gap;
     }
 
+    // Flying hazards (systems/fliers): only near their encounter can one touch the bird. Smoke is harmless, a ring's rim and the tornado and disc are lethal (75% hitboxes); a shield absorbs one.
+    if (FLIERS.enabled) {
+      for (let i = 0; i < FLIER_SLOTS.length; i++) {
+        const sl = FLIER_SLOTS[i];
+        if (sl.e < bx - 4 || sl.e > bx + 4) continue;
+        flierPlace(sl, bx, FP);
+        if (!flierHits(sl, FP, b.y, R)) continue;
+        if (sim.grace > 0 || shieldSave(sl.kind, bx, flierRescueY(sl, FP, b.y, WORLD.groundY + R, WORLD.ceilingY))) continue;
+        die(sl.kind);
+        return;
+      }
+    }
+
     // Magnet: orbs near the bird drift toward it; whether one is collected is still decided by the circle test below.
     if (sim.magnetLeft > 0) {
       for (const orb of orbs.active) {
@@ -463,12 +478,15 @@ export function createGameSim() {
    * The shield takes a crash that would have ended the run: it is spent, the bird is immune for GRACE_S seconds and (for an obstacle) is put back in the middle of the section's
    * guaranteed gap, which is clear by construction. Returns true when it saved the run.
    */
-  function shieldSave(cause, bx) {
+  function shieldSave(cause, bx, toY) {
     if (!sim.shield) return false;
     sim.shield = false;
     sim.grace = GRACE_S;
     const b = sim.bird;
-    if (cause !== 'lava') {
+    if (toY !== undefined) {
+      b.y = toY; // saved from a flying hazard: the middle of a ring's hole, or clear above or below the shape
+      b.vy = 0;
+    } else if (cause !== 'lava') {
       const c = track.corridors.find((k) => bx >= k.x0 - 1 && bx <= k.x1 + 1);
       if (c) {
         b.y = c.center;

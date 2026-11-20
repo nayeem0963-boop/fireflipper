@@ -2,6 +2,7 @@ import { PHYSICS, WORLD } from '../physics/constants.js';
 import { applyFlap, stepFlight } from '../physics/flight.js';
 import { circleHitsObstacle } from '../physics/collision.js';
 import { speedAt } from '../obstacles/spawner.js';
+import { FLIERS, SLOTS as FLIER_SLOTS, flierHits, flierPlace } from '../fliers/fliers.js';
 import { DYNAMIC_INSET, HAZARDS, createHazardFx, createObstacleFx, hazardsAt, obstacleHazard } from '../hazards/biomeHazards.js';
 
 /**
@@ -50,6 +51,9 @@ export function createAutopilot(sim) {
   const input = { holding: false, dive: false };
   // The biome hazards at a planned state's distance (the same function the simulation uses), so the bot plans with the real forces.
   const hz = createHazardFx();
+  // the flying hazards the plan can meet (their place is a pure function of the distance, so the bot plans with the real thing)
+  const nearFliers = [];
+  const fp = { x: 0, dx: 0, y: 0 };
   const ob = createObstacleFx();
 
   /** Search from the bird's current state; returns the first action (0-2) of the best surviving plan. */
@@ -61,6 +65,8 @@ export function createAutopilot(sim) {
 
     near.length = 0;
     for (const o of sim.obstacles.active) if (o.x + o.extent > x0 - 1 && o.x - o.extent < x0 + horizon) near.push(o);
+    nearFliers.length = 0;
+    if (FLIERS.enabled) for (const sl of FLIER_SLOTS) if (sl.e > x0 - 5 && sl.e < x0 + horizon + 5) nearFliers.push(sl);
     orbList.length = 0;
     for (const orb of sim.orbs.active) {
       if (orb.x > x0 - 1 && orb.x < x0 + horizon && orbList.length < MAX_ORBS) orbList.push(orb);
@@ -115,6 +121,12 @@ export function createAutopilot(sim) {
                 alive = false;
                 break;
               }
+            }
+            for (let n = 0; n < nearFliers.length && alive; n++) {
+              const sl = nearFliers[n];
+              if (sl.e < x - 4 || sl.e > x + 4) continue;
+              flierPlace(sl, x, fp);
+              if (flierHits(sl, fp, b.y, R)) alive = false;
             }
             if (!alive) break;
             for (let n = 0; n < orbList.length; n++) {

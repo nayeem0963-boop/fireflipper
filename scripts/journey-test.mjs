@@ -17,6 +17,9 @@ const { UNLOCK } = await import('../src/systems/obstacles/patterns.js');
 const { BIOMES, ZONE_IDS, biomeAt } = await import('../src/systems/world/biomes.js');
 const { KIT_STARTS, rockKit } = await import('../src/systems/obstacles/rockShapes.js');
 const { zoneAt } = await import('../src/systems/hazards/biomeHazards.js');
+const { FLIERS } = await import('../src/systems/fliers/fliers.js');
+// This test flies a corridor-following bird, which cannot dodge the flying hazards (systems/fliers): they are switched off here and covered by scripts/fliers-test.mjs.
+FLIERS.enabled = false;
 const W = await import('../src/systems/world/worlds.js');
 const R = await import('../src/systems/rewards/rewards.js');
 const { getAvatar, resolveAvatar, isAvatarUnlocked, AVATARS, REWARD_AVATARS } = await import('../src/systems/avatars/avatars.js');

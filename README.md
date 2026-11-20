@@ -413,3 +413,24 @@ Two rare pickups, drawn from two supplied pictures (a magnet in a golden bubble,
 - **Auto play and Journey Preview** treat items like orbs when planning, and picked up some on every journey in the tests (two full journeys to the finish line). Nothing about power-ups is saved.
 - **Budgets:** with items on screen, 49 to 56 draw calls and up to 30 GPU textures (the new atlas adds one when an item first appears; the budget is 32, so there is little headroom left).
 - **Balance note:** the magnet raises score potential and the shield makes the first mistake free, so the early worlds feel easier; this is new gameplay and has not been playtested by a human.
+
+## Flying hazards (five effects, one new type per world)
+
+Five effects from the supplied paintings cross the sky toward the bird, introduced one world at a time and kept in the later ones (cumulative). The rules, schedule, paths and hit tests are pure functions in `systems/fliers/fliers.js` (enforced by the simulation, planned with by Auto play, drawn by `FlierField.jsx`); `npm run test:fliers` covers them. No outline: each is cut out of its painting with soft transparency and colour-graded for every world it appears in (`public/images/hazards/`, built by `scripts/build-hazard-atlas.py`).
+
+| World | New hazard | Role |
+|---|---|---|
+| 1 Red Rock Canyon | smoke cloud | **harmless** haze that drifts across, drawn behind the obstacles, orbs and bird (it can never hide anything) |
+| 2 Frosty Polar | fire ring | **gate**: a hoop to fly through |
+| 3 Celestial Realm | energy ring | **gate** |
+| 4 Rose Sky Palace | ember tornado | **lethal** (a tall capsule) |
+| 5 Cloud Sanctuary | metal disc | **lethal** |
+
+- **Gates:** only the TOP and BOTTOM of a ring's rim are lethal. Seen from the side a hoop's left and right rim cannot be avoided when flying through it, so they are not lethal; the bird passes if its centre is within about 0.57 m of the ring's centre, or it can simply go round. (An earlier draft made the whole rim lethal, which made flying through impossible: a test caught it.)
+- **Forgiveness:** lethal shapes use 75% of their drawn size (and the rim's middle 75%). A shield absorbs a hit: it puts the bird in a ring's hole or clear above or below the shape, with the usual 1.5 s immunity.
+- **Flight:** each hazard flies toward the bird on a straight line in (distance, track x) and sways on a sine; its place is a pure function of the bird's distance, so it is frame-rate independent, frozen by pause, reset by a retry, and Auto play predicts it exactly. It is visible from the right edge, at least about 1.4 s (disc) to 3 s (smoke) before it can touch.
+- **Schedule:** about 30 events: one every ~400 m in World 1 down to ~200 m in World 5 (jittered by hashes). The first event of a world after 400 m into it is always the world's new type; after that the new type and the older ones alternate. Never within 120 m of another, never overlapping a biome hazard window.
+- **The track makes room:** every event reserves a band `[e - 8, e + 22]` m; the spawner starts the next obstacle section after it (the same way the biome hazards reserve runway). No random number is drawn, so the sections are the same sequence, just shifted. **This lowers the obstacle density a little (about 5% in World 1 to 11% in World 5) and changes generated tracks again**; with `?fliers=0` (or `FLIERS.enabled = false`) there are no hazards and no bands.
+- **Auto play and Journey Preview** plan with the same functions and flew two whole journeys through every hazard in the tests. Tests that fly a corridor-following bird, which cannot dodge, run with the hazards off.
+- **Budgets:** one extra 960 x 576 texture (153 KB); with hazards, orbs and both power-ups on screen 53 to 54 draw calls.
+- **Balance note:** this adds new lethal hazards and fewer obstacle sections; the feel of every world after World 1 has changed and has not been playtested by a human.

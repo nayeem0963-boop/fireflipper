@@ -4,6 +4,7 @@ import { speedAt } from '../physics/speed.js';
 import { HAZARDS, runwayAfter } from '../hazards/biomeHazards.js';
 import { FINISH_CLEAR, JOURNEY_LENGTH } from '../world/worlds.js';
 import { ITEM_BEFORE, POWERUPS, SLOTS } from '../powerups/powerups.js';
+import { FLIERS, flierBandAfter } from '../fliers/fliers.js';
 
 /**
  * Procedural track generation.
@@ -65,7 +66,14 @@ export function fillTrack(track, builder, distance, rng) {
     // With the biome hazards on, a hazard window owns its stretch of the track: a section never starts inside one (the window, its telegraph and the bird's settling time
     // all fit in open space). The extra runway is deterministic and draws no random number; with the hazards off this is exactly the original spacing.
     const gapX = track.nextX + spacing;
-    const x = HAZARDS.enabled ? runwayAfter(gapX, SECTION_MAX) : gapX;
+    // A flying hazard's band is kept clear too (see systems/fliers): the section just starts later, the same way, with no random number drawn. The two reservations are applied until neither moves it.
+    let x = gapX;
+    for (let i = 0; i < 8; i++) {
+      const a = HAZARDS.enabled ? runwayAfter(x, SECTION_MAX) : x;
+      const b = FLIERS.enabled ? flierBandAfter(a, SECTION_MAX) : a;
+      if (b === x) break;
+      x = b;
+    }
     const time = Math.max(0.25, (x - track.nextX - SETTLE_DISTANCE) / speedAt(track.nextX));
 
     // Corridor centre must be in the playable band...

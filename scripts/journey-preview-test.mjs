@@ -37,6 +37,9 @@ const { useGameStore, STATUS, SCREENS } = await import('../src/store/useGameStor
 const { PREVIEW_SEEDS, previewRewardIds, previewSeedFor } = await import('../src/systems/rewards/preview.js');
 const { PHYSICS } = await import('../src/systems/physics/constants.js');
 const { GAME_EVENTS } = await import('../src/systems/events/gameEvents.js');
+const { FLIERS } = await import('../src/systems/fliers/fliers.js');
+// This test flies a corridor-following bird, which cannot dodge the flying hazards (systems/fliers): they are switched off here and covered by scripts/fliers-test.mjs.
+FLIERS.enabled = false;
 
 let failures = 0;
 const check = (name, cond, detail = '') => {

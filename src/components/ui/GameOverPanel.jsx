@@ -18,6 +18,10 @@ const CAUSES = {
   column: 'Smashed into a column',
   block: 'Crashed into a stone block',
   rock: 'Struck by a boulder',
+  firering: 'Burned on a fire ring',
+  energyring: 'Zapped by an energy ring',
+  tornado: 'Swept up by an ember tornado',
+  disc: 'Sliced by a spinning disc',
 };
 
 const prefersReducedMotion = () =>

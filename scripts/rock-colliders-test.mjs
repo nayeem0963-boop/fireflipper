@@ -6,6 +6,9 @@ import { WORLD, PHYSICS } from '../src/systems/physics/constants.js';
 import { KITS, KIT_STARTS, ROCK_SHAPES, archPolys, columnPolys, controlPoints, hash01, ledgePolys, pickLook, polysExtent, rockKit } from '../src/systems/obstacles/rockShapes.js';
 import { BIOMES } from '../src/systems/world/biomes.js';
 import { HAZARDS } from '../src/systems/hazards/biomeHazards.js';
+import { FLIERS } from '../src/systems/fliers/fliers.js';
+// This test flies a corridor-following bird, which cannot dodge the flying hazards (systems/fliers): they are switched off here and covered by scripts/fliers-test.mjs.
+FLIERS.enabled = false;
 
 let failures = 0;
 const check = (name, cond, detail = '') => {
