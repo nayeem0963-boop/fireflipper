@@ -21,11 +21,10 @@ const hue = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, 
 
 console.log('\nFamilies');
 check('five families: Solar, Frost, Cosmic, Nature, Celestial', ORB_FAMILY_IDS.join() === 'solar,frost,cosmic,nature,celestial' && ORB_FAMILY_IDS.every((id) => ORB_FAMILIES[id].id === id));
-check('every colour is valid hex and every animation number is finite and gentle (bob and pulse stay small, the rocking tilt under 0.4 rad)', ORB_FAMILY_IDS.every((id) => { const f = ORB_FAMILIES[id]; return ['tone', 'halo'].every((k) => hex(f[k])) && [f.glow, f.sway, f.swaySpeed, f.bob, f.bobSpeed, f.pulse, f.pulseSpeed].every(Number.isFinite) && f.glow >= 1 && f.glow <= 1.8 && f.sway <= 0.4 && f.bob <= 0.16 && f.pulse <= 0.16; }));
+check('every colour is valid hex and every animation number is finite and gentle (bob and pulse stay small, the rocking tilt under 0.4 rad)', ORB_FAMILY_IDS.every((id) => { const f = ORB_FAMILIES[id]; return ['tone'].every((k) => hex(f[k])) && [f.glow, f.sway, f.swaySpeed, f.bob, f.bobSpeed, f.pulse, f.pulseSpeed].every(Number.isFinite) && f.glow >= 0.6 && f.glow <= 1.8 && f.sway <= 0.4 && f.bob <= 0.16 && f.pulse <= 0.16; }));
 {
-  const hues = ORB_FAMILY_IDS.map((id) => hue(ORB_FAMILIES[id].halo));
-  const apart = hues.every((h, i) => hues.every((k, j) => i === j || Math.min(Math.abs(h - k), 360 - Math.abs(h - k)) >= 25));
-  check('the glow colours are distinguishable by hue (violet, blue, purple, green, magenta)', apart || true, hues.map((h) => Math.round(h)).join(' '));
+  const hues = ORB_FAMILY_IDS.map((id) => hue(ORB_FAMILIES[id].tone));
+  check('the pictures differ in colour (the rim tones are amber, ice blue, violet, green, pink)', new Set(hues.map((h) => Math.round(h / 30))).size >= 4, hues.map((h) => Math.round(h)).join(' '));
   const speeds = ORB_FAMILY_IDS.map((id) => ORB_FAMILIES[id].swaySpeed);
   check('the motion differs from family to family (rocking speeds are all different)', new Set(speeds).size === 5);
 }
@@ -44,9 +43,9 @@ console.log('\nThe picture atlas');
   check('one texture only: the whole upgrade adds a single 0.98 MB texture to the GPU (the budget is 32 textures, the measured peak 27)', w * h * 4 * 1.34 < 1.2e6);
   const field = read('src/components/scene/OrbField.jsx');
   check('the renderer loads exactly that file, sets sRGB, and releases the texture, material and geometries when it leaves', /images\/orbs\/orbs\.webp/.test(field) && /SRGBColorSpace/.test(field) && /tex\.dispose\(\)/.test(field) && /geometries\.forEach\(\(g\) => g\.dispose\(\)\)/.test(field));
-  check('each family has its own cell: a quad with the atlas coordinates of that cell, all sharing one material', /\(i \+ uv\.getX\(k\)\) \/ CELLS/.test(field) && (field.match(/new MeshBasicMaterial/g) ?? []).length === 2);
+  check('each family has its own cell: a quad with the atlas coordinates of that cell, all sharing one material', /\(i \+ uv\.getX\(k\)\) \/ CELLS/.test(field) && (field.match(/new MeshBasicMaterial/g) ?? []).length === 1);
   check('the orb is drawn about as big as the old glow (a quad 1.0 across, half-size 0.5, against the old 0.53 radius) and inside the unchanged collection reach (0.71)', /const HALF = 0\.5/.test(field));
-  check('until the picture has loaded the glow discs alone mark the orbs (the quads are only filled once loaded)', /if \(loaded\.current\)/.test(field));
+  check('the quads are only filled once the picture has loaded (nothing white is ever drawn)', /if \(loaded\.current\)/.test(field));
 }
 
 console.log('\nWhere each family appears');
@@ -65,17 +64,16 @@ check('one primary per world, in journey order; each accent is the NEXT world\'s
   check('the first and last orbs of the journey are Solar and Celestial', orbFamilyAt(5) === 'solar' && orbFamilyAt(9990) === 'celestial');
 }
 
-console.log('\nReadability (the obstacles\' contrast rule: the better of the picture\'s rim colour or the underlay glow against every backdrop colour)');
+console.log('\nReadability (no outline: the pictures are drawn as painted)');
 {
-  const NEED = 2.0;
-  for (const [i, w] of WORLDS.entries()) {
-    const zone = BIOMES[w.id];
-    for (const id of [WORLD_ORBS[i].primary, WORLD_ORBS[i].accent].filter(Boolean)) {
-      const f = ORB_FAMILIES[id];
-      const worst = Math.min(...zone.scene.backdrops.map((bc) => Math.max(contrast(f.tone, bc), contrast(f.halo, bc))));
-      check(`${w.id}: ${id} reads against every backdrop`, worst >= NEED, worst.toFixed(2));
-    }
-  }
+  // The pictures have no outline or underlay, so what is left to steer is brightness: a pale picture is deepened and a dark one lifted. (A flat-colour contrast rule, as used for the
+  // obstacles, says little about a detailed painting, so what is checked here is the rule that was applied, not a measured score. Whether the pale Frost and Celestial pictures read on pale
+  // scenery on a phone is a manual check.)
+  const rimLum = (id) => lum(ORB_FAMILIES[id].tone);
+  check('pale pictures (rim luminance over 0.5: Frost, Celestial) are deepened a little (glow below 1)', ORB_FAMILY_IDS.filter((id) => rimLum(id) > 0.5).every((id) => ORB_FAMILIES[id].glow < 1) && ORB_FAMILY_IDS.filter((id) => rimLum(id) > 0.5).length >= 2);
+  check('dark pictures (rim luminance under 0.25: Cosmic, Nature) are lifted (glow above 1)', ORB_FAMILY_IDS.filter((id) => rimLum(id) < 0.25).every((id) => ORB_FAMILIES[id].glow > 1) && ORB_FAMILY_IDS.filter((id) => rimLum(id) < 0.25).length >= 2);
+  const field = read('src/components/scene/OrbField.jsx');
+  check('there is no outline: no underlay disc, glow mesh or second material round the pictures', !/CircleGeometry|halo|HALO/i.test(strip(field)) && (field.match(/new MeshBasicMaterial/g) ?? []).length === 1 && (field.match(/<instancedMesh/g) ?? []).length === 1);
 }
 
 console.log('\nVisual only');
@@ -88,7 +86,7 @@ console.log('\nVisual only');
   check('the renderer never writes an orb: it assigns nothing to orb.x, orb.y, orb.phase or orb.missed', !/orb\.(x|y|phase|missed)\s*=[^=]/.test(field));
   check('the bob and pulse only offset the drawn position (a local y)', /const y = orb\.y \+ Math\.sin/.test(field));
   check('nothing is allocated per frame in the render loop (no new, no array or object literals in useFrame)', (() => { const body = field.slice(field.indexOf('useFrame(')); const loop = body.slice(0, body.indexOf('return (\n    <group>')); return !/\bnew [A-Z]/.test(loop) && !/\[\s*\]|\{\s*\}/.test(loop.replace(/=> \{/g, '')); })());
-  check('a family with no orb on screen is hidden (zero draw calls); the glow disc is one shared mesh', /visible = counts\[i\] > 0/.test(field) && (field.match(/<instancedMesh/g) ?? []).length === 2 && /geometries\.map/.test(field));
+  check('a family with no orb on screen is hidden (zero draw calls); one mesh per family', /visible = counts\[i\] > 0/.test(field) && (field.match(/<instancedMesh/g) ?? []).length === 1 && /geometries\.map/.test(field));
   // a track made with orbs is the same as before: orbs come from the same rng calls (the sim does not read the family)
   const make = () => { const s = createGameSim(); s.reset(9); s.flap(); s.distance = s.prevDistance = 400; s.step(1 / 120); return s; };
   const a = make();

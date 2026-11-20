@@ -3,8 +3,7 @@
  * the collision, the scoring or the Auto play bot (an orb's position, size of hitbox, value and spawn are exactly what they were); `OrbField` only asks which family to draw an orb in.
  *
  * Five families, one per world, in the order of the journey: Solar, Frost, Cosmic, Nature, Celestial. Each is a painted orb (public/images/orbs/orbs.webp: one atlas, one 192 px cell per family,
- * in this order; see the README there) with its own gentle motion. `tone` is the colour of the picture's rim, i.e. what meets the backdrop; `halo` colours the deep underlay glow (normally blended) behind it in every world, so the orb reads against pale
- * scenery (the rim shows against dark void, the underlay against pale crystals). Readability is measured by scripts/orb-families-test.mjs with the same contrast rule as the obstacles.
+ * in this order; see the README there) with its own gentle motion. `tone` is the colour of the picture's rim, i.e. what meets the backdrop; There is no outline or underlay: the picture is drawn as painted (a pale picture is deepened a little by `glow` < 1 and a dark one lifted by `glow` > 1, so each reads against its worlds' scenery).
  *
  * Distribution: every world has a PRIMARY family and an ACCENT, the next world's family. A world's orbs are the primary family, except that through the second half of the world a growing share
  * (0 to ACCENT_MAX) are the accent, a gentle preview of what is coming, so a border is a gradual mix and never a sudden switch. The last world has no accent (the finale is pure Celestial).
@@ -13,13 +12,13 @@
 import { WORLDS, WORLD_LENGTH } from './worlds.js';
 import { hash01 } from '../obstacles/rockShapes.js';
 
-/** `glow`: a brightness lift for the picture (1 = as painted; the darker pictures are lifted so they read at flying speed). `sway`: how far (radians) and how fast (rad/s) the picture rocks; `bob`: float height (world units, visual only); `pulse`: size pulse; speeds are in rad/s. */
+/** `glow`: a brightness multiplier for the picture (1 = as painted; the darker pictures are lifted and the pale ones deepened so they read at flying speed). `sway`: how far (radians) and how fast (rad/s) the picture rocks; `bob`: float height (world units, visual only); `pulse`: size pulse; speeds are in rad/s. */
 export const ORB_FAMILIES = Object.freeze({
-  solar: Object.freeze({ id: 'solar', name: 'Solar', tone: '#da9029', halo: '#2a0a50', glow: 1.0, sway: 0.3, swaySpeed: 1.3, bob: 0.12, bobSpeed: 2.6, pulse: 0.14, pulseSpeed: 6 }),
-  frost: Object.freeze({ id: 'frost', name: 'Frost', tone: '#b6cddd', halo: '#06265e', glow: 1.0, sway: 0.22, swaySpeed: 0.9, bob: 0.1, bobSpeed: 2.1, pulse: 0.08, pulseSpeed: 4 }),
-  cosmic: Object.freeze({ id: 'cosmic', name: 'Cosmic', tone: '#827294', halo: '#1a0638', glow: 1.55, sway: 0.35, swaySpeed: 1.7, bob: 0.12, bobSpeed: 3.2, pulse: 0.1, pulseSpeed: 7 }),
-  nature: Object.freeze({ id: 'nature', name: 'Nature', tone: '#648571', halo: '#031a0d', glow: 1.45, sway: 0.28, swaySpeed: 1.1, bob: 0.1, bobSpeed: 1.9, pulse: 0.09, pulseSpeed: 3 }),
-  celestial: Object.freeze({ id: 'celestial', name: 'Celestial', tone: '#ddced4', halo: '#3a1260', glow: 1.0, sway: 0.2, swaySpeed: 1.0, bob: 0.15, bobSpeed: 2.3, pulse: 0.12, pulseSpeed: 5 }),
+  solar: Object.freeze({ id: 'solar', name: 'Solar', tone: '#da9029', glow: 1.0, sway: 0.3, swaySpeed: 1.3, bob: 0.12, bobSpeed: 2.6, pulse: 0.14, pulseSpeed: 6 }),
+  frost: Object.freeze({ id: 'frost', name: 'Frost', tone: '#b6cddd', glow: 0.85, sway: 0.22, swaySpeed: 0.9, bob: 0.1, bobSpeed: 2.1, pulse: 0.08, pulseSpeed: 4 }),
+  cosmic: Object.freeze({ id: 'cosmic', name: 'Cosmic', tone: '#827294', glow: 1.55, sway: 0.35, swaySpeed: 1.7, bob: 0.12, bobSpeed: 3.2, pulse: 0.1, pulseSpeed: 7 }),
+  nature: Object.freeze({ id: 'nature', name: 'Nature', tone: '#648571', glow: 1.45, sway: 0.28, swaySpeed: 1.1, bob: 0.1, bobSpeed: 1.9, pulse: 0.09, pulseSpeed: 3 }),
+  celestial: Object.freeze({ id: 'celestial', name: 'Celestial', tone: '#ddced4', glow: 0.85, sway: 0.2, swaySpeed: 1.0, bob: 0.15, bobSpeed: 2.3, pulse: 0.12, pulseSpeed: 5 }),
 });
 export const ORB_FAMILY_IDS = Object.freeze(['solar', 'frost', 'cosmic', 'nature', 'celestial']);
 
