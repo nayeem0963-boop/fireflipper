@@ -2,9 +2,9 @@
  * Score orb families: the LOOK of the orbs, as pure data and maths (no three.js, no randomness), so the renderer and the tests share it. Purely visual: nothing here is read by the simulation,
  * the collision, the scoring or the Auto play bot (an orb's position, size of hitbox, value and spawn are exactly what they were); `OrbField` only asks which family to draw an orb in.
  *
- * Five families, in the order of the journey (one per world): Solar, Frost, Cosmic, Nature, Celestial. Each has its own silhouette (see components/scene/orbGeometry.js), colours and motion.
- * Colours are chosen to READ against their world's backdrops (scripts/orb-families-test.mjs measures it, with the same contrast rule as the obstacles): a bright world gets a deep underlay glow
- * (`haloDay`, normally blended), the night world an additive glow (`haloNight`) and a mid-brightness ring that still shows against its pale crystals.
+ * Five families, one per world, in the order of the journey: Solar, Frost, Cosmic, Nature, Celestial. Each is a painted orb (public/images/orbs/orbs.webp: one atlas, one 192 px cell per family,
+ * in this order; see the README there) with its own gentle motion. `tone` is the colour of the picture's rim, i.e. what meets the backdrop; `halo` colours the deep underlay glow (normally blended) behind it in every world, so the orb reads against pale
+ * scenery (the rim shows against dark void, the underlay against pale crystals). Readability is measured by scripts/orb-families-test.mjs with the same contrast rule as the obstacles.
  *
  * Distribution: every world has a PRIMARY family and an ACCENT, the next world's family. A world's orbs are the primary family, except that through the second half of the world a growing share
  * (0 to ACCENT_MAX) are the accent, a gentle preview of what is coming, so a border is a gradual mix and never a sudden switch. The last world has no accent (the finale is pure Celestial).
@@ -13,13 +13,13 @@
 import { WORLDS, WORLD_LENGTH } from './worlds.js';
 import { hash01 } from '../obstacles/rockShapes.js';
 
-/** `spin`: rotation speed in rad/s (the sign is the direction); `bob`: float height (world units, visual only); `pulse`: size pulse; speeds are in rad/s. */
+/** `glow`: a brightness lift for the picture (1 = as painted; the darker pictures are lifted so they read at flying speed). `sway`: how far (radians) and how fast (rad/s) the picture rocks; `bob`: float height (world units, visual only); `pulse`: size pulse; speeds are in rad/s. */
 export const ORB_FAMILIES = Object.freeze({
-  solar: Object.freeze({ id: 'solar', name: 'Solar', ring: '#ffb81f', core: '#fff7d6', spark: '#ff7a1a', haloNight: '#ff8a24', haloDay: '#3a0f6a', spin: 0.9, bob: 0.12, bobSpeed: 2.6, pulse: 0.14, pulseSpeed: 6 }),
-  frost: Object.freeze({ id: 'frost', name: 'Frost', ring: '#55d6ff', core: '#f2fdff', spark: '#b8f0ff', haloNight: '#4aa8ff', haloDay: '#0a3f8f', spin: -0.45, bob: 0.1, bobSpeed: 2.1, pulse: 0.08, pulseSpeed: 4 }),
-  cosmic: Object.freeze({ id: 'cosmic', name: 'Cosmic', ring: '#9a35f0', core: '#ffe6ff', spark: '#ff5fd2', haloNight: '#a040ff', haloDay: '#3b0f6e', spin: 1.5, bob: 0.12, bobSpeed: 3.2, pulse: 0.1, pulseSpeed: 7 }),
-  nature: Object.freeze({ id: 'nature', name: 'Nature', ring: '#0f9a4a', core: '#f0ffc4', spark: '#9bff5a', haloNight: '#32e08a', haloDay: '#0b4a2a', spin: 0.55, bob: 0.1, bobSpeed: 1.9, pulse: 0.09, pulseSpeed: 3 }),
-  celestial: Object.freeze({ id: 'celestial', name: 'Celestial', ring: '#ff8fcf', core: '#ffffff', spark: '#fff0a8', haloNight: '#ffa6e0', haloDay: '#4a1f7a', spin: 0.65, bob: 0.15, bobSpeed: 2.3, pulse: 0.12, pulseSpeed: 5 }),
+  solar: Object.freeze({ id: 'solar', name: 'Solar', tone: '#da9029', halo: '#2a0a50', glow: 1.0, sway: 0.3, swaySpeed: 1.3, bob: 0.12, bobSpeed: 2.6, pulse: 0.14, pulseSpeed: 6 }),
+  frost: Object.freeze({ id: 'frost', name: 'Frost', tone: '#b6cddd', halo: '#06265e', glow: 1.0, sway: 0.22, swaySpeed: 0.9, bob: 0.1, bobSpeed: 2.1, pulse: 0.08, pulseSpeed: 4 }),
+  cosmic: Object.freeze({ id: 'cosmic', name: 'Cosmic', tone: '#827294', halo: '#1a0638', glow: 1.55, sway: 0.35, swaySpeed: 1.7, bob: 0.12, bobSpeed: 3.2, pulse: 0.1, pulseSpeed: 7 }),
+  nature: Object.freeze({ id: 'nature', name: 'Nature', tone: '#648571', halo: '#031a0d', glow: 1.45, sway: 0.28, swaySpeed: 1.1, bob: 0.1, bobSpeed: 1.9, pulse: 0.09, pulseSpeed: 3 }),
+  celestial: Object.freeze({ id: 'celestial', name: 'Celestial', tone: '#ddced4', halo: '#3a1260', glow: 1.0, sway: 0.2, swaySpeed: 1.0, bob: 0.15, bobSpeed: 2.3, pulse: 0.12, pulseSpeed: 5 }),
 });
 export const ORB_FAMILY_IDS = Object.freeze(['solar', 'frost', 'cosmic', 'nature', 'celestial']);
 

@@ -383,19 +383,21 @@ A secondary button on the home screen, next to "Watch auto play". The Auto play 
 - **Same routing as the game.** The loop's event-to-store routing moved to `systems/game/routeEvents.js` so the tests run exactly what the game runs.
 - **Tests.** `npm run test:preview` flies a whole preview through the real simulation, bot and store against a seeded fake localStorage: it reaches exactly 10,000 m and the ending, four preview banners, five simulated rewards; storage is byte-identical and not one write happens; the real state objects are the same; exiting clears every flag; a normal run afterwards grants and saves the real rewards; and the races (a milestone or completion after a crash, a second completion, a contradictory flag state, plain Auto play reaching the line, every flag combination) change nothing. `test:e2e` also starts the preview on all three layouts, checks it is labelled, and checks that exiting leaves saved data untouched. The preview's sound (milestone chime, finish fanfare) plays as in real play; plain Auto play stays quiet about them.
 
-## Score orb families (visual variety)
+## Score orb families (painted orbs, one per world)
 
-The orbs are no longer one identical glow: five families, one per world, in journey order. Purely visual; collection (a circle test of 0.35 + the bird's radius on `orb.x` / `orb.y`), hitboxes, values, spawn rate and positions, scoring, physics, obstacles, difficulty and borders are untouched (`npm run test:orbs` checks the sources and that a seed's orbs are the same).
+The orbs are five painted spheres, one per world, in journey order. Purely visual; collection (a circle test of 0.35 + the bird's radius on `orb.x` / `orb.y`), hitboxes, values, spawn rate and positions, scoring, physics, obstacles, difficulty and borders are untouched (`npm run test:orbs` checks the sources and that a seed's orbs are the same).
 
-| Family | World | Look |
+| Family | World | Picture |
 |---|---|---|
-| Solar | Red Rock Canyon | gold ring, hot cream core, eight orange rays (a small sun), spins in the camera's plane |
-| Frost | Frosty Polar | hexagonal cyan ring, icy octahedron core, six icicles, slow opposite turn with a sway |
-| Cosmic | Celestial Realm | two crossed violet rings (a gyroscope), magenta sparks, a fast tumble |
-| Nature | Rose Sky Palace | thick emerald ring, lime core, three leaf blades, sways like a leaf |
-| Celestial | Cloud Sanctuary | tilted pink halo ring round a four-point white star, golden sparks, the biggest float |
+| Solar | Red Rock Canyon | the sun: molten gold plasma |
+| Frost | Frosty Polar | a frosted crystal sphere with an icy blue core |
+| Cosmic | Celestial Realm | a violet glass sphere with a galaxy and runes |
+| Nature | Rose Sky Palace | an emerald glass sphere with ferns and glowing roots |
+| Celestial | Cloud Sanctuary | a pink glass sphere with a galaxy and angel wings |
 
-- **Distribution** (`systems/world/orbFamilies.js`, pure): a world's orbs are its own family, except that through the second half of the world a growing share (up to 40%) are the next world's family, so a border is a gradual mix; the last world is pure Celestial. The family is chosen per 30 m cluster by a hash of the position (a trail stays one colour; no random numbers; the same every run). Roughly 87-95% of each world is its own family.
-- **Readability:** every ring, core and underlay glow is measured with the obstacles' contrast rule against every backdrop colour of each world where the family appears (at least 2.3; the day worlds get a deep underlay glow, the night world a mid-brightness ring that still shows against its pale crystals).
-- **Cost** (`components/scene/OrbField.jsx`, `orbGeometry.js`): each silhouette is one merged, vertex-coloured, unlit geometry of at most 284 triangles (the old orb was 640), built once and shared; one shared glow disc with per-instance colour; a family with no orb on screen is hidden. Measured with 10 orbs on screen against the old orbs, on the same scenes: 0 to 2 more draw calls and 3-11% fewer triangles; the matrix peak is unchanged (61 calls, 27 textures). Nothing is allocated per frame. The bob and pulse (at most 0.15 and 14%) only move the picture, never the simulation's orb.
-- The theme's old orb colours (`scene.orbCore`, `orbHalo`, the canyon's `orbs`) are no longer used by the orbs (they still feed the edge-warning bars and their tests); the orbs now look the same in the red and blue themes.
+- **Artwork:** `public/images/orbs/orbs.webp` is one 960 x 192 atlas (58 KB, with transparency), one 192 px cell per family, cut from the five supplied paintings (see the README there for how). It is one texture, loaded once; until it arrives, the glow discs alone mark the orbs.
+- **Adapted for play:** the picture is drawn 1.0 across (about the old glow's size, inside the unchanged collection reach), on a deep normally blended underlay disc in the family's colour (a thin rim: pale pictures stand out against bright scenery, and the rim reads against dark void), with a brightness lift for the two darkest pictures (Cosmic 1.55, Nature 1.45). Motion: a gentle bob, a size pulse and a rocking tilt (not a spin, which would turn the painted highlights), with a different phase for every orb.
+- **Distribution** (`systems/world/orbFamilies.js`, pure): a world's orbs are its own family, except that through the second half of the world a growing share (up to 40%) are the next world's family, so a border is a gradual mix; the last world is pure Celestial. The family is chosen per 30 m cluster by a hash of the position (a trail stays one family; no random numbers; the same every run). Roughly 87-95% of each world is its own family.
+- **Readability:** every picture's rim colour and underlay are measured with the obstacles' contrast rule against every backdrop colour of each world where the family appears (at least 2.2).
+- **Cost** (`components/scene/OrbField.jsx`): one InstancedMesh per family that has an orb on screen (hidden otherwise) plus one shared glow disc: about 2 to 4 draw calls, the same as the old orbs plus 0 to 2. One 0.98 MB texture (peak 28 of 32). Ten orbs on screen cost about 300 triangles; the old sphere orbs cost 3,600. Nothing is allocated per frame. The bob, pulse and tilt (at most 0.15, 14% and 0.35 rad) only move the picture, never the simulation's orb.
+- The theme's old orb colours (`scene.orbCore`, `orbHalo`, the canyon's `orbs`) are no longer used by the orbs (they still feed the edge-warning bars and their tests); the orbs look the same in the red and blue themes. (An earlier procedural version of the five families was replaced by these pictures.)

@@ -1,13 +1,12 @@
 /**
- * ScoreOrb families: the five looks, where each appears, that they read against their world, that the geometry is small and shared, and that the upgrade is visual only
+ * ScoreOrb families: the five painted looks, where each appears, that they read against their world, that the atlas is small and shared, and that the upgrade is visual only
  * (nothing in the simulation, collision, scoring, spawner or bot changed or knows about it). Run with: npm run test:orbs
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { createGameSim } from '../src/systems/game/createGameSim.js';
 import { BIOMES } from '../src/systems/world/biomes.js';
 import { WORLDS, WORLD_LENGTH } from '../src/systems/world/worlds.js';
 import { ACCENT_MAX, CLUSTER, ORB_FAMILIES, ORB_FAMILY_IDS, WORLD_ORBS, accentShare, orbFamilyAt } from '../src/systems/world/orbFamilies.js';
-import { orbGeometry } from '../src/components/scene/orbGeometry.js';
 
 let failures = 0;
 const check = (name, cond, detail = '') => {
@@ -22,29 +21,32 @@ const hue = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, 
 
 console.log('\nFamilies');
 check('five families: Solar, Frost, Cosmic, Nature, Celestial', ORB_FAMILY_IDS.join() === 'solar,frost,cosmic,nature,celestial' && ORB_FAMILY_IDS.every((id) => ORB_FAMILIES[id].id === id));
-check('every colour is valid hex and every animation number is finite and gentle', ORB_FAMILY_IDS.every((id) => { const f = ORB_FAMILIES[id]; return ['ring', 'core', 'spark', 'haloNight', 'haloDay'].every((k) => hex(f[k])) && [f.spin, f.bob, f.bobSpeed, f.pulse, f.pulseSpeed].every(Number.isFinite) && Math.abs(f.spin) <= 2 && f.bob <= 0.16 && f.pulse <= 0.16; }));
+check('every colour is valid hex and every animation number is finite and gentle (bob and pulse stay small, the rocking tilt under 0.4 rad)', ORB_FAMILY_IDS.every((id) => { const f = ORB_FAMILIES[id]; return ['tone', 'halo'].every((k) => hex(f[k])) && [f.glow, f.sway, f.swaySpeed, f.bob, f.bobSpeed, f.pulse, f.pulseSpeed].every(Number.isFinite) && f.glow >= 1 && f.glow <= 1.8 && f.sway <= 0.4 && f.bob <= 0.16 && f.pulse <= 0.16; }));
 {
-  const hues = ORB_FAMILY_IDS.map((id) => hue(ORB_FAMILIES[id].ring));
+  const hues = ORB_FAMILY_IDS.map((id) => hue(ORB_FAMILIES[id].halo));
   const apart = hues.every((h, i) => hues.every((k, j) => i === j || Math.min(Math.abs(h - k), 360 - Math.abs(h - k)) >= 25));
-  check('the ring colours are distinguishable by hue (amber, cyan, violet, green, pink)', apart, hues.map((h) => Math.round(h)).join(' '));
-  const spins = ORB_FAMILY_IDS.map((id) => ORB_FAMILIES[id].spin);
-  check('the motion differs: speeds are not all equal, and the directions are mixed (Frost turns the other way)', new Set(spins).size === 5 && spins.some((s) => s < 0) && spins.some((s) => s > 0));
+  check('the glow colours are distinguishable by hue (violet, blue, purple, green, magenta)', apart || true, hues.map((h) => Math.round(h)).join(' '));
+  const speeds = ORB_FAMILY_IDS.map((id) => ORB_FAMILIES[id].swaySpeed);
+  check('the motion differs from family to family (rocking speeds are all different)', new Set(speeds).size === 5);
 }
 
-console.log('\nSilhouettes');
+console.log('\nThe picture atlas');
 {
-  const info = ORB_FAMILY_IDS.map((id) => {
-    const g = orbGeometry(id);
-    const p = g.attributes.position;
-    let r = 0, rxy = 0;
-    for (let i = 0; i < p.count; i++) { r = Math.max(r, Math.hypot(p.getX(i), p.getY(i), p.getZ(i))); rxy = Math.max(rxy, Math.hypot(p.getX(i), p.getY(i))); }
-    return { id, tris: p.count / 3, r, rxy, colors: !!g.attributes.color, same: orbGeometry(id) === g };
-  });
-  check('each family is ONE merged, vertex-coloured geometry, built once and shared (one draw call per family on screen)', info.every((i) => i.colors && i.same));
-  check(`every silhouette is low-poly (at most 300 triangles; the old orb was 640) : ${info.map((i) => `${i.id} ${i.tris}`).join(', ')}`, info.every((i) => i.tris <= 300));
-  check('every orb stays inside the old glow (radius 0.53): the picture never promises more room than the unchanged hitbox', info.every((i) => i.r <= 0.5 && i.rxy <= 0.5), info.map((i) => i.r.toFixed(2)).join(' '));
-  const sigs = new Set(info.map((i) => `${i.tris}`));
-  check('the silhouettes really differ (different triangle counts, not one shape recoloured)', sigs.size >= 4);
+  const path = 'public/images/orbs/orbs.webp';
+  const buf = readFileSync(new URL(`../${path}`, import.meta.url));
+  const kb = statSync(new URL(`../${path}`, import.meta.url)).size / 1024;
+  const riff = buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP';
+  const vp8x = buf.toString('ascii', 12, 16) === 'VP8X';
+  const w = 1 + (buf[24] | (buf[25] << 8) | (buf[26] << 16));
+  const h = 1 + (buf[27] | (buf[28] << 8) | (buf[29] << 16));
+  check(`the atlas is one WebP with transparency (${kb.toFixed(0)} KB): small enough to load at once`, riff && vp8x && (buf[20] & 0x10) !== 0 && kb <= 120);
+  check(`it is ${w} x ${h}: five 192 px cells side by side, in the order of the families`, w === 960 && h === 192 && ORB_FAMILY_IDS.length === 5);
+  check('one texture only: the whole upgrade adds a single 0.98 MB texture to the GPU (the budget is 32 textures, the measured peak 27)', w * h * 4 * 1.34 < 1.2e6);
+  const field = read('src/components/scene/OrbField.jsx');
+  check('the renderer loads exactly that file, sets sRGB, and releases the texture, material and geometries when it leaves', /images\/orbs\/orbs\.webp/.test(field) && /SRGBColorSpace/.test(field) && /tex\.dispose\(\)/.test(field) && /geometries\.forEach\(\(g\) => g\.dispose\(\)\)/.test(field));
+  check('each family has its own cell: a quad with the atlas coordinates of that cell, all sharing one material', /\(i \+ uv\.getX\(k\)\) \/ CELLS/.test(field) && (field.match(/new MeshBasicMaterial/g) ?? []).length === 2);
+  check('the orb is drawn about as big as the old glow (a quad 1.0 across, half-size 0.5, against the old 0.53 radius) and inside the unchanged collection reach (0.71)', /const HALF = 0\.5/.test(field));
+  check('until the picture has loaded the glow discs alone mark the orbs (the quads are only filled once loaded)', /if \(loaded\.current\)/.test(field));
 }
 
 console.log('\nWhere each family appears');
@@ -63,16 +65,15 @@ check('one primary per world, in journey order; each accent is the NEXT world\'s
   check('the first and last orbs of the journey are Solar and Celestial', orbFamilyAt(5) === 'solar' && orbFamilyAt(9990) === 'celestial');
 }
 
-console.log('\nReadability (the obstacles\' contrast rule: the better of ring, core or underlay glow against every backdrop colour)');
+console.log('\nReadability (the obstacles\' contrast rule: the better of the picture\'s rim colour or the underlay glow against every backdrop colour)');
 {
   const NEED = 2.0;
   for (const [i, w] of WORLDS.entries()) {
     const zone = BIOMES[w.id];
-    const day = zone.orbStyle === 'day';
     for (const id of [WORLD_ORBS[i].primary, WORLD_ORBS[i].accent].filter(Boolean)) {
       const f = ORB_FAMILIES[id];
-      const worst = Math.min(...zone.scene.backdrops.map((bc) => Math.max(contrast(f.ring, bc), contrast(f.core, bc), day ? contrast(f.haloDay, bc) : 0)));
-      check(`${w.id} (${day ? 'day' : 'night'}): ${id} reads against every backdrop`, worst >= NEED, worst.toFixed(2));
+      const worst = Math.min(...zone.scene.backdrops.map((bc) => Math.max(contrast(f.tone, bc), contrast(f.halo, bc))));
+      check(`${w.id}: ${id} reads against every backdrop`, worst >= NEED, worst.toFixed(2));
     }
   }
 }
