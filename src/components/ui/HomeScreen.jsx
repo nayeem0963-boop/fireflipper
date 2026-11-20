@@ -58,7 +58,7 @@ export default function HomeScreen() {
           </Suspense>
         </section>
 
-        {/* Every bird is one tap away: the five species, in the colour you have chosen when it is unlocked */}
+        {/* Every bird is one tap away: the six species, in the colour you have chosen when it is unlocked */}
         <div className="home__birds" role="radiogroup" aria-label="Choose your bird">
           {AVATAR_SPECIES.map((sp) => {
             const shown = avatarFor(sp.id, skin.color);

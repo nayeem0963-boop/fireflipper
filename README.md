@@ -4,7 +4,7 @@
 
 > Status: **pass 2: core flight gameplay.** Playable one-touch flying with physics, procedural
 > obstacles, fire orbs, collisions, scoring, game over and retry. Backend, accounts and deployment
-> are intentionally not implemented yet. The firebird is still a placeholder built from primitives.
+> are intentionally not implemented yet.
 
 ## Tech stack
 
@@ -113,7 +113,8 @@ scripts/
 - Obstacles and orbs are pooled records rendered through InstancedMesh: about 7 draw calls for
   the whole field, with no per-frame allocations. Spark bursts use one pooled `THREE.Points`.
 - Procedural textures are disposed on unmount; JSX geometries and materials are disposed by R3F.
-- GLB models will load via drei's `useGLTF` from `public/models/`.
+- GLB models load via drei's `useGLTF` from `public/models/birds/`. The Fire Eagle (`fire-eagle.glb`, ~100 kB)
+  is re-skinned in `FireEagle.jsx`; the Firebird stands in while it loads. See `public/models/CREDITS.md`.
 
 ## Controls
 
@@ -129,11 +130,13 @@ The run also pauses automatically when the tab is hidden or the window loses foc
 
 ## Bird customisation
 
-Five birds (Bulbuli, Rainbow Macaw, Honeybell (the blue-and-yellow macaw), Toco Toucan, Morpho Butterfly),
-each in three skins (Fire, Blue, White): 15 in all. The Flipper and the Scarlet Macaw are no longer in the list; the Flipper's model remains only as the gold Celestial reward skin. Fire is always free; Blue and White unlock at best scores of
+Six birds (Bulbuli, Rainbow Macaw, Honeybell (the blue-and-yellow macaw), Toco Toucan, Morpho Butterfly, Fire Eagle),
+each in three skins (Fire, Blue, White): 18 in all. The Flipper and the Scarlet Macaw are no longer in the list; the Flipper's model remains only as the gold Celestial reward skin. Fire is always free; Blue and White unlock at best scores of
 600 and 1,500. Each skin has its own cosmetic trail colours and tints the orb-pickup sparks. Everything is visual:
 birds share one hitbox and one physics model (`npm run test:avatars` guards against gameplay fields on a bird).
-Bird models are third-party (CC BY 4.0); see `public/models/CREDITS.md` and the in-app credits.
+Bird models are third-party (CC BY 4.0, except the Fire Eagle, which has its own licence that still needs confirming); see `public/models/CREDITS.md` and the in-app credits.
+The Fire Eagle (`public/models/birds/fire-eagle.glb`) is the one skeletal model: `FireEagle.jsx` plays its `Fly` clip from the flight state and
+re-skins it with the avatar's 8-colour palette, a flame shell and glow sprites. It falls back to the Firebird while loading.
 
 ## Progression
 
@@ -369,7 +372,7 @@ Everything the player must see before a hazard acts is drawn (nothing is drawn o
 - **Difficulty (`spawner.js`, `patterns.js`, `constants.js`).** Before, difficulty and speed reached their maximum at about 1,600 m and stayed there. Now difficulty climbs in a straight line from 0 (at 40 m) to 1 at the finish line (world averages 0.1, 0.3, 0.5, 0.7, 0.9), so there is no step at any border, and the speed ramp is stretched from 1,500 m to 6,000 m. Nothing is harder than the old maximum (same gaps and spacing at the end). The hard patterns arrive later: boulders after 250 m, wall formations after 600 m, tunnels (the canyon's arches) after 1,000 m. **This makes the first worlds noticeably easier and slower than before: it is a deliberate change that has not been playtested by a human.**
 - **Milestones.** The simulation announces a `MILESTONE` event when the bird survives a border (2,000 / 4,000 / 6,000 / 8,000 m); a compact banner under the HUD shows "World N completed" for 3.6 s (it ignores the pointer, never pauses anything, one at a time). A crash in the same step as a border wins: nothing is announced.
 - **The ending.** The track stops building 40 m before the line. Crossing 10,000 m alive moves the simulation to a new `COMPLETE` phase (once; a crash wins a same-step tie; scored distance is exactly 10,000 m): obstacles stop, input is ignored, the bird glides on untouchable. The screen shows a 6.8 s celebration over the live scene (the Celestial City painting fades in, "Journey Complete", sparkles; skippable with Skip, Enter or Escape after 1.2 s so the last taps cannot skip it; plain results at once under reduced motion), then the final screen (distance, score, orbs, worlds 5/5, rewards, Replay Journey / View Rewards / Return to Main Menu). No camera change was made. Auto play reaching the line just restarts, with no rewards.
-- **Rewards (`src/systems/rewards/rewards.js`).** Treasure Cache at 2,000 m; Celestial City Orb at 4,000 m; Celestial Bird Skin at 8,000 m; Journey Champion Trophy and **Celestial Feather** (legendary, the primary prize) at the finish line. 6,000 m has a banner only. Granting is pure and idempotent, happens only when the simulation reports a survived milestone, and is saved at once in localStorage (`fireflipper:journey`, through the existing `utils/storage.js`; a corrupt save is sanitised). Replaying never grants twice; opening the collection grants nothing. The Celestial skin is a gold Flipper (`REWARD_AVATARS`, outside the 15-skin collection) equipped from the Rewards screen; like every bird it is cosmetic only (a test checks that no gameplay module imports avatars, skins or rewards).
+- **Rewards (`src/systems/rewards/rewards.js`).** Treasure Cache at 2,000 m; Celestial City Orb at 4,000 m; Celestial Bird Skin at 8,000 m; Journey Champion Trophy and **Celestial Feather** (legendary, the primary prize) at the finish line. 6,000 m has a banner only. Granting is pure and idempotent, happens only when the simulation reports a survived milestone, and is saved at once in localStorage (`fireflipper:journey`, through the existing `utils/storage.js`; a corrupt save is sanitised). Replaying never grants twice; opening the collection grants nothing. The Celestial skin is a gold Flipper (`REWARD_AVATARS`, outside the 18-skin collection) equipped from the Rewards screen; like every bird it is cosmetic only (a test checks that no gameplay module imports avatars, skins or rewards).
 - **Screens.** `RewardsPanel` (collection, locked/unlocked, rarity, how to earn, progress), `JourneyEnding` (celebration and final screen), `MilestoneToast`, a Rewards button and the edition title on the home screen, rewards and worlds lines on Game Over. Reward art is original inline SVG (`RewardArt.jsx`); the reference sheet is not shipped.
 - **Tests.** `npm run test:journey` (boundaries, difficulty, milestones, the ending and its races, rewards, persistence across a "refresh", UI wiring); the rest of `test:all` was updated to the new borders (the golden layout fingerprint now compares shapes on against off). `test:e2e` and `test:matrix` pass (77 cases, at most 61 draw calls, 27 textures).
 - **Not verified:** nothing was run on a physical phone (only emulated viewports in Chromium with software GL); the ending's sound and timing were not heard or felt; the new difficulty feel needs human play; Auto play was only checked headlessly to 10 km.
