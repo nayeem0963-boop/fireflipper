@@ -3,6 +3,7 @@ import { PATTERNS, gapFor, pickPattern } from './patterns.js';
 import { speedAt } from '../physics/speed.js';
 import { HAZARDS, runwayAfter } from '../hazards/biomeHazards.js';
 import { FINISH_CLEAR, JOURNEY_LENGTH } from '../world/worlds.js';
+import { ITEM_BEFORE, POWERUPS, SLOTS } from '../powerups/powerups.js';
 
 /**
  * Procedural track generation.
@@ -35,7 +36,7 @@ export function difficultyAt(distance) {
 export { speedAt };
 
 export function createTrack() {
-  return { nextX: 0, free: [0, 0], center: 0, previous: null, corridors: [], finished: false };
+  return { nextX: 0, free: [0, 0], center: 0, previous: null, corridors: [], finished: false, nextPowerup: 0 };
 }
 
 export function resetTrack(track, startY) {
@@ -45,6 +46,7 @@ export function resetTrack(track, startY) {
   track.previous = null;
   track.corridors.length = 0;
   track.finished = false;
+  track.nextPowerup = 0;
 }
 
 /** Generate sections until the track extends `spawnAhead` past `distance`. */
@@ -76,11 +78,22 @@ export function fillTrack(track, builder, distance, rng) {
     const center = rng.range(lo, hi);
 
     // Sometimes leave a trail of orbs through the open space before the section.
-    if (rng.chance(0.3)) {
+    const trail = rng.chance(0.3);
+    if (trail) {
       const prev = track.center;
       for (let i = 1; i <= 3; i++) {
         const k = i / 4;
         builder.orb(track.nextX + spacing * k, prev + (center - prev) * k);
+      }
+    }
+
+    // A due power-up goes just before this section, in line with the middle of its guaranteed gap (reachable by construction, never inside a section); a section with an orb trail waits for the next one.
+    // No random number is drawn here, so the sections and orbs are exactly what they are without power-ups.
+    if (POWERUPS.enabled && builder.item && !trail) {
+      const slot = SLOTS[track.nextPowerup];
+      if (slot && x - ITEM_BEFORE >= slot.x) {
+        builder.item(slot.kind, x - ITEM_BEFORE, center);
+        track.nextPowerup++;
       }
     }
 

@@ -5,12 +5,15 @@ import { isFullscreen, isFullscreenSupported, toggleFullscreen } from '../../uti
 import IconButton from './IconButton.jsx';
 import SoundToggle from './SoundToggle.jsx';
 import { ExitIcon, FullscreenIcon, PauseIcon, PlayIcon, RestartIcon } from './Icons.jsx';
+import { MagnetIcon, ShieldIcon } from './PowerIcons.jsx';
 
 /** In-game heads-up display. Pure UI: reads the store, calls store actions. */
 export default function GameHUD() {
   const score = useGameStore((s) => s.score);
   const distance = useGameStore((s) => s.distance);
   const orbs = useGameStore((s) => s.orbs);
+  const magnet = useGameStore((s) => s.magnet);
+  const shield = useGameStore((s) => s.shield);
   const status = useGameStore((s) => s.status);
   const togglePause = useGameStore((s) => s.togglePause);
   const restart = useGameStore((s) => s.restart);
@@ -56,6 +59,17 @@ export default function GameHUD() {
               {orbs}
             </span>
           </div>
+          {magnet > 0 && (
+            <div className="stat stat--power" role="status" aria-label={`Magnet, ${magnet} seconds left`}>
+              <MagnetIcon />
+              <span className="stat__value">{magnet}s</span>
+            </div>
+          )}
+          {shield && (
+            <div className="stat stat--power" role="status" aria-label="Shield ready">
+              <ShieldIcon />
+            </div>
+          )}
         </div>
       )}
 

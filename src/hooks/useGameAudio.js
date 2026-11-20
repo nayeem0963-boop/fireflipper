@@ -16,6 +16,10 @@ export function useGameAudio() {
       }),
       gameEvents.on(GAME_EVENTS.NEAR, play(sfx.near)),
       gameEvents.on(GAME_EVENTS.CRASH, play(sfx.crash)),
+      gameEvents.on(GAME_EVENTS.POWERUP, (e) => {
+        if (useGameStore.getState().soundEnabled) sfx.powerup(e.kind);
+      }),
+      gameEvents.on(GAME_EVENTS.SHIELD_BREAK, play(sfx.shieldBreak)),
       // the milestone chime and the finish fanfare belong to real play and the Journey Preview; plain Auto play stays quiet about them
       gameEvents.on(GAME_EVENTS.MILESTONE, () => {
         const s = useGameStore.getState();

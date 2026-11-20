@@ -114,6 +114,23 @@ export const sfx = {
     [523, 659, 784, 1047].forEach((f) => tone({ type: 'sine', from: f, to: f, duration: 1.8, peak: 0.07, delay: 0.9 }));
     tone({ type: 'sine', from: 2093, to: 3136, duration: 1.2, peak: 0.05, delay: 1.0 });
   },
+  /** A power-up picked up: the magnet a rising hum with a snap, the shield a bright two-note chime. */
+  powerup(kind) {
+    if (!ready()) return;
+    if (kind === 'magnet') {
+      tone({ type: 'sawtooth', from: 220, to: 660, duration: 0.28, peak: 0.07 });
+      tone({ type: 'triangle', from: 880, to: 1320, duration: 0.22, peak: 0.12, delay: 0.16 });
+    } else {
+      [784, 1175].forEach((f, i) => tone({ type: 'triangle', from: f, to: f, duration: 0.3, peak: 0.13, delay: i * 0.1 }));
+      tone({ type: 'sine', from: 2349, to: 3136, duration: 0.5, peak: 0.05, delay: 0.18 });
+    }
+  },
+  /** The shield took a crash: a glassy crack and a falling tone. */
+  shieldBreak() {
+    if (!ready()) return;
+    noiseBurst({ duration: 0.3, filter: 'highpass', from: 3000, to: 900, q: 0.9, peak: 0.25 });
+    tone({ type: 'triangle', from: 880, to: 220, duration: 0.4, peak: 0.14 });
+  },
   crash() {
     if (!ready()) return;
     noiseBurst({ duration: 0.55, filter: 'lowpass', from: 1800, to: 120, q: 0.7, peak: 0.55 });

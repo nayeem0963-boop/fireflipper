@@ -16,6 +16,10 @@ export const GAME_EVENTS = Object.freeze({
   MILESTONE: 'milestone',
   /** The journey was completed at the finish line: the run's results. */
   COMPLETE: 'complete',
+  /** A power-up was picked up: { kind: 'magnet' | 'shield', x, y }. */
+  POWERUP: 'powerup',
+  /** The shield took a crash: { x, y, cause }. */
+  SHIELD_BREAK: 'shieldbreak',
 });
 
 export const gameEvents = createEmitter();

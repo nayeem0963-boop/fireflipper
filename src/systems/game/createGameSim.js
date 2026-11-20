@@ -3,12 +3,13 @@ import { applyFlap, stepFlight } from '../physics/flight.js';
 import { DYNAMIC_INSET, HAZARDS, createHazardFx, createObstacleFx, hazardsAt, obstacleHazard } from '../hazards/biomeHazards.js';
 import { circleGap, circleHitsObstacle } from '../physics/collision.js';
 import { ObjectPool } from '../obstacles/ObjectPool.js';
-import { archPolys, columnPolys, ledgePolys, pickLook, poleInstances, poleReach, polysExtent, rockKit } from '../obstacles/rockShapes.js';
+import { archPolys, columnPolys, hash01, ledgePolys, pickLook, poleInstances, poleReach, polysExtent, rockKit } from '../obstacles/rockShapes.js';
 import { createTrack, fillTrack, resetTrack, speedAt } from '../obstacles/spawner.js';
 import { computeScore, toMetres } from '../scoring/scoring.js';
 import { GAME_EVENTS } from '../events/gameEvents.js';
 import { createRng, randomSeed } from '../../utils/random.js';
 import { JOURNEY_LENGTH, MILESTONES, WORLD_COUNT, worldsCompleted } from '../world/worlds.js';
+import { GRACE_S, ITEM_RADIUS, MAGNET_PULL, MAGNET_RANGE, MAGNET_S } from '../powerups/powerups.js';
 
 /**
  * The whole game simulation as plain JavaScript: no React, no Three.js.
@@ -37,11 +38,16 @@ function createObstacle() {
 function createOrb() {
   return { x: 0, y: 0, phase: 0, missed: false };
 }
+/** A power-up item on the track: its kind ('magnet' | 'shield') and place; collected (and released) by the same kind of circle test as an orb. */
+function createItem() {
+  return { kind: 'magnet', x: 0, y: 0, phase: 0 };
+}
 
 export function createGameSim() {
   const rng = createRng(1);
   const obstacles = new ObjectPool(createObstacle, undefined, 64);
   const orbs = new ObjectPool(createOrb, undefined, 32);
+  const items = new ObjectPool(createItem, undefined, 8);
   const track = createTrack();
   const HZ_OB = createObstacleFx(); // scratch for the obstacle hazards, reused
 
@@ -152,6 +158,13 @@ export function createGameSim() {
       o.polys = null;
       o.draw = null;
     },
+    item(kind, x, y) {
+      const it = items.acquire();
+      it.kind = kind;
+      it.x = x;
+      it.y = y;
+      it.phase = hash01(x * 1.7) * Math.PI * 2; // a visual phase from the position: no random number is drawn, so tracks are unchanged
+    },
     orb(x, y) {
       const orb = orbs.acquire();
       orb.x = x;
@@ -181,6 +194,10 @@ export function createGameSim() {
     milestonesDone: 0,
     /** Seconds since the finish line (the ending's glide); 0 before it. */
     completeTime: 0,
+    /** Power-ups: seconds of magnet left, whether the shield is held, and seconds of immunity left after it took a crash. */
+    magnetLeft: 0,
+    shield: false,
+    grace: 0,
     deathTime: 0,
     /** Interpolation factor between the last two fixed steps (set by the loop). */
     alpha: 1,
@@ -192,6 +209,7 @@ export function createGameSim() {
     fx: { fovKick: 0, shake: 0, lift: 0 },
     obstacles,
     orbs,
+    items,
     track,
     /** Events produced since the last drain. */
     events: [],
@@ -225,6 +243,10 @@ export function createGameSim() {
       rng.reseed(seed);
       obstacles.releaseAll();
       orbs.releaseAll();
+      items.releaseAll();
+      sim.magnetLeft = 0;
+      sim.shield = false;
+      sim.grace = 0;
       sim.phase = PHASE.READY;
       sim.time = 0;
       sim.distance = sim.prevDistance = sim.scoredDistance = 0;
@@ -306,6 +328,8 @@ export function createGameSim() {
       sim.events.push(FLAP_EVENT);
     }
     stepFlight(b, sim.input, dt, hz);
+    if (sim.magnetLeft > 0) sim.magnetLeft = Math.max(0, sim.magnetLeft - dt);
+    if (sim.grace > 0) sim.grace = Math.max(0, sim.grace - dt);
 
     sim.speed = speedAt(sim.distance);
     sim.distance += sim.speed * dt;
@@ -317,8 +341,13 @@ export function createGameSim() {
 
     // Ground is lava: touching it ends the run.
     if (b.y - R <= WORLD.groundY) {
-      die('lava');
-      return;
+      if (sim.grace > 0 || shieldSave('lava', bx)) {
+        b.y = WORLD.groundY + R + 0.05; // immune (or just saved by the shield): bounce off the floor
+        if (b.vy < 6) b.vy = 6;
+      } else {
+        die('lava');
+        return;
+      }
     }
 
     for (const o of obstacles.active) {
@@ -352,11 +381,47 @@ export function createGameSim() {
       const cy = b.y - o.dy;
       const r = o.dyn ? R - DYNAMIC_INSET : R;
       if (circleHitsObstacle(bx, cy, r, o)) {
+        if (sim.grace > 0 || shieldSave(o.kind, bx)) continue; // immune, or just saved by the shield
         die(o.kind);
         return;
       }
       const gap = circleGap(bx, cy, r, o);
       if (gap < o.gap) o.gap = gap;
+    }
+
+    // Magnet: orbs near the bird drift toward it; whether one is collected is still decided by the circle test below.
+    if (sim.magnetLeft > 0) {
+      for (const orb of orbs.active) {
+        const mx = bx - orb.x;
+        const my = b.y - orb.y;
+        const d2 = mx * mx + my * my;
+        if (d2 < MAGNET_RANGE * MAGNET_RANGE && d2 > 1e-8) {
+          const d = Math.sqrt(d2);
+          const step = Math.min(d, MAGNET_PULL * dt);
+          orb.x += (mx / d) * step;
+          orb.y += (my / d) * step;
+        }
+      }
+    }
+
+    // Power-ups: picked up by a circle test like an orb's.
+    const itemReach = R + ITEM_RADIUS;
+    for (const it of items.active) {
+      const dx = it.x - bx;
+      if (dx < -WORLD.despawnBehind) {
+        items.release(it);
+        continue;
+      }
+      if (dx > itemReach) continue;
+      const dy = it.y - b.y;
+      if (dx * dx + dy * dy < itemReach * itemReach) {
+        const kind = it.kind;
+        items.release(it);
+        if (kind === 'magnet') sim.magnetLeft = MAGNET_S;
+        else sim.shield = true;
+        sim.fx.fovKick += 1.8;
+        sim.events.push({ type: GAME_EVENTS.POWERUP, kind, x: it.x, y: it.y });
+      }
     }
 
     const reach = R + ORB_RADIUS;
@@ -394,6 +459,27 @@ export function createGameSim() {
     if (sim.distance >= JOURNEY_LENGTH) complete();
   }
 
+  /**
+   * The shield takes a crash that would have ended the run: it is spent, the bird is immune for GRACE_S seconds and (for an obstacle) is put back in the middle of the section's
+   * guaranteed gap, which is clear by construction. Returns true when it saved the run.
+   */
+  function shieldSave(cause, bx) {
+    if (!sim.shield) return false;
+    sim.shield = false;
+    sim.grace = GRACE_S;
+    const b = sim.bird;
+    if (cause !== 'lava') {
+      const c = track.corridors.find((k) => bx >= k.x0 - 1 && bx <= k.x1 + 1);
+      if (c) {
+        b.y = c.center;
+        b.vy = 0;
+      }
+    }
+    sim.fx.shake = 0.3;
+    sim.events.push({ type: GAME_EVENTS.SHIELD_BREAK, x: bx, y: b.y, cause });
+    return true;
+  }
+
   /** The finish line, crossed alive: the run is over and won. The distance scored is exactly the journey's length. */
   function complete() {
     const b = sim.bird;
@@ -425,6 +511,7 @@ export function createGameSim() {
     const behind = sim.distance - WORLD.despawnBehind;
     for (const o of obstacles.active) if (o.x + o.extent < behind) obstacles.release(o);
     for (const orb of orbs.active) if (orb.x < behind) orbs.release(orb);
+    for (const it of items.active) if (it.x < behind) items.release(it);
   }
 
   function die(cause) {

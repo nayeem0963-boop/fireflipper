@@ -65,6 +65,10 @@ export function createAutopilot(sim) {
     for (const orb of sim.orbs.active) {
       if (orb.x > x0 - 1 && orb.x < x0 + horizon && orbList.length < MAX_ORBS) orbList.push(orb);
     }
+    // power-ups are worth reaching too (they sit in line with the next gap, so they never cost safety): planned for like orbs
+    for (const it of sim.items.active) {
+      if (it.x > x0 - 1 && it.x < x0 + horizon && orbList.length < MAX_ORBS) orbList.push(it);
+    }
 
     // A layer is a Map from merged cell to state { y, vy, hold, x, value, mask, first }.
     let layer = new Map();

@@ -358,3 +358,15 @@
     display: none;
   }
 }
+
+/* Power-up status in the HUD pill: the magnet's seconds left and the shield, only while held. */
+.stat--power {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+.stat--power svg {
+  width: 24px;
+  height: 24px;
+  flex: none;
+}

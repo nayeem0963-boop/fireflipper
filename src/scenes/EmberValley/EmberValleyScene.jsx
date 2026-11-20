@@ -7,6 +7,7 @@ import PlayerBird from '../../components/scene/PlayerBird.jsx';
 import ObstacleField from '../../components/scene/ObstacleField.jsx';
 import HazardTelegraph from './HazardTelegraph.jsx';
 import OrbField from '../../components/scene/OrbField.jsx';
+import ItemField from '../../components/scene/ItemField.jsx';
 import BurstParticles from '../../components/scene/BurstParticles.jsx';
 import { useRenderSettings } from '../../hooks/useRenderSettings.js';
 import { useGameLoop } from '../../systems/game/useGameLoop.js';
@@ -98,6 +99,7 @@ export default function EmberValleyScene() {
       <ObstacleField sim={game} />
       <HazardTelegraph sim={game} />
       <OrbField sim={game} />
+      <ItemField sim={game} />
       <ForegroundLayer sim={game} />
       <PlayerBird sim={game} />
       <BurstParticles sim={game} />
