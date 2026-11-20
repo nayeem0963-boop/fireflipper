@@ -84,7 +84,7 @@ export default function HomeScreen() {
       </div>
 
       <section className="home__brand">
-        <h1 className="logo">
+        <h1 className="logo" aria-label="Fire Flipper">
           <span className="logo__fire">Fire</span>
           <span className="logo__flipper">Flipper</span>
         </h1>
