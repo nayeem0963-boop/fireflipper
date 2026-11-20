@@ -54,39 +54,40 @@ const COLORS = {
 };
 
 /**
- * A macaw's wing, drawn in the XY plane (x = chord, front is +x; y = span, outwards from the shoulder): a broad rounded leading edge, a long tip, four long splayed primary feathers with
- * notches between them, and the shorter scalloped secondaries running back to the body.
+ * A macaw's wing, drawn in the XY plane (x = chord, front is +x; y = span, outwards from the shoulder): long, narrow and pointed, swept back like a blade, with a nearly straight leading edge
+ * and a trailing edge made of separate long flight feathers (splayed primary feathers, then the shorter secondaries) instead of one broad rounded sheet.
  */
 function createWingShape() {
   const s = new Shape();
-  s.moveTo(0.3, 0);
-  s.quadraticCurveTo(0.64, 0.45, 0.44, 0.95); // the leading edge out to the wrist
-  s.quadraticCurveTo(0.26, 1.5, 0.02, 2.0); // and on to the tip of the longest primary
-  s.lineTo(-0.1, 1.72); // between the primaries
-  s.lineTo(-0.2, 1.84);
-  s.lineTo(-0.27, 1.52);
-  s.lineTo(-0.38, 1.62);
-  s.lineTo(-0.43, 1.28);
-  s.lineTo(-0.56, 1.34);
-  s.lineTo(-0.56, 1.0);
-  s.lineTo(-0.68, 0.92); // the secondaries
-  s.lineTo(-0.6, 0.62);
-  s.lineTo(-0.72, 0.46);
-  s.lineTo(-0.5, 0.14);
+  s.moveTo(0.22, 0);
+  s.quadraticCurveTo(0.34, 0.9, 0.1, 1.6); // a straight, slim leading edge
+  s.quadraticCurveTo(-0.1, 2.15, -0.38, 2.68); // sweeping back to the tip of the longest primary
+  // the trailing edge: each feather ends in its own point, longest at the tip
+  const feathers = [
+    [-0.24, 2.1, -0.66, 2.38],
+    [-0.4, 1.78, -0.9, 2.02],
+    [-0.52, 1.46, -1.08, 1.62],
+    [-0.6, 1.14, -1.1, 1.12],
+    [-0.56, 0.78, -0.98, 0.66],
+    [-0.46, 0.4, -0.78, 0.2],
+  ];
+  for (const [nx, ny, tx, ty] of feathers) {
+    s.lineTo(nx, ny); // the notch between two feathers
+    s.lineTo(tx, ty); // the point of the next one
+  }
   s.lineTo(-0.3, 0);
   s.closePath();
   return s;
 }
 
-/** The yellow-gold lining of the wing: the underwing coverts, a scoop along the body end of the wing and the secondaries. */
+/** The yellow-gold lining: only the underwing coverts near the body, a slim band that shows as the wing beats. */
 function createLiningShape() {
   const s = new Shape();
-  s.moveTo(0.22, 0.04);
-  s.quadraticCurveTo(0.42, 0.45, 0.22, 0.92);
-  s.quadraticCurveTo(0.0, 1.1, -0.2, 1.0);
-  s.lineTo(-0.42, 0.86);
-  s.lineTo(-0.5, 0.5);
-  s.lineTo(-0.38, 0.3);
+  s.moveTo(0.16, 0.05);
+  s.quadraticCurveTo(0.26, 0.6, 0.12, 1.05);
+  s.lineTo(-0.2, 1.0);
+  s.lineTo(-0.5, 0.74);
+  s.lineTo(-0.42, 0.36);
   s.lineTo(-0.28, 0.06);
   s.closePath();
   return s;
