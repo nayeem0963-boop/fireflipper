@@ -280,7 +280,7 @@ export const COLOURS = Object.freeze([
  * trail; Blue and White share cool ramps. Purely visual: a trail has no collision and changes nothing in play.
  */
 const FIRE_TRAILS = {
-  flipper: { stops: ['#fff1c9', '#ff8a1f', '#d9370b'], spark: '#ffd36b', style: 'flame' },
+  flipper: { stops: ['#fff3b0', '#3a8cff', '#0b3fb8'], spark: '#ffd84a', style: 'shimmer' }, // the macaw leaves a blue shimmer with gold sparks
   bulbuli: { stops: ['#ffb347', '#ff2e1a', '#7a0d08'], spark: '#ff9a2e', style: 'sparks' },
   'scarlet-macaw': { stops: ['#ffe08a', '#ff3b2a', '#8f1f06'], spark: '#ffd36b', style: 'flame' },
   'macaw-flying': { stops: ['#ffe14a', '#ff4a8a', '#3a7bff'], spark: '#7dffb0', style: 'shimmer' },
@@ -303,7 +303,7 @@ function trailFor(speciesId, colorId) {
 const FLIPPER_SPECIES = {
   id: 'flipper',
   name: 'Flipper',
-  tagline: 'The original flyer, light on its wings',
+  tagline: 'The original flyer: a blue-and-yellow macaw',
   kind: 'firebird',
 };
 
@@ -365,6 +365,9 @@ const CELESTIAL_PALETTE = {
   beak: '#ffe9a0',
   beakEmissive: '#ffcf5a',
   glow: '#ffd870',
+  crown: '#fff1a8',
+  face: '#fff8dc',
+  chin: '#b8680c',
   low: '#d9902a',
   mid: '#ffd25a',
   high: '#fff6d0',

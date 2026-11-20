@@ -54,5 +54,23 @@ const run = (seed) => {
 };
 check('same input gives same run regardless of bird', run(5) === run(5));
 
+// ---- the Flipper is a blue-and-yellow macaw (components/scene/Firebird.jsx)
+{
+  const { readFileSync } = await import('node:fs');
+  const { REWARD_AVATARS } = await import('../src/systems/avatars/avatars.js');
+  const src = readFileSync(new URL('../src/components/scene/Firebird.jsx', import.meta.url), 'utf8');
+  const defaults = /const COLORS = \{([\s\S]*?)\};/.exec(src)?.[1] ?? '';
+  const get = (k) => new RegExp(`${k}: '(#[0-9a-f]{6})'`, 'i').exec(defaults)?.[1];
+  const hue = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255); const mx = Math.max(r, g, b), d = mx - Math.min(r, g, b); if (!d) return 0; const x = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return x * 60; };
+  check('its own colours are a macaw\'s: a blue back and wings, a yellow belly, a green forehead, a white face patch and a dark beak', hue(get('body')) > 205 && hue(get('body')) < 240 && hue(get('wing')) > 205 && hue(get('wing')) < 240 && hue(get('belly')) > 35 && hue(get('belly')) < 55 && hue(get('crown')) > 120 && hue(get('crown')) < 170 && /^#f[0-9a-f]f[0-9a-f][ef][0-9a-f]$/i.test(get('face')) && parseInt(get('beak').slice(1, 3), 16) < 0x40);
+  check('it has the macaw\'s parts and none of the old flame crest', /face patch/.test(src) && /hooked beak/.test(src) && /green forehead/.test(src) && /chin strap/.test(src) && !/crest/i.test(src.replace(/crown/gi, '')));
+  check('a long narrow tail of three blue feathers with yellow tips', /three blue feathers with yellow tips/.test(src) && (/\[0\.1, 0, 1\.9\]/.test(src)));
+  const flipperSkins = AVATARS.filter((a) => a.species === 'flipper');
+  check('the Blue and White colourways and the gold reward skin recolour the same macaw, with their own head colours', [...flipperSkins.filter((a) => a.color !== 'fire'), ...REWARD_AVATARS].every((a) => ['crown', 'face', 'chin'].every((k) => /^#[0-9a-f]{6}$/i.test(a.palette[k]))));
+  check('the base colour (called Fire, like every bird\'s base colour) uses the macaw\'s own defaults', Object.keys(avatarFor('flipper', 'fire').palette).length === 0);
+  check('the trail is a blue shimmer with gold sparks, no longer a flame', avatarFor('flipper', 'fire').trail.style === 'shimmer' && hue(avatarFor('flipper', 'fire').trail.stops[1]) > 205 && /#ffd84a/i.test(avatarFor('flipper', 'fire').trail.spark));
+  check('the redesign is cosmetic: the simulation, collision and physics import no avatar and the hitbox is the same 0.36 circle', ['src/systems/game/createGameSim.js', 'src/systems/physics/collision.js', 'src/systems/physics/flight.js'].every((f) => !/avatar|Firebird/i.test(readFileSync(new URL(`../${f}`, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''))) && PHYSICS.birdRadius === 0.36);
+}
+
 console.log(failures ? `\n${failures} failed` : '\navatar tests passed');
 process.exit(failures ? 1 : 0);

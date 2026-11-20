@@ -1,7 +1,8 @@
 import { DEFAULT_THEME, getTheme } from '../theme/themes.js';
 
 /**
- * The original bird's colours (Fire, Blue, White). Pure data: a skin is a colour palette for the bird, and
+ * The original bird's colours (Fire, Blue, White). The Flipper is a blue-and-yellow macaw (components/scene/Firebird.jsx), so the base colour (still called Fire, like the other birds' base colour) is the macaw's
+ * own blue and yellow (the palette is empty: the bird's defaults), and Blue and White recolour the same macaw. Pure data: a skin is a colour palette for the bird, and
  * unlocks once the player's best free-play score reaches `unlockScore`.
  * (A typical skilled 3,000 m run scores about 5,000.)
  */
@@ -30,6 +31,9 @@ export const SKINS = Object.freeze([
       beak: '#e8fbff',
       beakEmissive: '#6cc8ff',
       glow: '#3aa8ff',
+      crown: '#7fe8ff',
+      face: '#f4fbff',
+      chin: '#0a4fc2',
     },
   },
   {
@@ -49,6 +53,9 @@ export const SKINS = Object.freeze([
       beak: '#ffd88a',
       beakEmissive: '#ffcf6a',
       glow: '#cfe4ff',
+      crown: '#ffffff',
+      face: '#ffffff',
+      chin: '#9fb4d6',
     },
   },
 ]);
