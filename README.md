@@ -437,7 +437,7 @@ Five effects from the supplied paintings cross the sky toward the bird, introduc
 
 ## The Flipper is a blue-and-yellow macaw
 
-The original bird (`components/scene/Firebird.jsx`, still built from primitive shapes) is redesigned as a blue-and-yellow macaw: cobalt-blue back, head and wings with a yellow wing lining, a green forehead, a yellow breast and belly, a white face patch with a dark chin strap, a big dark hooked beak, and a long narrow tail of three blue feathers with yellow tips. The flame crest and the fire-coloured plumes are gone; its trail is now a blue shimmer with gold sparks.
+The original bird (`components/scene/Firebird.jsx`, still built from primitive shapes) is redesigned as a blue-and-yellow macaw: cobalt-blue back and head, broad blue wings with splayed primary feathers over a yellow wing lining, a green forehead, a yellow breast and belly, a white face patch with a dark chin strap, a big dark hooked beak, and a long graduated tail of five leaf-shaped blue feathers with yellow tips. The flame crest and the fire-coloured plumes are gone; its trail is now a blue shimmer with gold sparks.
 
 - **Colourways:** the Flipper's base colour (still called "Fire", like every bird's base colour) is the macaw's own blue and yellow (an empty palette: the bird's defaults). Blue and White recolour the same macaw, as does the gold Celestial reward skin; each defines its own `crown`, `face` and `chin` colours (`systems/skins/skins.js`, `avatars.js`).
 - **Cosmetic only:** the same size, animation system (wing beats, tuck, limp, secondary motion) and 0.36 hitbox as before; the simulation never reads the avatar (`npm run test:avatars` checks the design and that).

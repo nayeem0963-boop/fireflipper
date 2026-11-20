@@ -53,19 +53,41 @@ const COLORS = {
   chin: '#14141a',
 };
 
+/**
+ * A macaw's wing, drawn in the XY plane (x = chord, front is +x; y = span, outwards from the shoulder): a broad rounded leading edge, a long tip, four long splayed primary feathers with
+ * notches between them, and the shorter scalloped secondaries running back to the body.
+ */
 function createWingShape() {
-  // Drawn in the XY plane: x = chord (front/back), y = span (outwards).
   const s = new Shape();
-  s.moveTo(0.28, 0);
-  s.quadraticCurveTo(0.55, 0.55, 0.3, 1.15);
-  s.quadraticCurveTo(0.1, 1.5, -0.25, 1.72); // wing tip
-  s.lineTo(-0.3, 1.38);
-  s.lineTo(-0.48, 1.28); // feather notches along the trailing edge
-  s.lineTo(-0.45, 0.98);
-  s.lineTo(-0.62, 0.86);
-  s.lineTo(-0.52, 0.56);
-  s.lineTo(-0.66, 0.42);
-  s.quadraticCurveTo(-0.45, 0.1, -0.3, 0);
+  s.moveTo(0.3, 0);
+  s.quadraticCurveTo(0.64, 0.45, 0.44, 0.95); // the leading edge out to the wrist
+  s.quadraticCurveTo(0.26, 1.5, 0.02, 2.0); // and on to the tip of the longest primary
+  s.lineTo(-0.1, 1.72); // between the primaries
+  s.lineTo(-0.2, 1.84);
+  s.lineTo(-0.27, 1.52);
+  s.lineTo(-0.38, 1.62);
+  s.lineTo(-0.43, 1.28);
+  s.lineTo(-0.56, 1.34);
+  s.lineTo(-0.56, 1.0);
+  s.lineTo(-0.68, 0.92); // the secondaries
+  s.lineTo(-0.6, 0.62);
+  s.lineTo(-0.72, 0.46);
+  s.lineTo(-0.5, 0.14);
+  s.lineTo(-0.3, 0);
+  s.closePath();
+  return s;
+}
+
+/** The yellow-gold lining of the wing: the underwing coverts, a scoop along the body end of the wing and the secondaries. */
+function createLiningShape() {
+  const s = new Shape();
+  s.moveTo(0.22, 0.04);
+  s.quadraticCurveTo(0.42, 0.45, 0.22, 0.92);
+  s.quadraticCurveTo(0.0, 1.1, -0.2, 1.0);
+  s.lineTo(-0.42, 0.86);
+  s.lineTo(-0.5, 0.5);
+  s.lineTo(-0.38, 0.3);
+  s.lineTo(-0.28, 0.06);
   s.closePath();
   return s;
 }
@@ -91,6 +113,7 @@ export default function Firebird({
   const lag = useRef(0.25);
 
   const wingShape = useMemo(createWingShape, []);
+  const liningShape = useMemo(createLiningShape, []);
   const glowMap = useMemo(() => (neutralGlow ? getNeutralGlowTexture() : getGlowTexture()), [neutralGlow]);
 
   useFrame((state, delta) => {
@@ -229,29 +252,31 @@ export default function Firebird({
         {/* Wings: pivot at the shoulder; rotation.x is animated */}
         <group position={[0.05, 0.18, 0.22]}>
           <group ref={rightWing} rotation={[Math.PI / 2, 0, 0]}>
-            <Wing shape={wingShape} colors={colors} />
+            <Wing shape={wingShape} lining={liningShape} colors={colors} />
           </group>
         </group>
         <group position={[0.05, 0.18, -0.22]}>
           <group ref={leftWing} rotation={[-Math.PI / 2, 0, 0]}>
-            <Wing shape={wingShape} colors={colors} />
+            <Wing shape={wingShape} lining={liningShape} colors={colors} />
           </group>
         </group>
 
-        {/* A long, narrow tail: three blue feathers with yellow tips */}
+        {/* A long graduated tail: five leaf-shaped blue feathers, the two in the middle longest, fanned a little, with yellow tips */}
         <group ref={tail} position={[-0.55, 0.02, 0]}>
           {[
-            [0.1, 0, 1.9],
-            [0.02, 0.17, 1.6],
-            [0.02, -0.17, 1.6],
-          ].map(([rz, ry, len], i) => (
-            <group key={i} rotation={[0, ry, rz]}>
-              <mesh position={[-len / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]} scale={[1, 1, 0.3]}>
-                <coneGeometry args={[0.1, len, 10]} />
+            [0.08, 0.0, 2.8, 0.05],
+            [0.15, 0.1, 2.55, -0.05],
+            [0.02, -0.1, 2.55, 0.0],
+            [0.22, 0.22, 2.1, -0.03],
+            [-0.04, -0.22, 2.1, 0.03],
+          ].map(([rz, ry, len, lift], i) => (
+            <group key={i} rotation={[0, ry, rz]} position={[0, lift, 0]}>
+              <mesh position={[-len / 2, 0, 0]} scale={[len / 2, 0.095, 0.03]}>
+                <sphereGeometry args={[1, 14, 8]} />
                 <meshStandardMaterial color={colors.wing} emissive={colors.wingEmissive} emissiveIntensity={0.9} toneMapped={false} roughness={0.6} />
               </mesh>
-              <mesh position={[-len + 0.08, 0, 0]} scale={[1.6, 0.9, 0.5]}>
-                <sphereGeometry args={[0.07, 10, 8]} />
+              <mesh position={[-len + 0.14, 0, 0.004]} scale={[0.17, 0.075, 0.03]}>
+                <sphereGeometry args={[1, 12, 8]} />
                 <meshBasicMaterial color={colors.flame} toneMapped={false} />
               </mesh>
             </group>
@@ -262,30 +287,17 @@ export default function Firebird({
   );
 }
 
-function Wing({ shape, colors }) {
+function Wing({ shape, lining, colors }) {
   return (
     <>
       <mesh>
         <shapeGeometry args={[shape, 12]} />
-        <meshStandardMaterial
-          color={colors.wing}
-          emissive={colors.wingEmissive}
-          emissiveIntensity={0.9}
-          side={DoubleSide}
-          roughness={0.55}
-          toneMapped={false}
-        />
+        <meshStandardMaterial color={colors.wing} emissive={colors.wingEmissive} emissiveIntensity={0.9} side={DoubleSide} roughness={0.55} toneMapped={false} />
       </mesh>
-      {/* Inner, brighter layer for a hot-core gradient */}
-      <mesh position={[0.06, 0.02, 0.01]} scale={[0.62, 0.6, 1]}>
-        <shapeGeometry args={[shape, 8]} />
-        <meshBasicMaterial
-          color={colors.wingInner}
-          side={DoubleSide}
-          transparent
-          opacity={0.85}
-          toneMapped={false}
-        />
+      {/* The yellow-gold lining of the underwing, showing as the wing beats */}
+      <mesh position={[0, 0, 0.012]}>
+        <shapeGeometry args={[lining, 8]} />
+        <meshBasicMaterial color={colors.wingInner} side={DoubleSide} transparent opacity={0.92} toneMapped={false} />
       </mesh>
     </>
   );
