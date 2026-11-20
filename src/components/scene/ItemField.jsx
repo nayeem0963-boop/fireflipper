@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { MeshBasicMaterial, Object3D, PlaneGeometry, SRGBColorSpace, TextureLoader } from 'three';
+import { MeshBasicMaterial, Object3D, PlaneGeometry } from 'three';
 import { worldIndexAt } from '../../systems/world/worlds.js';
+import { SLOTS } from '../../systems/powerups/powerups.js';
+import { ATLAS_LEAD, createLazyAtlas } from './lazyAtlas.js';
 
 /**
  * Power-up items (the magnet and the shield), drawn from public/images/powerups/powerups.webp: ONE atlas of 5 columns (the five worlds, whose colours each picture is graded for) by 2 rows (magnet on
  * top, shield below), 192 px a cell. VISUAL ONLY: pickup comes from the simulation's circle test on `item.x` / `item.y`; this reads them and draws, with a bob, a pulse and a rocking tilt that only move
  * the picture. No outline. A cell's mesh is hidden while no item of that kind and world is on screen (items are rare, so usually nothing is drawn); nothing is allocated per frame.
+ * The atlas is downloaded ATLAS_LEAD metres before the first moment an item can be on screen (see `lazyAtlas.js`), and an item is drawn only once it has loaded.
  */
 const COLS = 5;
 const ROWS = 2;
@@ -16,6 +19,8 @@ const MAX = 4;
 const HALF = 0.65;
 const ATLAS = `${import.meta.env?.BASE_URL ?? '/'}images/powerups/powerups.webp`;
 const ROW = { magnet: 0, shield: 1 };
+/** An item is placed at or after its slot's x and drawn from 60 m away, so none can be on screen before this distance; the download starts ATLAS_LEAD m earlier. */
+const LOAD_AT = Math.max(0, SLOTS[0].x - 60 - ATLAS_LEAD);
 
 /** A square quad covering one cell of the atlas (column = world, row = kind). */
 function quad(col, row) {
@@ -36,27 +41,30 @@ export default function ItemField({ sim }) {
   const geometries = useMemo(() => Array.from({ length: CELLS }, (_, i) => quad(i % COLS, Math.floor(i / COLS))), []);
   const material = useMemo(() => new MeshBasicMaterial({ transparent: true, depthWrite: false, toneMapped: false }), []);
 
-  useEffect(() => {
-    let alive = true;
-    const tex = new TextureLoader().load(ATLAS, () => {
-      if (!alive) return;
-      material.map = tex;
-      material.needsUpdate = true;
-      loaded.current = true;
-    });
-    tex.colorSpace = SRGBColorSpace;
-    return () => {
-      alive = false;
+  const atlas = useMemo(
+    () =>
+      createLazyAtlas(ATLAS, (tex) => {
+        material.map = tex;
+        material.needsUpdate = true;
+        loaded.current = true;
+      }),
+    [material],
+  );
+
+  useEffect(
+    () => () => {
       loaded.current = false;
-      tex.dispose();
+      atlas.dispose();
       material.dispose();
       geometries.forEach((g) => g.dispose());
-    };
-  }, [material, geometries]);
+    },
+    [atlas, material, geometries],
+  );
 
   useFrame(() => {
     if (!meshes.current[0]) return;
     const dist = sim.renderDistance();
+    if (dist >= LOAD_AT) atlas.request(); // once: later calls do nothing
     const t = sim.time;
     counts.fill(0);
     if (loaded.current) {

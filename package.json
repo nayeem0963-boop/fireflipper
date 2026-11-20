@@ -26,12 +26,14 @@
     "test:hazards-soak": "node scripts/hazards-soak.mjs",
     "test:e2e": "node scripts/e2e-smoke.mjs",
     "test:matrix": "node scripts/matrix-test.mjs",
-    "test:all": "npm run test:sim && npm run test:avatars && npm run test:progression && npm run test:autoplay && npm run test:store && npm run test:theme && npm run test:biome && npm run test:obstacles && npm run test:scroll && npm run test:foreground && npm run test:ambient && npm run test:fps && npm run test:rocks && npm run test:colliders && npm run test:hazards && npm run test:journey && npm run test:preview && npm run test:orbs && npm run test:powerups && npm run test:fliers",
+    "test:all": "npm run test:sim && npm run test:avatars && npm run test:progression && npm run test:autoplay && npm run test:store && npm run test:theme && npm run test:biome && npm run test:obstacles && npm run test:scroll && npm run test:foreground && npm run test:ambient && npm run test:fps && npm run test:rocks && npm run test:colliders && npm run test:hazards && npm run test:journey && npm run test:preview && npm run test:orbs && npm run test:powerups && npm run test:fliers && npm run test:atlas && npm run test:deploy",
     "test:journey": "node scripts/journey-test.mjs",
     "test:preview": "node scripts/journey-preview-test.mjs",
     "test:orbs": "node scripts/orb-families-test.mjs",
     "test:powerups": "node scripts/powerups-test.mjs",
-    "test:fliers": "node scripts/fliers-test.mjs"
+    "test:fliers": "node scripts/fliers-test.mjs",
+    "test:atlas": "node scripts/lazy-atlas-test.mjs",
+    "test:deploy": "node scripts/deploy-test.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
