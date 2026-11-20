@@ -1,6 +1,9 @@
 """
 Builds public/images/hazards/hazards.webp: the flying-hazard sprites cut out of five supplied paintings (each an effect on a pale studio background), one 192 px cell per (hazard, world) pair
-that exists (a hazard is introduced in one world and stays in the later ones), colour-graded for the world it appears in. Run: python3 scripts/build-hazard-atlas.py <folder with 49.jpg ... 53.jpg>
+that exists (a hazard is introduced in one world and stays in the later ones), colour-graded for the world it appears in. Run: python3 scripts/build-hazard-atlas.py <folder with 49.jpg ... 55.jpg>
+
+The first hazard (id 'smoke', world 1 onwards) is a harmless crystal burst, cut from two supplied paintings (54.jpg a fire crystal burst, 55.jpg an ice crystal burst); it replaced the smoke cloud. Each world gets the
+painting and the colour grade that blend with it (see GRADE).
 
 Cut-out: "colour to alpha" against the background (alpha = the largest per-channel darkening, colour = what remains once the background is taken out), so fire, embers, smoke and energy keep their
 soft edges; the disc and the rims of the rings get an opaque body (a flat average would make them translucent), the ring holes are cleared, and the faint floor shadow is thresholded away.
@@ -13,19 +16,23 @@ from PIL import Image, ImageDraw, ImageFilter
 SRC = sys.argv[1] if len(sys.argv) > 1 else '.'
 CELL = 192
 KINDS = ['smoke', 'firering', 'energyring', 'tornado', 'disc']
-FILES = {'disc': 49, 'tornado': 50, 'smoke': 51, 'energyring': 52, 'firering': 53}
+FILES = {'disc': 49, 'tornado': 50, 'smoke': 54, 'energyring': 52, 'firering': 53}
+ICE_FILE = 55  # the second crystal painting
 INTRO = {'smoke': 0, 'firering': 1, 'energyring': 2, 'tornado': 3, 'disc': 4}
 # crop centre, half-size (px in the source) and, for the shaped ones, the body radius and hole radius (px)
 GEO = {
     'disc': dict(c=(704, 385), half=308, body=275, hole=0),
     'tornado': dict(c=(700, 330), half=400, body=0, hole=0),
-    'smoke': dict(c=(712, 385), half=480, body=0, hole=0),
+    'smoke': dict(c=(690, 385), half=470, body=0, hole=0),
+    'ice': dict(c=(700, 385), half=470, body=0, hole=0),
     'energyring': dict(c=(718, 380), half=340, body=262, hole=140),
     'firering': dict(c=(704, 388), half=340, body=270, hole=140),
 }
 # per (kind, world index 0..4): hue shift in degrees, saturation and brightness multipliers, and for smoke an optional tint colour
 GRADE = {
-    'smoke': [dict(tint=(98, 78, 64)), dict(tint=(70, 86, 104)), dict(tint=(205, 190, 255)), dict(tint=(92, 52, 76)), dict(tint=(60, 70, 110))],
+    # the crystal burst: the fire painting in the warm worlds, the ice painting in the cold ones, each graded to sit in its world
+    'smoke': [dict(src='smoke', sat=0.95, val=0.95), dict(src='ice', sat=1.5, val=0.78), dict(src='ice', hue=12, sat=0.75, val=1.65),
+              dict(src='smoke', hue=-48, sat=0.85, val=0.9), dict(src='smoke', hue=0, sat=0.9, val=1.0)],
     'firering': [None, dict(hue=0), dict(hue=0), dict(hue=170, sat=0.95), dict(hue=300, sat=0.9)],
     'energyring': [None, None, None, None, dict(hue=110, sat=1.0)],
     'tornado': [None, None, None, dict(hue=0), dict(hue=265, sat=0.9)],
@@ -55,7 +62,7 @@ def smooth(a, b, x):
 
 def cut(kind):
     g = GEO[kind]
-    im = Image.open(os.path.join(SRC, f'{FILES[kind]}.jpg')).convert('RGB')
+    im = Image.open(os.path.join(SRC, f'{ICE_FILE if kind == "ice" else FILES[kind]}.jpg')).convert('RGB')
     bgc = np.median(np.concatenate([np.asarray(im)[:30].reshape(-1, 3), np.asarray(im)[:, :30].reshape(-1, 3), np.asarray(im)[:, -30:].reshape(-1, 3)]), axis=0).astype(float)
     cx, cy = g['c']; H = g['half']
     # crop square (padding with the background colour where the crop leaves the picture), at twice the cell size for a clean downsample
@@ -86,17 +93,15 @@ def cut(kind):
         ysrc = (yy - CELL) / (CELL * 2 / 2 / H) + g['c'][1]
         alpha = alpha * (1 - smooth(618, 650, ysrc))  # the glow on the floor under the base
     if kind == 'smoke':
-        alpha = (alpha ** 1.25) * 0.55  # a soft, translucent cloud: it is harmless, so it should read as haze
+        alpha = (alpha ** 0.9) * 0.82  # a little see-through: the crystals are harmless and drawn behind everything
+    if kind == 'ice':
+        alpha = (alpha ** 0.55) * 0.82  # the pale painting would otherwise lose its white facets against the white background
     return colour, alpha
 
 def grade(kind, world, colour, alpha):
     spec = GRADE[kind][world]
     if spec is None:
         return colour
-    if 'tint' in spec:  # smoke: keep the cloud's light-and-dark structure, in the world's colour
-        L = colour.mean(2, keepdims=True) / 255.0
-        t = np.array(spec['tint'], float)
-        return np.clip(t * (0.55 + 0.9 * L), 0, 255)
     return hsv(colour, spec.get('hue', 0), spec.get('sat', 1.0), spec.get('val', 1.0))
 
 def cell_image(kind, world, base):
@@ -109,8 +114,10 @@ cells = [(k, w) for k in KINDS for w in range(5) if w >= INTRO[k]]
 cols = 5; rows = (len(cells) + cols - 1) // cols
 atlas = Image.new('RGBA', (CELL * cols, CELL * rows), (0, 0, 0, 0))
 bases = {k: cut(k) for k in KINDS}
+bases['ice'] = cut('ice')
 for i, (k, w) in enumerate(cells):
-    atlas.paste(cell_image(k, w, bases[k]), ((i % cols) * CELL, (i // cols) * CELL))
+    src = GRADE[k][w].get('src', k) if GRADE[k][w] else k  # the crystal burst picks its painting per world
+    atlas.paste(cell_image(k, w, bases[src]), ((i % cols) * CELL, (i // cols) * CELL))
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'public', 'images', 'hazards', 'hazards.webp')
 atlas.save(out, 'WEBP', quality=84, method=6)
 print('cells', len(cells), 'atlas', atlas.size, 'KB', os.path.getsize(out) // 1024)

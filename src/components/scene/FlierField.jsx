@@ -5,7 +5,7 @@ import { worldIndexAt } from '../../systems/world/worlds.js';
 import { ATLAS, ATLAS_COLS, ATLAS_ROWS, FLIERS, ROLE, SHAPE, SLOTS, flierPlace } from '../../systems/fliers/fliers.js';
 
 /**
- * Flying hazards (systems/fliers): the smoke cloud, the fire and energy rings, the ember tornado and the metal disc, drawn from public/images/hazards/hazards.webp, ONE atlas with a cell per
+ * Flying hazards (systems/fliers): the harmless crystal burst (id 'smoke'; fire crystals or ice crystals, graded per world), the fire and energy rings, the ember tornado and the metal disc, drawn from public/images/hazards/hazards.webp, ONE atlas with a cell per
  * (hazard, world) pair, colour-graded for the world the hazard appears in. VISUAL ONLY: what touches the bird is decided by the simulation from the same pure function (`flierPlace`) this file draws
  * from, at the bird's distance, so the picture and the hitbox cannot drift apart. No outline. A hazard's mesh is hidden while none of its kind is on screen (usually nothing is drawn); nothing is
  * allocated per frame. The harmless smoke is drawn behind the obstacles, the orbs and the bird, so it can never hide anything that matters.

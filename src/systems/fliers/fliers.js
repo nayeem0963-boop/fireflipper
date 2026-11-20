@@ -2,7 +2,7 @@
  * Flying hazards: five effects that cross the sky toward the bird, introduced one world at a time. Pure data and maths (no three.js, no React, no random numbers), shared by the simulation, the
  * spawner, the Auto play bot, the renderer and the tests.
  *
- *  - Smoke cloud (World 1):  HARMLESS. It drifts across; it never touches the bird, an obstacle or an orb, and is drawn behind them. The first, safe introduction.
+ *  - Crystal burst (World 1; id 'smoke', the old smoke cloud, now drawn as a fire or ice crystal burst):  HARMLESS. It drifts across; it never touches the bird, an obstacle or an orb, and is drawn behind them. The first, safe introduction.
  *  - Fire ring (World 2) and energy ring (World 3):  GATES: hoops to fly through. Only the TOP and BOTTOM of the rim are lethal: the middle band (where the bird passes through the hoop) is safe, and
  *    so is going round the ring. (Seen from the side a hoop's left and right rim cannot be avoided when flying through it, so they are not lethal.)
  *  - Ember tornado (World 4) and metal disc (World 5):  LETHAL on contact.
@@ -68,7 +68,7 @@ function pickKind(e, h, seen, count) {
   // the first event of a world after NEW_AFTER m is always its newest type (the introduction); after that the newest type and the older ones alternate (so about half of a world's events are its own)
   if (newest && e - start >= NEW_AFTER && (older.length === 0 || !seen.has(newest) || count % 2 === 0)) return newest;
   if (older.length) return older[Math.min(older.length - 1, Math.floor(hash01(h * 91.7 + e * 0.013) * older.length))];
-  return null; // nothing yet in this stretch of the first world (the smoke cloud arrives after 400 m)
+  return null; // nothing yet in this stretch of the first world (the first, harmless crystal burst arrives after 400 m)
 }
 
 /** The events of the journey, in order: { e (encounter distance), kind, yc (centre height at the encounter), dir (+1 or -1: which way it sways first) }. */

@@ -420,7 +420,7 @@ Five effects from the supplied paintings cross the sky toward the bird, introduc
 
 | World | New hazard | Role |
 |---|---|---|
-| 1 Red Rock Canyon | smoke cloud | **harmless** haze that drifts across, drawn behind the obstacles, orbs and bird (it can never hide anything) |
+| 1 Red Rock Canyon | crystal burst (id `smoke`) | **harmless** burst of fire crystals (ice crystals in the cold worlds, graded per world) that drifts across, drawn behind the obstacles, orbs and bird (it can never hide anything) |
 | 2 Frosty Polar | fire ring | **gate**: a hoop to fly through |
 | 3 Celestial Realm | energy ring | **gate** |
 | 4 Rose Sky Palace | ember tornado | **lethal** (a tall capsule) |
@@ -428,7 +428,7 @@ Five effects from the supplied paintings cross the sky toward the bird, introduc
 
 - **Gates:** only the TOP and BOTTOM of a ring's rim are lethal. Seen from the side a hoop's left and right rim cannot be avoided when flying through it, so they are not lethal; the bird passes if its centre is within about 0.57 m of the ring's centre, or it can simply go round. (An earlier draft made the whole rim lethal, which made flying through impossible: a test caught it.)
 - **Forgiveness:** lethal shapes use 75% of their drawn size (and the rim's middle 75%). A shield absorbs a hit: it puts the bird in a ring's hole or clear above or below the shape, with the usual 1.5 s immunity.
-- **Flight:** each hazard flies toward the bird on a straight line in (distance, track x) and sways on a sine; its place is a pure function of the bird's distance, so it is frame-rate independent, frozen by pause, reset by a retry, and Auto play predicts it exactly. It is visible from the right edge, at least about 1.4 s (disc) to 3 s (smoke) before it can touch.
+- **Flight:** each hazard flies toward the bird on a straight line in (distance, track x) and sways on a sine; its place is a pure function of the bird's distance, so it is frame-rate independent, frozen by pause, reset by a retry, and Auto play predicts it exactly. It is visible from the right edge, at least about 1.4 s (disc) to 3 s (crystal burst) before it can touch.
 - **Schedule:** about 30 events: one every ~400 m in World 1 down to ~200 m in World 5 (jittered by hashes). The first event of a world after 400 m into it is always the world's new type; after that the new type and the older ones alternate. Never within 120 m of another, never overlapping a biome hazard window.
 - **The track makes room:** every event reserves a band `[e - 8, e + 22]` m; the spawner starts the next obstacle section after it (the same way the biome hazards reserve runway). No random number is drawn, so the sections are the same sequence, just shifted. **This lowers the obstacle density a little (about 5% in World 1 to 11% in World 5) and changes generated tracks again**; with `?fliers=0` (or `FLIERS.enabled = false`) there are no hazards and no bands.
 - **Auto play and Journey Preview** plan with the same functions and flew two whole journeys through every hazard in the tests. Tests that fly a corridor-following bird, which cannot dodge, run with the hazards off.
