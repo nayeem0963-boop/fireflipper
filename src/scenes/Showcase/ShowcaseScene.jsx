@@ -1,7 +1,10 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import AvatarBird from '../../components/scene/AvatarBird.jsx';
+import PlayerAvatar from '../../components/scene/PlayerAvatar.jsx';
 import { useSkin } from '../../hooks/useSkin.js';
+import { useGameVersion } from '../../hooks/useGameVersion.js';
+import { PREVIEW_SIZE_FACTOR, usesOriginalAvatar } from '../../systems/versions/versions.js';
 import EmberParticles from '../../components/scene/EmberParticles.jsx';
 import { useTheme } from '../../hooks/useTheme.js';
 import { useRenderSettings } from '../../hooks/useRenderSettings.js';
@@ -15,6 +18,7 @@ import { damp } from '../../utils/math.js';
 export default function ShowcaseScene() {
   const { emberCount } = useRenderSettings();
   const skin = useSkin();
+  const version = useGameVersion();
   const { scene } = useTheme();
 
   return (
@@ -26,7 +30,17 @@ export default function ShowcaseScene() {
       <CameraParallax />
 
       <group position={[0, 0.1, 0]}>
-        <AvatarBird avatar={skin} rotation={[0, -0.55, 0]} float={0.16} wingSpeed={5.5} />
+        {usesOriginalAvatar(version) ? (
+          <AvatarBird avatar={skin} rotation={[0, -0.55, 0]} float={0.16} wingSpeed={5.5} />
+        ) : (
+          <PlayerAvatar
+            version={version}
+            sizeFactor={PREVIEW_SIZE_FACTOR}
+            rotation={[0, -0.55, 0]}
+            float={0.16}
+            wingSpeed={5.5}
+          />
+        )}
         <FireRing a={scene.ringA} b={scene.ringB} />
       </group>
 

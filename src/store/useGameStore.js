@@ -17,6 +17,12 @@ import { avatarFor, getAvatar, isAvatarUnlocked, resolveAvatar } from '../system
 import { reachMilestone, sanitizeJourney } from '../systems/rewards/rewards.js';
 import { previewRewardIds, previewSeedFor } from '../systems/rewards/preview.js';
 import { WORLD_COUNT } from '../systems/world/worlds.js';
+import {
+  VERSION_STORAGE_KEY,
+  isVersionId,
+  resolveInitialVersionId,
+  syncVersionToLocation,
+} from '../systems/versions/versions.js';
 
 export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
 
@@ -92,6 +98,11 @@ export const useGameStore = create((set, get) => ({
 
   /** Selected bird skin id (species + colour). Cosmetic only: no effect on physics or collisions. */
   skinId: initialSkins().active,
+  /**
+   * Game version ('v1' | 'v2', see systems/versions): which avatar the player is drawn with. Looks only: every version runs the
+   * same simulation. Starts from ?version= in the URL, else the saved choice, else v1.
+   */
+  versionId: initialVersionId(),
   /** Each theme remembers its own bird choice: { red: 'bulbuli-fire', blue: 'toco-toucan-blue', ... }. */
   skinsByTheme: initialSkins().byTheme,
   /** Completed runs per bird species, for collection progress: { species: runs }. */
@@ -300,6 +311,14 @@ export const useGameStore = create((set, get) => ({
     applyTheme(theme);
     set({ theme, skinId });
   },
+  /** Chooses a game version from the menu: kept in storage and in the address bar (?version=), no reload. Ignored mid-run and for unknown ids. */
+  selectVersion: (id) => {
+    const s = get();
+    if (!isVersionId(id) || s.screen !== SCREENS.HOME || id === s.versionId) return;
+    saveValue(VERSION_STORAGE_KEY, id);
+    syncVersionToLocation(id);
+    set({ versionId: id });
+  },
   selectSkin: (id) => {
     const s = get();
     if (!isAvatarUnlocked(getAvatar(id), s.bestScore, s.theme, s.journey.rewards)) return;
@@ -323,6 +342,12 @@ function initialTheme() {
   const theme = getTheme(loadValue('theme', DEFAULT_THEME)).id;
   applyTheme(theme);
   return theme;
+}
+
+/** The version to start in: a valid ?version= link, else the saved choice, else v1 (where there is no window or location, as in Node tests, the saved/default one). */
+function initialVersionId() {
+  const search = (typeof window !== 'undefined' && window.location?.search) || '';
+  return resolveInitialVersionId(search, loadValue(VERSION_STORAGE_KEY, null));
 }
 
 /** Saved bird choice per theme (the old single `skinId` becomes the red theme's), and the active theme's choice. */

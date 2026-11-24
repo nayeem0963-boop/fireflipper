@@ -1,20 +1,25 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending } from 'three';
-import AvatarBird from './AvatarBird.jsx';
+import PlayerAvatar from './PlayerAvatar.jsx';
 import TrailEffect from './TrailEffect.jsx';
 import { useSkin } from '../../hooks/useSkin.js';
+import { useGameVersion } from '../../hooks/useGameVersion.js';
+import { trailForVersion } from '../../systems/versions/versions.js';
 
 /**
  * The player's firebird, positioned from the simulation each frame
  * (interpolated between fixed physics steps for smooth motion).
- * The bird stays at x = 0; the world scrolls past it.
+ * The bird stays at x = 0; the world scrolls past it. This component only places the player from the simulation; what the
+ * player looks like is <PlayerAvatar> (it depends on the game version and never affects the collider).
  */
 export default function PlayerBird({ sim }) {
   const group = useRef();
   const bubble = useRef();
   const bubbleMat = useRef();
   const skin = useSkin();
+  const version = useGameVersion();
+  const trail = useMemo(() => trailForVersion(version, skin.trail), [version, skin.trail]);
 
   useFrame(() => {
     const g = group.current;
@@ -32,18 +37,17 @@ export default function PlayerBird({ sim }) {
 
   return (
     <>
-      <TrailEffect sim={sim} trail={skin.trail} />
+      <TrailEffect sim={sim} trail={trail} />
       <group ref={group}>
       <mesh ref={bubble} position={[0, 0, -0.3]} visible={false}>
         <circleGeometry args={[0.8, 32]} />
         <meshBasicMaterial ref={bubbleMat} color="#9fe8ff" transparent opacity={0.2} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
       </mesh>
-      {/* Scaled so the body matches the 0.36 collision radius; wings and tail don't collide. */}
-      <AvatarBird
-        avatar={skin}
-        scale={0.6}
+      {/* Scaled (by the version's playerConfig) so the body matches the 0.36 collision radius; wings and tail don't collide. */}
+      <PlayerAvatar
+        version={version}
+        playerState={sim.bird}
         rotation={[0, -0.12, 0]}
-        flight={sim.bird}
         float={0.03}
         wingSpeed={9}
         lightIntensity={8}

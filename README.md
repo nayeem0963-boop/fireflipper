@@ -151,6 +151,22 @@ The game is one page (`https://fireflipper.com/`) drawn on a canvas, so its sear
 
 To do by hand (they need your accounts): add `https://fireflipper.com/` in Google Search Console (and Bing Webmaster Tools), submit `https://fireflipper.com/sitemap.xml`, request indexing of the home page, and make sure the Netlify primary domain is `fireflipper.com` (redirect `www` to it) so it matches the canonical URL. Update `lastmod` in `sitemap.xml` when you ship a notable change.
 
+## Game versions
+
+The menu lists **v1 (Original)** and **v2 (New Runner)**. They are the same game: one simulation (physics, obstacles,
+collisions, scoring, HUD, TAP / HOLD / dive and Auto play) with a different **player avatar**. Switching is instant (no
+reload), the choice is saved, and `?version=v1` / `?version=v2` opens straight into a version (a link beats the saved choice).
+
+- `src/systems/versions/versions.js`: the registry (`GAMES_CONFIG`). v1 is the baseline and v2 is v1 plus overrides to
+  `playerConfig` (`avatarType`, `assetPath`, `scale`, `offset`, optional `rotation` and `trailColor`). Nothing else can differ.
+- `components/scene/PlayerAvatar.jsx` draws the avatar for a version. `PlayerBird` only places the player from the
+  simulation each frame, and the collider lives in the simulation, so changing an avatar never changes a hitbox, a jump or the feel.
+- v1 draws the bird and skin you picked, exactly as before. v2 draws the GLB at `assetPath` (`RunnerAvatar.jsx`) and loops its
+  run / fly / flap animation if it has one. Until the file exists, the v1 bird stands in (with one console note), so v2 stays playable.
+- **To add the v2 asset:** put the GLB at `public/models/v2/runner.glb` (or change `assetPath`), then tune `scale`, `offset` and
+  `rotation` in the `PLACEHOLDER` block of `versions.js` until the body matches the 0.36 collision circle and faces the way you fly (+X).
+- `npm run test:versions` guards all of this, including that the simulation cannot see a version.
+
 ## Progression
 
 Run loop: fly, collect orbs and streaks, dodge for near misses, beat your best, unlock skins, go again with a goal.
