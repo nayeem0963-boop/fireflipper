@@ -15,6 +15,7 @@ import {
   urlForVersion,
   avatarAssetUrl,
   usesOriginalAvatar,
+  isUpright,
   trailForVersion,
 } from '../src/systems/versions/versions.js';
 import { useGameStore, SCREENS } from '../src/store/useGameStore.js';
@@ -51,8 +52,9 @@ check('v1 keeps the skin trail untouched', trailForVersion(v1, skinTrail) === sk
 
 // ---- v2 is v1 plus player-visual overrides only
 check('v2 draws the runner', v2.playerConfig.avatarType === 'v2_runner' && !usesOriginalAvatar(v2));
+check('v2 is a running model (upright) and v1 stays the flying one', isUpright(v2) && !isUpright(v1) && v1.playerConfig.upright === undefined);
 check('v2 has the same fields as v1 (nothing else is configurable)', Object.keys(v2).sort().join() === Object.keys(v1).sort().join());
-const PLAYER_KEYS = ['avatarType', 'assetPath', 'scale', 'offset', 'rotation', 'clips', 'trailColor'];
+const PLAYER_KEYS = ['avatarType', 'assetPath', 'scale', 'offset', 'rotation', 'upright', 'clips', 'trailColor'];
 check('v2 player config only uses the documented visual fields', Object.keys(v2.playerConfig).every((k) => PLAYER_KEYS.includes(k)), Object.keys(v2.playerConfig).join());
 const GAMEPLAY = /gravity|impulse|speed|radius|hitbox|collision|score|multiplier|bonus|physics|spawn/i;
 check('no version field is gameplay-like', GAMES_CONFIG.every((v) => ![...Object.keys(v), ...Object.keys(v.playerConfig)].some((k) => GAMEPLAY.test(k))));
@@ -71,7 +73,10 @@ check('v2 trail uses its colour and keeps the skin trail style', t2.stops.length
   const names = (gltf.animations ?? []).map((a) => a.name);
   check('the v2 file is a binary glTF', buf.readUInt32LE(0) === 0x46546c67 && buf.readUInt32LE(4) === 2);
   const { clips } = v2.playerConfig;
-  check('every clip the config names exists in the model', [clips.cruise, clips.dive, clips.dead].every((n) => names.includes(n)), names.join());
+  const clipOf = (d) => (typeof d === 'string' ? d : d.clip);
+  check('every clip the config names exists in the model', Object.values(clips).every((d) => names.includes(clipOf(d))), names.join());
+  const dur = (n) => Math.max(...gltf.animations.find((a) => a.name === n).samplers.map((s) => gltf.accessors[s.input].max[0]));
+  check('every clip range lies inside its clip', Object.values(clips).every((d) => typeof d === 'string' || !d.range || (d.range[0] >= 0 && d.range[0] < d.range[1] && d.range[1] <= dur(d.clip) + 1e-3)));
   check('the model is rigged (one skin)', (gltf.skins ?? []).length === 1);
   const needs = (gltf.extensionsRequired ?? []).filter((e) => !['KHR_mesh_quantization', 'EXT_texture_webp'].includes(e));
   check('it needs no decoder the game does not have (no Draco or meshopt)', needs.length === 0, needs.join());
@@ -143,6 +148,7 @@ check('the game loop and the input code do not know the version either', !/versi
 const playerBird = strip(read('src/components/scene/PlayerBird.jsx'));
 check('PlayerBird draws the player through <PlayerAvatar> (the visual is decoupled from the placement)', /<PlayerAvatar/.test(playerBird) && !/<AvatarBird/.test(playerBird));
 check('PlayerBird still places the player only from the simulation', /sim\.renderBirdY\(\)/.test(playerBird) && /sim\.bird\.pitch/.test(playerBird));
+check('only an upright (running) version skips the flight pitch; the flying bird keeps it', /upright \? 0 : sim\.bird\.pitch \+ sim\.bird\.spin/.test(playerBird));
 const avatarSrc = strip(read('src/components/scene/PlayerAvatar.jsx') + read('src/components/scene/RunnerAvatar.jsx'));
 check('the avatar components never import the simulation', !/systems\/(game|physics|obstacles|scoring)/.test(avatarSrc));
 

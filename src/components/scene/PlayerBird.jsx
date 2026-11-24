@@ -5,7 +5,7 @@ import PlayerAvatar from './PlayerAvatar.jsx';
 import TrailEffect from './TrailEffect.jsx';
 import { useSkin } from '../../hooks/useSkin.js';
 import { useGameVersion } from '../../hooks/useGameVersion.js';
-import { trailForVersion } from '../../systems/versions/versions.js';
+import { isUpright, trailForVersion } from '../../systems/versions/versions.js';
 
 /**
  * The player's firebird, positioned from the simulation each frame
@@ -19,13 +19,15 @@ export default function PlayerBird({ sim }) {
   const bubbleMat = useRef();
   const skin = useSkin();
   const version = useGameVersion();
+  const upright = isUpright(version);
   const trail = useMemo(() => trailForVersion(version, skin.trail), [version, skin.trail]);
 
   useFrame(() => {
     const g = group.current;
     if (!g) return;
     g.position.y = sim.renderBirdY();
-    g.rotation.z = sim.bird.pitch + sim.bird.spin;
+    // A flying bird pitches along its path and tumbles when it crashes; a running model (upright) stays on its feet.
+    g.rotation.z = upright ? 0 : sim.bird.pitch + sim.bird.spin;
     // The shield: a soft bubble round the bird while it is held, flickering during the immunity after it took a crash. Looks only (the hitbox is the simulation's).
     const b = bubble.current;
     if (b) {
