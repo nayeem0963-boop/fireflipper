@@ -11,6 +11,7 @@ import cyberHelix from './cyberHelix.js';
 import lotus from './lotus.js';
 import monolithGrid from './monolithGrid.js';
 import plasmaSphere from './plasmaSphere.js';
+import neuralLandscape from './neuralLandscape.js';
 
 /**
  * The Art Lab's exhibition: every art piece, in the order the HUD lists them.
@@ -36,6 +37,7 @@ export const PIECES = Object.freeze([
   piece(lotus, () => import('./Lotus.jsx')),
   piece(monolithGrid, () => import('./MonolithGrid.jsx')),
   piece(plasmaSphere, () => import('./PlasmaSphere.jsx')),
+  piece(neuralLandscape, () => import('./NeuralLandscape.jsx')),
 ]);
 
 export function getPiece(id) {
