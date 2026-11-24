@@ -1,3 +1,4 @@
+import { BLOOM_PARAMS } from './bloom.js';
 import { CAMERA_PRESETS } from './cameraPresets.js';
 import { PALETTES } from './palettes.js';
 import { PIECES } from './pieces/index.js';
@@ -101,6 +102,21 @@ export default function ArtHud({ piece, values, onSave }) {
                 </button>
               ))}
             </div>
+          </section>
+
+          <section className="art-section" aria-label="Bloom">
+            <h3 className="art-section__title">Bloom</h3>
+            <div className="art-row">
+              <button type="button" className="art-chip" aria-pressed={s.bloom} onClick={() => s.toggle('bloom')}>
+                {s.bloom ? 'Bloom on' : 'Bloom off'}
+              </button>
+              {s.bloom && (
+                <button type="button" className="art-chip" onClick={s.resetBloom}>
+                  Reset bloom
+                </button>
+              )}
+            </div>
+            {s.bloom && <ParamControls schema={BLOOM_PARAMS} values={s.bloomSettings} onChange={s.setBloom} idPrefix="art-bloom" />}
           </section>
 
           <section className="art-section" aria-label={`${piece.title} parameters`}>

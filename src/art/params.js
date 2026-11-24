@@ -69,14 +69,15 @@ export function validateSchema(schema = {}) {
 }
 
 /** What to keep from a saved Art Lab state: only well-formed values, only for pieces that still exist. */
-export function sanitizeSaved(saved, pieces, palettes) {
-  const out = { pieceId: pieces[0].id, preset: 'hero', palette: palettes[0].id, speed: 1, wireframe: false, grid: false, axes: false, studio: true, hud: 'open', params: {} };
+export function sanitizeSaved(saved, pieces, palettes, bloomSchema = {}) {
+  const out = { pieceId: pieces[0].id, preset: 'hero', palette: palettes[0].id, speed: 1, wireframe: false, grid: false, axes: false, studio: true, bloom: true, bloomSettings: defaultsOf(bloomSchema), hud: 'open', params: {} };
   if (!saved || typeof saved !== 'object') return out;
   if (pieces.some((p) => p.id === saved.pieceId)) out.pieceId = saved.pieceId;
   if (['hero', 'close', 'overview'].includes(saved.preset)) out.preset = saved.preset;
   if (palettes.some((p) => p.id === saved.palette)) out.palette = saved.palette;
   if (Number.isFinite(saved.speed)) out.speed = Math.min(3, Math.max(0, saved.speed));
-  for (const flag of ['wireframe', 'grid', 'axes', 'studio']) if (typeof saved[flag] === 'boolean') out[flag] = saved[flag];
+  if (saved.bloomSettings && typeof saved.bloomSettings === 'object') out.bloomSettings = resolveParams(bloomSchema, saved.bloomSettings);
+  for (const flag of ['wireframe', 'grid', 'axes', 'studio', 'bloom']) if (typeof saved[flag] === 'boolean') out[flag] = saved[flag];
   if (saved.hud === 'collapsed') out.hud = 'collapsed';
   if (saved.params && typeof saved.params === 'object') {
     for (const piece of pieces) if (saved.params[piece.id] && typeof saved.params[piece.id] === 'object') out.params[piece.id] = resolveParams(piece.params, saved.params[piece.id]);

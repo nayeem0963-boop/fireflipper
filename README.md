@@ -234,9 +234,7 @@ storage key. The camera is a normal orbit camera: drag to orbit, scroll or pinch
 | Neural Landscape | A grid of glowing points rolling in waves, coloured by height | Points whose heights and colours are written into the geometry each frame |
 | Particle Dancer | A dancer in arabesque made of thousands of glowing points, with swirling ribbons, on rolling waves of particles | A procedural point-cloud figure (`geometry/dancer.js`) animated in a vertex shader (`shaders/dancer.js`), sine-wave terrain points, glowing `Line` ribbons; blue-purple-gold or the active palette |
 
-There is **no postprocessing library**. Glow comes from emissive materials and additive halo sprites (`src/art/Glow.jsx`),
-and reflections from a procedural environment built from `Lightformer`s, so nothing is fetched from the network. If you
-want true bloom later, adding `@react-three/postprocessing` is a small change in `ArtStage.jsx`.
+**Bloom** (the **Bloom** section of the panel, on by default): the scene is drawn into a high-dynamic-range buffer, everything brighter than the *threshold* is blurred at several scales, and the blur is added back with the chosen *strength* and *radius*. It uses the post-processing passes that ship with three.js (`EffectComposer`, `UnrealBloomPass`, `OutputPass`), so it needs no extra dependency, and it is a separate lazy chunk (`src/art/Bloom.jsx`), loaded only when it is switched on. Turning it off gives rendering back to react-three-fiber exactly as before. **Save PNG** includes the bloom. The pieces' additive halos (`src/art/Glow.jsx`) and reflections from a procedural environment built from `Lightformer`s (nothing is fetched from the network) still work with it off. With bloom on, the whole picture goes through tone mapping, so backdrops and unlit colours look a little darker and more contrasty than with it off.
 
 ### How to add a new artwork
 

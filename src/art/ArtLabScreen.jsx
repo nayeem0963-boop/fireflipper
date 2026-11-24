@@ -54,6 +54,7 @@ export default function ArtLabScreen() {
   const palette = getPalette(s.palette);
   const values = useMemo(() => resolveParams(piece.params, s.params[piece.id]), [piece, s.params]);
   const preset = useMemo(() => presetFor(piece, s.preset), [piece, s.preset]);
+  const bloom = useMemo(() => ({ on: s.bloom, ...s.bloomSettings }), [s.bloom, s.bloomSettings]);
 
   // Keep the artwork in the free part of the screen while the panel is open: up on a phone (the panel is a sheet at the
   // bottom), left on a wide screen (the panel is a column on the right).
@@ -125,6 +126,7 @@ export default function ArtLabScreen() {
           quality={tier}
           captureRef={captureRef}
           shift={shift}
+          bloom={bloom}
         />
       </SceneCanvas>
 

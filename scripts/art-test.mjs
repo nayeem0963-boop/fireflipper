@@ -26,6 +26,7 @@ import { dancerUniforms, dancerVertex, moteUniforms, moteVertex } from '../src/a
 import { POINT_FRAGMENT, dynamicUniforms, dynamicVertex, emberUniforms, emberVertex, galaxyUniforms, galaxyVertex } from '../src/art/shaders/pointFields.js';
 import { coronaFragment, coronaUniforms, coronaVertex, plasmaFragment, plasmaUniforms, plasmaVertex } from '../src/art/shaders/plasma.js';
 import { terrainFragment, terrainUniforms, terrainVertex } from '../src/art/shaders/terrain.js';
+import { BLOOM_DEFAULTS, BLOOM_PARAMS, bloomSamples } from '../src/art/bloom.js';
 import { useArtStore } from '../src/art/useArtStore.js';
 import { SCREENS } from '../src/store/useGameStore.js';
 
@@ -125,7 +126,8 @@ section('Ribbon geometry');
   const other = (o) => ribbonKnotGeometry({ segments: 120, ...o });
   const differs = (a, b) => a.attributes.position.array.some((v, i) => Math.abs(v - b.attributes.position.array[i]) > 1e-6);
   check('p, q, twist, width and wobble each change the shape', differs(g, other({ p: 5 })) && differs(g, other({ q: 3 })) && differs(g, other({ twist: 6 })) && differs(g, other({ width: 0.5 })) && differs(g, other({ noise: 0.4 })));
-  check('a different palette changes the colours, not the shape', !differs(g, other({ colors: ['#0000ff', '#00ffff', '#ffffff'] })) && g.attributes.color.array.some((v, i) => v !== other({ colors: ['#0000ff', '#00ffff', '#ffffff'] }).attributes.color.array[i]));
+  const recoloured = other({ colors: ['#0000ff', '#00ffff', '#ffffff'] });
+  check('a different palette changes the colours, not the shape', !differs(g, recoloured) && g.attributes.color.array.some((v, i) => v !== recoloured.attributes.color.array[i]));
   check('a negative twist (the counter-ribbon) builds too', ribbonKnotGeometry({ segments: 60, twist: -3 }).attributes.position.array.every(Number.isFinite));
   check('extreme settings stay finite', [{ p: 7, q: 5, twist: 8, width: 0.6, noise: 0.5 }, { p: 2, q: 1, twist: 0, width: 0.05, noise: 0 }].every((o) => ribbonKnotGeometry({ segments: 80, ...o }).attributes.position.array.every(Number.isFinite)));
   check('the default piece settings build a valid ribbon', (() => { const d = defaultsOf(PIECES.find((p) => p.id === 'ribbon-knot').params); const r = ribbonKnotGeometry({ p: d.p, q: d.q, twist: d.twist, width: d.width, noise: d.wobble, segments: 100 }); return r.attributes.position.array.every(Number.isFinite); })());
@@ -195,7 +197,9 @@ section('Geometry helpers');
   check('galaxy: the right number of stars, all finite, with a random value each', gal.positions.length === 9000 && gal.rands.length === 3000 && gal.positions.every(Number.isFinite) && gal.rands.every((v) => v >= 0 && v < 1));
   check('galaxy: stars stay near the rim and crowd the core', Math.max(...radii) < 5.6 && radii.filter((r) => r < 2).length > radii.filter((r) => r > 2).length);
   check('galaxy: thin disc (stars sit close to the plane)', Math.max(...Array.from({ length: 3000 }, (_, i) => Math.abs(gal.positions[i * 3 + 1]))) < 1.2);
-  check('galaxy: deterministic, and the arm count changes it', gal.positions.every((v, i) => v === galaxyPoints({ count: 3000, radius: 4 }).positions[i]) && galaxyPoints({ count: 3000, arms: 2 }).positions.some((v, i) => v !== gal.positions[i]));
+  const galAgain = galaxyPoints({ count: 3000, radius: 4 });
+  const galTwo = galaxyPoints({ count: 3000, arms: 2 });
+  check('galaxy: deterministic, and the arm count changes it', gal.positions.every((v, i) => v === galAgain.positions[i]) && galTwo.positions.some((v, i) => v !== gal.positions[i]));
   const a = helixPoint(0.3, { radius: 1, turns: 3, height: 5, phase: 0 });
   const b = helixPoint(0.3, { radius: 1, turns: 3, height: 5, phase: Math.PI });
   check('helix: the two strands are on opposite sides of the axis at the same height', Math.abs(a.x + b.x) < 1e-9 && Math.abs(a.z + b.z) < 1e-9 && a.y === b.y);
@@ -223,7 +227,9 @@ section('Particle Dancer');
   check('the standing foot is on the ground under her', all.some(([x, y]) => y < 0.12 && x > -0.1 && x < 0.3));
   check('the head is above the shoulders, forward of the hips', all.filter(([x, y]) => y > 2.9 && y < 3.25 && Math.abs(x - 0.62) < 0.2).length > 100);
   check('the skirt is the stated share of the points and hangs in its band', Math.abs(d.kinds.reduce((a, b) => a + b, 0) / 12000 - 0.22) < 0.01 && all.filter((_, i) => d.kinds[i] === 1).every(([x, y, z]) => y >= SKIRT.hemY - 1e-4 && y <= SKIRT.waistY + 1e-4 && Math.hypot(x - SKIRT.waistX, z) < SKIRT.hemRadius * 1.4));
-  check('deterministic for a seed, different for another', d.positions.every((v, i) => v === dancerPoints({ count: 12000 }).positions[i]) && dancerPoints({ count: 12000, seed: 9 }).positions.some((v, i) => v !== d.positions[i]));
+  const again = dancerPoints({ count: 12000 });
+  const other = dancerPoints({ count: 12000, seed: 9 });
+  check('deterministic for a seed, different for another', d.positions.every((v, i) => v === again.positions[i]) && other.positions.some((v, i) => v !== d.positions[i]));
   check('volumetric: points sit a little inside and outside the surface, not on one thin shell', (() => { const body = all.filter((_, i) => d.kinds[i] === 0); const torso = body.filter(([, y]) => y > 2.0 && y < 2.4); const r = torso.map(([x, y, z]) => Math.hypot(x - (0.1 + (y - 1.92) * 0.37), z)); return Math.max(...r) - Math.min(...r) > 0.03; })());
   check('a different point count builds too, down to a handful', dancerPoints({ count: 50 }).positions.every(Number.isFinite));
 
@@ -275,6 +281,41 @@ section('Shaders (the new pieces)');
   check('the point fragment shader makes a soft round point', POINT_FRAGMENT.includes('discard') && POINT_FRAGMENT.includes('gl_PointCoord'));
   check('the terrain draws its grid lines in the fragment shader with fwidth (a constant line width)', terrainFragment.includes('fwidth'));
   check('plasma and corona use the shared noise exactly once each', (plasmaVertex.match(/float snoise/g) ?? []).length === 1 && (plasmaFragment.match(/float snoise/g) ?? []).length === 1);
+}
+
+section('Bloom');
+{
+  check('the bloom schema is valid and has strength, threshold and radius', validateSchema(BLOOM_PARAMS).length === 0 && Object.keys(BLOOM_PARAMS).join() === 'strength,threshold,radius');
+  check('bloom defaults sit on their steps and match the schema defaults', Object.entries(BLOOM_PARAMS).every(([k, d]) => clampParam(d, d.default) === d.default && BLOOM_DEFAULTS[k] === d.default));
+  check('bloom ranges allow none to a lot (strength 0..3, threshold 0..1.5, radius 0..1)', BLOOM_PARAMS.strength.min === 0 && BLOOM_PARAMS.strength.max >= 2 && BLOOM_PARAMS.threshold.min === 0 && BLOOM_PARAMS.radius.max === 1);
+  check('the low quality tier goes without bloom anti-aliasing samples; high has them', bloomSamples('low') === 0 && bloomSamples('high') > 0);
+  const fresh = sanitizeSaved(null, PIECES, PALETTES, BLOOM_PARAMS);
+  check('a first visit has bloom on with the default settings', fresh.bloom === true && JSON.stringify(fresh.bloomSettings) === JSON.stringify(BLOOM_DEFAULTS));
+  const kept = sanitizeSaved({ bloom: false, bloomSettings: { strength: 99, threshold: 'x', radius: 0.3, junk: 1 } }, PIECES, PALETTES, BLOOM_PARAMS);
+  check('saved bloom settings are kept, repaired and cleaned', kept.bloom === false && kept.bloomSettings.strength === 3 && kept.bloomSettings.threshold === BLOOM_DEFAULTS.threshold && kept.bloomSettings.radius === 0.3 && !('junk' in kept.bloomSettings));
+  check('an old save with no bloom keys gets the defaults', sanitizeSaved({ pieceId: PIECES[1].id }, PIECES, PALETTES, BLOOM_PARAMS).bloom === true);
+  const st = () => useArtStore.getState();
+  check('the store starts with bloom on and the default settings', st().bloom === true && JSON.stringify(st().bloomSettings) === JSON.stringify(BLOOM_DEFAULTS));
+  st().toggle('bloom');
+  check('bloom can be switched off and on', st().bloom === false && (st().toggle('bloom'), st().bloom === true));
+  st().setBloom('strength', 99);
+  st().setBloom('radius', -5);
+  st().setBloom('nonsense', 1);
+  check('setBloom clamps to the range and ignores unknown settings', st().bloomSettings.strength === 3 && st().bloomSettings.radius === 0 && !('nonsense' in st().bloomSettings));
+  st().resetBloom();
+  check('resetBloom restores the defaults', JSON.stringify(st().bloomSettings) === JSON.stringify(BLOOM_DEFAULTS));
+
+  // How it is built: real bloom from three's own post-processing passes, only mounted when on, and part of Save PNG.
+  const bloom = read('src/art/Bloom.jsx');
+  check('it uses three.js\'s own passes: render, unreal bloom (bright-pass + multi-scale blur) and output (tone mapping, colour space)', /EffectComposer/.test(bloom) && /RenderPass/.test(bloom) && /UnrealBloomPass/.test(bloom) && /OutputPass/.test(bloom) && /three\/examples\/jsm\/postprocessing\//.test(bloom));
+  check('it draws every frame at priority 1 (taking over rendering) and gives it back when unmounted', /useFrame\([^;]*composer\.render[^;]*, 1\);/.test(bloom) && /composer\.dispose\(\)/.test(bloom));
+  check('it follows the canvas size and the adaptive pixel ratio', /setPixelRatio\(dpr\)/.test(bloom) && /setSize\(size\.width, size\.height\)/.test(bloom));
+  const stage = read('src/art/ArtStage.jsx');
+  check('the stage mounts bloom only when it is on, and loads it lazily', /bloom\.on && \(/.test(stage) && /lazy\(\(\) => import\('\.\/Bloom\.jsx'\)\)/.test(stage));
+  check('Save PNG renders through the bloom when it is on', /renderRef\.current\(\)/.test(stage) && /renderRef\.current = \(\) => rig\.composer\.render\(\)/.test(bloom));
+  check('the HUD has a Bloom section with the toggle, reset and the three sliders', /aria-label="Bloom"/.test(read('src/art/ArtHud.jsx')) && /BLOOM_PARAMS/.test(read('src/art/ArtHud.jsx')) && /resetBloom/.test(read('src/art/ArtHud.jsx')));
+  check('three\'s post-processing code stays out of the startup vendor chunk (vite config)', /vendor-three[^\n]*\(\?!examples/.test(read('vite.config.js')));
+  check('bloom needed no new dependency', !/"postprocessing"|@react-three\/postprocessing/.test(read('package.json')));
 }
 
 section('Art Lab store');

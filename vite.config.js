@@ -44,7 +44,8 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             { name: 'vendor-react', test: /node_modules[\\/](react|react-dom|scheduler|zustand|use-sync-external-store)[\\/]/, priority: 30 },
-            { name: 'vendor-three', test: /node_modules[\\/](three|three-stdlib)[\\/]/, priority: 20 },
+            // three's post-processing examples (the Art Lab's bloom) are left out of this group, so they load with the bloom, not with every visitor's first page.
+            { name: 'vendor-three', test: /node_modules[\\/](three|three-stdlib)[\\/](?!examples[\\/]jsm[\\/](postprocessing|shaders)[\\/])/, priority: 20 },
             { name: 'vendor-r3f', test: /node_modules[\\/](@react-three|its-fine|react-use-measure|suspend-react|react-reconciler)[\\/]/, priority: 10 },
           ],
         },

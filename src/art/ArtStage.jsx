@@ -1,9 +1,12 @@
-import { Suspense, useEffect, useMemo, useRef } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Environment, Grid, Lightformer, OrbitControls } from '@react-three/drei';
 import { BackSide, Color, ShaderMaterial, Vector3 } from 'three';
 
 const DEFAULT_FLOOR_Y = -2.2;
+
+/** Bloom is its own small chunk, loaded only when it is switched on. */
+const Bloom = lazy(() => import('./Bloom.jsx'));
 
 /**
  * Slides the picture sideways or up by `x` / `y` pixels without moving the camera, so the artwork stays centred in the
@@ -114,17 +117,19 @@ function StudioBackdrop({ palette, floorY }) {
 }
 
 /** Registers a function the HUD calls to save a PNG of the canvas as it is right now. */
-function CaptureBridge({ captureRef }) {
+function CaptureBridge({ captureRef, renderRef }) {
   const { gl, scene, camera } = useThree();
   useEffect(() => {
     captureRef.current = () => {
-      gl.render(scene, camera); // render, then read in the same task: the drawing buffer is not preserved between frames
+      // Render (through the bloom when it is on), then read in the same task: the drawing buffer is not preserved between frames.
+      if (renderRef.current) renderRef.current();
+      else gl.render(scene, camera);
       return gl.domElement.toDataURL('image/png');
     };
     return () => {
       captureRef.current = null;
     };
-  }, [gl, scene, camera, captureRef]);
+  }, [gl, scene, camera, captureRef, renderRef]);
   return null;
 }
 
@@ -132,13 +137,14 @@ function CaptureBridge({ captureRef }) {
  * The Art Lab scene: studio lighting and a procedural reflection environment (no network fetch), orbit controls with
  * camera presets, optional helpers, and the active art piece, which is given the resolved `params`, the `palette`, a
  * shared `clock` ({ current: { t } }, advanced by the speed setting and stopped by Pause) and the quality tier.
- * `shift` ({ x, y } pixels) keeps the artwork out from behind the panel.
+ * `shift` ({ x, y } pixels) keeps the artwork out from behind the panel. `bloom` ({ on, strength, threshold, radius }) adds bloom.
  */
-export default function ArtStage({ piece, params, palette, speed, paused, preset, viewNonce, wireframe, grid, axes, studio, quality, captureRef, shift = { x: 0, y: 0 } }) {
+export default function ArtStage({ piece, params, palette, speed, paused, preset, viewNonce, wireframe, grid, axes, studio, quality, captureRef, shift = { x: 0, y: 0 }, bloom = { on: false } }) {
   const clock = useRef({ t: 0 });
   const content = useRef();
   const controls = useRef();
   const frames = useRef(0);
+  const renderRef = useRef(null); // set by the bloom pass, so Save PNG can include it
   const dark = piece.lighting === 'dark';
   const floorY = piece.floorY ?? DEFAULT_FLOOR_Y;
 
@@ -199,7 +205,12 @@ export default function ArtStage({ piece, params, palette, speed, paused, preset
       <OrbitControls ref={controls} makeDefault enableDamping dampingFactor={0.08} minDistance={0.8} maxDistance={32} />
       <CameraRig preset={preset} nonce={viewNonce} controls={controls} />
       <ViewShift x={shift.x} y={shift.y} />
-      <CaptureBridge captureRef={captureRef} />
+      {bloom.on && (
+        <Suspense fallback={null}>
+          <Bloom strength={bloom.strength} threshold={bloom.threshold} radius={bloom.radius} quality={quality} renderRef={renderRef} />
+        </Suspense>
+      )}
+      <CaptureBridge captureRef={captureRef} renderRef={renderRef} />
     </>
   );
 }
