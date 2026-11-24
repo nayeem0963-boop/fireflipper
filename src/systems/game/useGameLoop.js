@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { useGameStore, STATUS } from '../../store/useGameStore.js';
 import { PHYSICS } from '../physics/constants.js';
 import { createAutopilot } from '../bot/autopilot.js';
+import { createRunnerAutopilot } from '../runner/autopilot.js';
 import { gameEvents } from '../events/gameEvents.js';
 import { routeSimEvent } from './routeEvents.js';
 
@@ -20,8 +21,8 @@ export function useGameLoop(sim) {
   const runId = useGameStore((s) => s.runId);
   const acc = useRef(0);
   const hudTimer = useRef(0);
-  // Auto play: the bot presses the same inputs a player would, once per fixed step.
-  const bot = useMemo(() => createAutopilot(sim), [sim]);
+  // Auto play: the bot presses the same inputs a player would, once per fixed step. Each simulation has its own bot (the flyer's and the runner's).
+  const bot = useMemo(() => (sim.kind === 'runner' ? createRunnerAutopilot(sim) : createAutopilot(sim)), [sim]);
 
   useEffect(() => {
     // the Journey Preview flies a verified track seed; a normal run and plain Auto play keep a random one

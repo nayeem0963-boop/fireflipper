@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../../store/useGameStore.js';
 import { GAME_EVENTS, gameEvents } from '../../systems/events/gameEvents.js';
-import { game } from '../../systems/game/gameInstance.js';
+import { getActiveSim } from '../../hooks/useGameSim.js';
 import { PlayIcon } from './Icons.jsx';
+import { useGameVersion } from '../../hooks/useGameVersion.js';
+import { isRunner } from '../../systems/versions/versions.js';
 
 /**
  * Auto-play overlay (keep this feature: see CLAUDE.md). A bot is flying; the viewer watches to learn how the game
@@ -14,6 +16,7 @@ export default function DemoOverlay() {
   const startGame = useGameStore((s) => s.startGame);
   const exitToMenu = useGameStore((s) => s.exitToMenu);
   const preview = useGameStore((s) => s.preview);
+  const runner = isRunner(useGameVersion());
   const [tap, setTap] = useState(0);
   const [hold, setHold] = useState(false);
   const lastTap = useRef(0);
@@ -27,7 +30,10 @@ export default function DemoOverlay() {
   }, []);
 
   useEffect(() => {
-    const id = setInterval(() => setHold(game.input.holding && game.phase === 'running'), 100);
+    const id = setInterval(() => {
+      const sim = getActiveSim();
+      setHold(sim.input.holding && sim.phase === 'running');
+    }, 100);
     return () => clearInterval(id);
   }, []);
 
@@ -37,7 +43,11 @@ export default function DemoOverlay() {
         <span className="demo__dot" aria-hidden="true" />
         <span>
           <strong>{preview ? 'Journey Preview' : 'Auto play'}</strong>
-          <small>{preview ? 'A bot flies all 10,000 m. Nothing is saved.' : 'A bot is flying. Nothing is scored.'}</small>
+          <small>
+            {preview
+              ? `A bot ${runner ? 'runs' : 'flies'} all 10,000 m. Nothing is saved.`
+              : `A bot is ${runner ? 'running' : 'flying'}. Nothing is scored.`}
+          </small>
         </span>
       </div>
 

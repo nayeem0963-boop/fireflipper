@@ -40,7 +40,7 @@ export default function AvatarPicker() {
   const current = useSkin();
   const theme = useTheme();
   const dialogRef = useRef(null);
-  const credit = current.kind === 'model' ? getCredit(current.species) : null;
+  const credit = getCredit(current.species);
   const progress = collectionProgress(bestScore, flown, theme.id);
   // The theme's own colour first, then the other warm/cool one, then White.
   const order = { [theme.freeSkin]: 0, fire: 1, blue: 1, white: 2 };
@@ -165,8 +165,8 @@ export default function AvatarPicker() {
                 {credit.author}
               </a>
               , licensed{' '}
-              <a href={LICENCE.url} target="_blank" rel="noopener noreferrer">
-                {LICENCE.name}
+              <a href={(credit.licence ?? LICENCE).url} target="_blank" rel="noopener noreferrer">
+                {(credit.licence ?? LICENCE).name}
               </a>
               ; modified into a fire bird.{' '}
               <button type="button" className="link-btn" onClick={openCredits}>

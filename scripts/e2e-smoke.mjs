@@ -59,13 +59,13 @@ for (const [name, opts, themeId] of CASES) {
     });
   });
   check(`${name}: welcome page fits the screen width`, clipped.length === 0, clipped.join());
-  check(`${name}: five birds on the menu`, (await p.locator('.birdchip').count()) === 5);
+  check(`${name}: six birds on the menu`, (await p.locator('.birdchip').count()) === 6);
 
   // pick a bird, open the picker and achievements
   await p.getByRole('radio', { name: /toco toucan/i }).click();
   await p.getByRole('button', { name: /skins/i }).click();
   await p.waitForSelector('.birds');
-  check(`${name}: picker lists five birds`, (await p.locator('.birds__grid [role=radio]').count()) === 5);
+  check(`${name}: picker lists six birds`, (await p.locator('.birds__grid [role=radio]').count()) === 6);
   await p.keyboard.press('Escape');
   await p.getByRole('button', { name: /achievements/i }).click();
   await p.waitForSelector('.prog');
@@ -130,6 +130,61 @@ for (const [name, opts] of CASES) {
   if (opts.hasTouch) await p.touchscreen.tap(200, 150); else await p.mouse.click(400, 300);
   await p.waitForTimeout(2500);
   check(`${name} (hazards off, ?hazards=0): a manual run starts with no page or console error`, errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+// Game versions: ?version=v2 opens v2 directly, the menu switches between v1 and v2 without a reload, and both start, run, game-over and retry.
+// (The v2 asset may not be in the repo yet; the v1 bird then stands in, which must never be a page error.)
+for (const [name, opts] of CASES) {
+  const ctx = await browser.newContext(opts);
+  const p = await ctx.newPage();
+  const errors = [];
+  p.on('pageerror', (e) => errors.push(e.message));
+  const radio = (re) => p.getByRole('radio', { name: re });
+  await p.goto(`http://localhost:${PORT}/?version=v2`);
+  await p.waitForSelector('.versioncard', { timeout: 20000 });
+  check(`${name} (versions): ?version=v2 opens v2`, (await radio(/^v2/i).getAttribute('aria-checked')) === 'true' && (await radio(/^v1/i).getAttribute('aria-checked')) === 'false');
+  check(`${name} (versions): the v1 bird strip is hidden in v2`, (await p.locator('.birdchip').count()) === 0);
+  await p.evaluate(() => (window.__noReload = true));
+  await radio(/^v1/i).click();
+  check(`${name} (versions): switching to v1 does not reload the page`, await p.evaluate(() => window.__noReload === true));
+  check(`${name} (versions): v1 brings the bird strip back`, (await p.locator('.birdchip').count()) === 6);
+  check(`${name} (versions): the address bar follows the choice`, new URL(p.url()).searchParams.get('version') === 'v1', p.url());
+  await radio(/^v2/i).click();
+  check(`${name} (versions): the address bar says v2`, new URL(p.url()).searchParams.get('version') === 'v2', p.url());
+
+  await p.getByRole('button', { name: /^play/i }).first().click();
+  await p.waitForSelector('.start-prompt', { timeout: 20000 });
+  await p.waitForSelector('canvas', { timeout: 20000 });
+  await p.waitForTimeout(1500);
+  const tapV = () => (opts.hasTouch ? p.touchscreen.tap(200, 150) : p.mouse.click(400, 300));
+  await tapV();
+  await p.waitForTimeout(300);
+  await tapV();
+  await p.waitForSelector('.gameover', { timeout: 30000 });
+  await p.waitForTimeout(700);
+  await p.getByRole('button', { name: /retry/i }).click();
+  await p.waitForSelector('.start-prompt');
+  check(`${name} (versions): v2 starts, ends and retries`, true);
+  await p.getByRole('button', { name: /back|menu/i }).first().click().catch(() => {});
+  await p.waitForSelector('.versioncard', { timeout: 20000 });
+  check(`${name} (versions): back on the menu it is still v2`, (await radio(/^v2/i).getAttribute('aria-checked')) === 'true');
+  await p.goto(`http://localhost:${PORT}/`);
+  await p.waitForSelector('.versioncard', { timeout: 20000 });
+  check(`${name} (versions): a plain reload remembers v2`, (await radio(/^v2/i).getAttribute('aria-checked')) === 'true');
+  await p.getByRole('button', { name: /watch auto play/i }).click();
+  await p.waitForSelector('.demo__badge', { timeout: 20000 });
+  await p.waitForTimeout(2500);
+  check(`${name} (versions): Auto play works in v2`, true);
+  await p.getByRole('button', { name: /^exit/i }).click().catch(() => {});
+  await p.waitForSelector('.versioncard', { timeout: 20000 });
+  const v2Saved = () => p.evaluate(() => ['stats', 'bestScore', 'achievements', 'journey'].map((k) => localStorage.getItem(`fireflipper:v2:${k}`)).join('|'));
+  const savedBefore = await v2Saved();
+  await p.getByRole('button', { name: /journey preview/i }).click();
+  await p.waitForSelector('.demo__badge', { timeout: 20000 });
+  await p.waitForTimeout(2500);
+  check(`${name} (versions): the Journey Preview runs in v2 (a bot runs) and saves nothing`, /runs all 10,000 m/i.test((await p.locator('.demo__badge').textContent()) ?? '') && (await v2Saved()) === savedBefore);
+  check(`${name} (versions): no page errors`, errors.length === 0, errors.join(' | '));
   await ctx.close();
 }
 

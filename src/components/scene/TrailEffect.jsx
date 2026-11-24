@@ -19,7 +19,7 @@ const STYLE = {
   shimmer: { size: 0.42, jitter: 0.02, shimmer: 1 },
 };
 
-export default function TrailEffect({ sim, trail }) {
+export default function TrailEffect({ sim, trail, lift = 0 }) {
   const points = useRef();
   const glowMap = useMemo(getNeutralGlowTexture, []);
   const style = STYLE[trail.style] ?? STYLE.flame;
@@ -55,7 +55,7 @@ export default function TrailEffect({ sim, trail }) {
     if (flying && dist - buf.lastX >= SPACING) {
       const k = buf.head;
       buf.tx[k] = dist - 0.25; // starts just behind the bird
-      buf.y[k] = sim.renderBirdY();
+      buf.y[k] = sim.renderBirdY() + lift; // (a runner's trail streams from her body, not her feet)
       buf.jit[k] = (Math.random() - 0.5) * 2;
       buf.head = (k + 1) % POINTS;
       buf.count = Math.min(POINTS, buf.count + 1);

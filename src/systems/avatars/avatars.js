@@ -2,7 +2,7 @@ import { SKINS, colorUnlockScore, isUnlocked } from '../skins/skins.js';
 import { DEFAULT_THEME, getTheme } from '../theme/themes.js';
 
 /**
- * Every bird the player can fly as: five species, each in three colours (Fire, Blue and White), so 15 avatars. (The Flipper is no longer in the list; its model is kept only for the Celestial reward skin.)
+ * Every bird the player can fly as: six species, each in three colours (Fire, Blue and White), so 18 avatars. (The Flipper is no longer in the list; its model is kept only for the Celestial reward skin.)
  * A species is named for what it is (never for its colour); the colour is chosen separately.
  *
  * Each avatar carries its species' fields plus `species` (the species id), `color` ('fire' | 'blue' | 'white'),
@@ -15,6 +15,9 @@ import { DEFAULT_THEME, getTheme } from '../theme/themes.js';
  *  - 'model': a real 3D bird model re-lit as a fire bird at run time (colour-tinted plumage, glow and a flame
  *    tail). The models are third-party (CC BY 4.0); credits are in credits.js and shown in the app. They are
  *    free to choose: the choice is cosmetic and changes nothing about the physics or the collision size.
+ *
+ *  - 'eagle': the Fire Eagle, a rigged, animated GLB (a real `Fly` clip drives its wings) re-skinned as a fire bird at
+ *    run time by FireEagle.jsx. Its colours are 8-texel palettes (see `EAGLE_SPECIES`). Its licence is not CC BY (see credits.js).
  *
  * Model transform fields (units: the Firebird's own local size, so a model fits where the Firebird does):
  *  - file:    path under public/models/birds
@@ -194,6 +197,49 @@ export const MODEL_BIRDS = Object.freeze(
   }),
 );
 
+/**
+ * The Fire Eagle (a stylised bald eagle with a skeleton and a wing-beat animation), in three colours. The model's own
+ * texture is an 8-texel palette strip, so a colour is just eight replacement colours:
+ * 0 pale, 1 body, 2 wings, 3 beak, 4 feet, 5 tail, 6 head, 7 eye. `glow` tints the emissive light; `flameA` and `flameB` are
+ * the inner and outer colours of the flame shell that streams from the tail; low / mid / high are for swatches.
+ */
+const EAGLE_SPECIES = {
+  id: 'fire-eagle',
+  name: 'Fire Eagle',
+  tagline: 'An eagle wreathed in a streaming flame',
+  kind: 'eagle',
+  file: 'fire-eagle.glb',
+  variants: {
+    fire: {
+      texels: ['#ffc04a', '#e83a08', '#a51402', '#fff0a0', '#ffa72a', '#ffd070', '#ffe9a8', '#1b0804'],
+      glow: '#ff7a2a',
+      flameA: '#ffb833',
+      flameB: '#ff2a05',
+      low: '#a51402',
+      mid: '#e83a08',
+      high: '#ffc04a',
+    },
+    blue: {
+      texels: ['#9ad8ff', '#1f6fe8', '#0b3fb8', '#e8fbff', '#7ad8ff', '#cfeeff', '#f2fbff', '#06101e'],
+      glow: '#3aa8ff',
+      flameA: '#bfe9ff',
+      flameB: '#1e6bff',
+      low: '#0b3fb8',
+      mid: '#2ea6ff',
+      high: '#d8f6ff',
+    },
+    white: {
+      texels: ['#e6edf8', '#c4d0e6', '#8fa3c4', '#ffe9a8', '#ffd27a', '#f4f8ff', '#ffffff', '#1b2230'],
+      glow: '#cfe4ff',
+      flameA: '#ffffff',
+      flameB: '#a9c4ee',
+      low: '#8fa3c4',
+      mid: '#e6edf8',
+      high: '#ffffff',
+    },
+  },
+};
+
 /** Bulbuli the red-whiskered bulbul, in three colours. */
 const BULBULI_SPECIES = {
   id: 'bulbuli',
@@ -263,6 +309,7 @@ const FIRE_TRAILS = {
   'macaw-blue-yellow': { stops: ['#ffe14a', '#2ea6ff', '#0b3fb8'], spark: '#d8f6ff', style: 'flame' },
   'toco-toucan': { stops: ['#ffd36b', '#e0361a', '#5a0a06'], spark: '#ffb33a', style: 'sparks' },
   morpho: { stops: ['#ffe9a8', '#ff7a3a', '#b21e6a'], spark: '#ffb3e0', style: 'shimmer' },
+  'fire-eagle': { stops: ['#fff0a0', '#ff6a14', '#a51402'], spark: '#ffd070', style: 'flame' },
 };
 const COOL_TRAILS = {
   blue: { stops: ['#e8fbff', '#2ea6ff', '#0b3fb8'], spark: '#9fe8ff' },
@@ -310,6 +357,7 @@ export const AVATARS = Object.freeze([
     }),
   ),
   ...MODEL_BIRDS.flatMap((m) => COLOURS.map((c) => make(m, c, { kind: 'model', palette: m.variants[c.id] }))),
+  ...COLOURS.map((c) => make(EAGLE_SPECIES, c, { palette: EAGLE_SPECIES.variants[c.id] })),
 ]);
 
 /** The species in picker order, each with its three colours: [{ id, name, tagline, kind, variants: [avatar x3] }]. */
@@ -322,7 +370,7 @@ export const AVATAR_SPECIES = Object.freeze(
 );
 
 /**
- * Reward skins: earned by journey rewards, never by score, and NOT part of the 15-skin collection above (its counts and the picker are unchanged). Purely cosmetic: like every
+ * Reward skins: earned by journey rewards, never by score, and NOT part of the 18-skin collection above (its counts and the picker are unchanged). Purely cosmetic: like every
  * bird it only changes how the bird LOOKS; the simulation never reads an avatar, so the hitbox, the physics and the scoring are the same.
  */
 const CELESTIAL_PALETTE = {

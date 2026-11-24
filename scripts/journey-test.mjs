@@ -300,7 +300,7 @@ console.log('\nF. Store');
 }
 {
   const celestial = getAvatar('flipper-celestial');
-  check('the Celestial skin is a reward skin (not part of the 15-skin collection)', celestial.reward === 'celestial-skin' && AVATARS.length === 15 && !AVATARS.some((a) => a.id === 'flipper-celestial') && REWARD_AVATARS.length === 1);
+  check('the Celestial skin is a reward skin (not part of the 18-skin collection)', celestial.reward === 'celestial-skin' && AVATARS.length === 18 && !AVATARS.some((a) => a.id === 'flipper-celestial') && REWARD_AVATARS.length === 1);
   check('locked: it falls back to the bird in its free colour; owned: it is shown', resolveAvatar('flipper-celestial', 1e9, 'red', {}).id === 'bulbuli-fire' && resolveAvatar('flipper-celestial', 0, 'red', { 'celestial-skin': 1 }).id === 'flipper-celestial' && !isAvatarUnlocked(celestial, 1e9, 'red', {}) && isAvatarUnlocked(celestial, 0, 'red', { 'celestial-skin': 1 }));
   const simSrc = ['src/systems/game/createGameSim.js', 'src/systems/physics/flight.js', 'src/systems/physics/collision.js', 'src/systems/physics/constants.js', 'src/systems/obstacles/spawner.js', 'src/systems/scoring/scoring.js', 'src/systems/hazards/biomeHazards.js'].map(read).join('\n');
   check('rewards and skins cannot touch gameplay: the simulation, physics, collisions, scoring and hazards import no avatar, skin or reward code', !/avatars|skins\/|rewards\/|useGameStore/.test(simSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')));

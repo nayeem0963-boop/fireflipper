@@ -46,7 +46,8 @@ export default function CreditsPanel() {
           <a href={LICENCE.url} target="_blank" rel="noopener noreferrer">
             {LICENCE.name}
           </a>
-          . Fire Flipper changed each of them as described below.
+          , except the Fire Eagle, which has its own licence (shown with it). Fire Flipper changed each of them as described
+          below.
         </p>
 
         <ul className="credits">
@@ -68,8 +69,8 @@ export default function CreditsPanel() {
                     Source
                   </a>{' '}
                   ·{' '}
-                  <a href={LICENCE.url} target="_blank" rel="noopener noreferrer">
-                    {LICENCE.name}
+                  <a href={(c.licence ?? LICENCE).url} target="_blank" rel="noopener noreferrer">
+                    {(c.licence ?? LICENCE).name}
                   </a>
                 </p>
                 <p className="credits__changes">

@@ -14,6 +14,15 @@ export const FIRE_FLIPPER_CHANGES = Object.freeze([
   'Turned to face the direction of flight and scaled to fit the game; the model itself is otherwise unchanged.',
 ]);
 
+/**
+ * The Fire Eagle is not CC BY: it is from Omabuarts Studio, under their own licence. NOTE: the licence page could not be
+ * read when the model was added, so commercial use and any attribution terms are still to be confirmed.
+ */
+export const OMABUARTS_LICENCE = Object.freeze({
+  name: 'Omabuarts Studio licence',
+  url: 'https://omabuarts.com/license',
+});
+
 export const CREDITS = Object.freeze([
   {
     id: 'macaw-flying',
@@ -54,6 +63,18 @@ export const CREDITS = Object.freeze([
     changes: [
       'Twenty parts joined into one static model, scaled up to a 30 cm wingspan, textures reduced, re-centred.',
       'The wings are separated into left and right halves at run time so they can beat; the model file itself is unchanged.',
+    ],
+  },
+  {
+    id: 'fire-eagle',
+    title: 'Eagle (Fly)',
+    author: 'Omabuarts Studio',
+    authorUrl: 'https://omabuarts.com',
+    sourceUrl: 'https://github.com/mitmedialab/text2vid/blob/main/animals/Eagle_Fly.gltf',
+    licence: OMABUARTS_LICENCE,
+    changes: [
+      'Packed from a .gltf into one .glb; the geometry, skeleton and wing-beat animation are unchanged.',
+      'The wings are drawn larger at run time, and a flame shell and glow sprites follow the model.',
     ],
   },
 ]);
