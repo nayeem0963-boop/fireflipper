@@ -22,6 +22,10 @@ const CAUSES = {
   energyring: 'Zapped by an energy ring',
   tornado: 'Swept up by an ember tornado',
   disc: 'Sliced by a spinning disc',
+  // the ground-runner (v2): what she ran into, or the gap she fell down
+  ice: 'Tripped on an ice spike',
+  log: 'Tumbled over a fallen log',
+  pit: 'Fell into a crevasse',
 };
 
 const prefersReducedMotion = () =>

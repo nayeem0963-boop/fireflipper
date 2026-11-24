@@ -176,6 +176,14 @@ for (const [name, opts] of CASES) {
   await p.waitForSelector('.demo__badge', { timeout: 20000 });
   await p.waitForTimeout(2500);
   check(`${name} (versions): Auto play works in v2`, true);
+  await p.getByRole('button', { name: /^exit/i }).click().catch(() => {});
+  await p.waitForSelector('.versioncard', { timeout: 20000 });
+  const v2Saved = () => p.evaluate(() => ['stats', 'bestScore', 'achievements', 'journey'].map((k) => localStorage.getItem(`fireflipper:v2:${k}`)).join('|'));
+  const savedBefore = await v2Saved();
+  await p.getByRole('button', { name: /journey preview/i }).click();
+  await p.waitForSelector('.demo__badge', { timeout: 20000 });
+  await p.waitForTimeout(2500);
+  check(`${name} (versions): the Journey Preview runs in v2 (a bot runs) and saves nothing`, /runs all 10,000 m/i.test((await p.locator('.demo__badge').textContent()) ?? '') && (await v2Saved()) === savedBefore);
   check(`${name} (versions): no page errors`, errors.length === 0, errors.join(' | '));
   await ctx.close();
 }

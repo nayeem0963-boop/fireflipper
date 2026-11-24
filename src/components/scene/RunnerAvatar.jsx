@@ -73,7 +73,7 @@ const FPS = 30;
 const RISE_VY = 2;
 const FALL_VY = -3;
 const DIVE_VY = -11.5;
-const LOOPING = new Set(['cruise', 'dive']); // the other states play once and hold their last pose
+const LOOPING = new Set(['idle', 'cruise', 'dive']); // the other states play once and hold their last pose
 
 /** The hip height (cm, in her rig) a jump clip may reach: her jump exports raise the hips about 50 cm, but the game already moves the player. */
 const HIP_CEILING = 94;
@@ -83,8 +83,8 @@ function removeHipLift(clip) {
 }
 
 /**
- * The actions for a version's clips, by state: cruise, rise, fall, dive, dead. A clip def is a name or { clip, range, timeScale,
- * loop, noLift } (see versions.js). Without `clips`, the first run/fly/flap/walk clip loops as `cruise`.
+ * The actions for a version's clips, by state: idle, cruise, rise, fall, dive, dead. A clip def is a name or { clip, range, timeScale,
+ * loop, noLift, speedRef } (see versions.js). Without `clips`, the first run/fly/flap/walk clip loops as `cruise`.
  */
 function buildActions(mixer, animations, clips) {
   const byName = Object.fromEntries(animations.map((c) => [c.name, c]));
@@ -94,14 +94,14 @@ function buildActions(mixer, animations, clips) {
     const action = mixer.clipAction(clip);
     action.setLoop(loops ? LoopRepeat : LoopOnce, Infinity);
     action.clampWhenFinished = !loops;
-    acts[state] = { action, timeScale: def.timeScale ?? 1 };
+    acts[state] = { action, timeScale: def.timeScale ?? 1, speedRef: def.speedRef };
   };
   if (!clips) {
     const clip = animations.find((c) => CLIP.test(c.name)) ?? animations[0];
     if (clip) add('cruise', clip);
     return acts;
   }
-  for (const state of ['cruise', 'rise', 'fall', 'dive', 'dead']) {
+  for (const state of ['idle', 'cruise', 'rise', 'fall', 'dive', 'dead']) {
     const raw = clips[state];
     if (!raw) continue;
     const def = typeof raw === 'string' ? { clip: raw } : raw;
@@ -144,10 +144,13 @@ function RunnerModel({ version, flight, lightIntensity, float, wingSpeed, glow, 
     const dt = Math.min(delta, 0.05);
     let want = 'cruise';
     if (flight?.dead) want = 'dead';
-    else if (flight && flight.vy < DIVE_VY) want = 'dive';
+    else if (flight?.idle) want = 'idle'; // waiting for the first press
+    else if (flight?.grounded === true) want = 'cruise'; // a runner on the land
+    else if (flight?.grounded === false) want = flight.vy > 0 ? 'rise' : 'fall'; // a runner in the air
+    else if (flight && flight.vy < DIVE_VY) want = 'dive'; // (the flyer, which has no `grounded`: its pose follows its vertical speed)
     else if (flight && flight.vy < FALL_VY) want = 'fall';
     else if (flight && flight.vy > RISE_VY) want = 'rise';
-    if (!acts[want]) want = 'cruise';
+    if (!acts[want]) want = acts.cruise ? 'cruise' : Object.keys(acts)[0];
     const st = state.current;
     // A new flap while still climbing starts the take-off pose again.
     const reflap = want === 'rise' && st.name === 'rise' && flight.sinceFlap < st.since;
@@ -159,8 +162,16 @@ function RunnerModel({ version, flight, lightIntensity, float, wingSpeed, glow, 
       st.action = next.action;
     }
     st.since = flight ? flight.sinceFlap : 0;
-    // A flap quickens the stride for a moment; the rest of the time she runs at her own pace.
-    if (st.name === 'cruise' && acts.cruise) acts.cruise.action.setEffectiveTimeScale(flight && flight.sinceFlap < STROKE_TIME ? 1.7 : 1);
+    if (st.name === 'cruise' && acts.cruise) {
+      const run = acts.cruise;
+      if (run.speedRef && flight?.speed) {
+        // her stride follows the ground speed (so her feet don't slide), within what the clip can carry
+        run.action.setEffectiveTimeScale(Math.min(2.2, Math.max(0.6, flight.speed / run.speedRef)));
+      } else {
+        // a flap quickens the stride for a moment; the rest of the time she runs at her own pace
+        run.action.setEffectiveTimeScale(flight && flight.sinceFlap < STROKE_TIME ? 1.7 : 1);
+      }
+    }
     mixer.update(dt);
   });
 

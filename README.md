@@ -153,23 +153,36 @@ To do by hand (they need your accounts): add `https://fireflipper.com/` in Googl
 
 ## Game versions
 
-The menu lists **v1 (Original)** and **v2 (New Runner)**. They are the same game: one simulation (physics, obstacles,
-collisions, scoring, HUD, TAP / HOLD / dive and Auto play) with a different **player avatar**. Switching is instant (no
-reload), the choice is saved, and `?version=v1` / `?version=v2` opens straight into a version (a link beats the saved choice).
+The menu lists **v1 (Original)** and **v2 (New Runner)**. Switching is instant (no reload), the choice is saved, and `?version=v1` /
+`?version=v2` opens straight into a version (a link beats the saved choice).
 
-- `src/systems/versions/versions.js`: the registry (`GAMES_CONFIG`). v1 is the baseline and v2 is v1 plus overrides to
-  `playerConfig` (`avatarType`, `assetPath`, `scale`, `offset`, optional `rotation` and `trailColor`). Nothing else can differ.
-- `components/scene/PlayerAvatar.jsx` draws the avatar for a version. `PlayerBird` only places the player from the
-  simulation each frame, and the collider lives in the simulation, so changing an avatar never changes a hitbox, a jump or the feel.
-- v1 draws the bird and skin you picked, exactly as before. v2 draws **Aisha** from the Frost game (`public/models/v2/runner.glb`,
-  from `nayeem0963-boop/frostgirl`; see `public/models/CREDITS.md`) with `RunnerAvatar.jsx`. v2 is a **running model**: she stays
-  upright (`upright`; she never pitches or tumbles with the flight path) and the `clips` setting picks her pose from the flight
-  state: a run cycle in level flight (a quicker stride on each flap), a jump pose while climbing, a fall pose while sinking, a sprint
-  in a dive and a stumble when the run ends. v1 stays the **flying model** (the bird pitches along its path, as always). If the
-  file is missing, the v1 bird stands in (with one console note), so v2 stays playable.
-- **To use a different runner:** replace `public/models/v2/runner.glb` (or change `assetPath`), then tune `scale`, `offset`,
-  `rotation`, `upright` and `clips` in `versions.js` until the body matches the 0.36 collision circle and faces the way you fly (+X).
-- `npm run test:versions` guards all of this, including that the simulation cannot see a version.
+- **v1 is the original flying game**, exactly as it was: you fly a bird (and skin) through corridors of rocks, over a lava floor.
+- **v2 is a ground-runner.** You run as **Aisha** (from the Frost game) **on the land**: the floor of whichever of the five worlds you are in (canyon
+  dust, snowfield, starlit sea, pink floor, cloud sea), with no lava. TAP jumps, HOLD jumps higher (a quick release is a short hop), and Down drops
+  fast. Its own obstacles are low rocks, ice spikes and fallen logs to jump, and pits (crevasses) in the land to jump across, each drawn in the
+  world's own palette, with orb lines on the ground and orb arcs over what you jump. Flying-only layers (hazards, flying hazards, power-ups) are off.
+- **Shared by both:** the five worlds and their scenery, the 10,000 m journey and its milestones, the run speed curve, the scoring, the HUD, the
+  controls, the effects and **Auto play** (each version has its own bot).
+- **Progress is separate per version:** best score, stats, achievements, the daily goal and the journey record are kept per version, so a runner score
+  is never compared with a flyer score. v1 keeps the original storage keys, so nothing already saved moves.
+
+How it is built:
+
+- `src/systems/versions/versions.js`: the registry (`GAMES_CONFIG`). v1 is the baseline; v2 is v1 plus overrides: a `ruleset` (`'flight'` or `'runner'`)
+  and `playerConfig` (`avatarType`, `assetPath`, `scale`, `offset`, `centre`, `rotation`, `upright`, `clips`, `trailColor`).
+- `src/systems/runner/`: the runner simulation (`createRunnerSim.js`), its movement (`physics.js`), constants (`constants.js`), obstacle generator
+  (`track.js`) and Auto play bot (`autopilot.js`). It has the same outward shape as the flying simulation, so the loop, HUD, events and scene work
+  with either. It never reads an avatar or a version; the store and the scene choose the simulation (`hooks/useGameSim.js`).
+- **Fair by construction:** her full jump is known exactly, so a section is only built when one held jump clears all of it (at the slowest speed it can
+  be met at), pits are held well under a jump's reach, and there is always room to land, react and jump again. `npm run test:runner` re-checks every
+  section on 24 full tracks and has the bot fly the finish line on many seeds.
+- `components/scene/PlayerAvatar.jsx` draws the avatar for a version; `PlayerBird` only places the player from the simulation. v2 draws Aisha
+  (`public/models/v2/runner.glb`, from `nayeem0963-boop/frostgirl`; see `public/models/CREDITS.md`) with `RunnerAvatar.jsx`: idle while waiting, a run
+  cycle matched to the ground speed (no sliding feet), a jump pose while rising, a fall pose while dropping, and a stumble when the run ends. If the
+  file is missing, the v1 bird stands in (with one console note). `RunnerObstacleField.jsx` draws v2's obstacles and pits.
+- **To use a different runner:** replace `public/models/v2/runner.glb` (or change `assetPath`), then tune `scale`, `offset`, `rotation`, `upright` and
+  `clips` in `versions.js` so her feet stand on the land and she faces +X.
+- `npm run test:versions` and `npm run test:runner` guard all of this, including that neither simulation can see a version or an avatar.
 
 ## Progression
 

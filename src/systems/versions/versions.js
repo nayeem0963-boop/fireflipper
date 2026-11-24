@@ -1,9 +1,11 @@
 /**
- * Game versions. A version changes how the PLAYER LOOKS and nothing else: v1 is the baseline and every other version is
- * v1 plus overrides to `playerConfig` (the avatar, its scale and offset, its trail colour). The physics, the obstacle
- * spawner, collisions, scoring, the HUD and every control (TAP, HOLD, dive, AUTO PLAY) are the one shared simulation in
- * systems/game; it never imports this file (journey-test.mjs and versions-test.mjs check that), so a version cannot
- * change how a run plays out, only how the bird is drawn.
+ * Game versions. v1 is the original flying game and is never changed by a version. Every other version is v1 plus overrides:
+ *  - `playerConfig`: how the player LOOKS (the avatar, its scale and offset, its trail colour), and
+ *  - `ruleset`: which simulation runs. 'flight' is the original flying game (systems/game); 'runner' is the ground-runner
+ *    (systems/runner): she runs on the land, TAP jumps, and it has its own obstacles. Both share the world scenery, the five-world
+ *    journey, the run speed curve, the scoring, the HUD, the controls (TAP / HOLD / Down) and Auto play.
+ * Neither simulation imports this file (versions-test.mjs checks that): the store and the scene pick the simulation for a version,
+ * and an avatar is only ever drawn, never read by a simulation.
  *
  * To add or tune v2's look, edit `V2_PLAYER` below: that is the only place for the asset's path, scale, offset, facing and clips.
  *
@@ -20,6 +22,8 @@
  *                                    0.36 collision radius; wings and tail do not collide.
  * @property {[number, number, number]} offset  Position of the avatar inside the player's group, in world units. Visual
  *                                    only: the collider stays where the simulation puts it.
+ * @property {number} [centre]       Height of the avatar's body centre above its origin, in the model's own units (metres): where a menu preview
+ *                                    centres it. For an avatar standing on its origin (a runner) it is about half its height.
  * @property {[number, number, number]} [rotation]  Extra facing, in radians, to turn a model that does not face +X (the
  *                                    direction of flight) by default. Optional; defaults to [0, 0, 0].
  * @property {boolean} [upright]     Keep the avatar upright instead of pitching and tumbling with the flight path. A running
@@ -42,6 +46,7 @@
  *
  * @typedef {Object} GameVersion
  * @property {'v1' | 'v2'} id
+ * @property {'flight' | 'runner'} ruleset  Which simulation this version runs (see above).
  * @property {string} title
  * @property {string} description
  * @property {string} [thumbnail]     Optional image URL for the picker card (under public/, e.g. 'images/versions/v2.jpg').
@@ -80,13 +85,15 @@ const V2_PLAYER = {
   ...V1_PLAYER,
   avatarType: 'v2_runner',
   assetPath: 'models/v2/runner.glb',
-  scale: [1.25, 1.25, 1.25], // 1.68 m tall x 1.25 = 2.1 world units: large and prominent, but it still fits the menu ring and phones
-  offset: [0, -1.09, 0], // her body's centre (0.88 m up) lands on the player's centre. NOTE: the collider is unchanged (0.36), so
-  // the drawing is now much bigger than the hitbox; raise this scale only if that still looks fair against obstacles.
+  scale: [1.25, 1.25, 1.25], // 1.68 m tall x 1.25 = 2.1 world units: large and prominent, and it still fits the menu ring and phones
+  offset: [0, 0, 0], // her feet are her origin and stand on the land (the runner's `y` is the height of her feet)
+  centre: 0.88, // her body's centre, 0.88 m up: where the menu preview centres her
   rotation: [0, Math.PI / 2, 0], // Aisha faces +Z; the game flies toward +X
-  upright: true, // a runner stays on her feet: no pitching or tumbling with the flight path
+  upright: true, // a runner stays on her feet: no pitching or tumbling
   clips: {
-    cruise: 'run',
+    idle: 'idle', // waiting for the first press
+    // The run cycle is matched to the ground speed so her feet don't slide: her run clip covers about 4.8 m/s at her own size, which the scale makes 6 units/s.
+    cruise: { clip: 'run', speedRef: 6 },
     // Her jump clip is one long hop: the take-off and apex are the rise, the descent is the fall (the hip lift is removed).
     rise: { clip: 'land', range: [0.52, 0.86], timeScale: 1.05, noLift: true },
     fall: { clip: 'land', range: [0.86, 1.06], timeScale: 0.35, noLift: true },
@@ -99,6 +106,7 @@ const V2_PLAYER = {
 /** @type {GameVersion} */
 const V1 = {
   id: 'v1',
+  ruleset: 'flight',
   title: 'v1 · Original',
   description: 'The original flying game: fly as the bird and skin you choose.',
   thumbnail: undefined,
@@ -109,8 +117,9 @@ const V1 = {
 const V2 = {
   ...V1,
   id: 'v2',
+  ruleset: 'runner',
   title: 'v2 · New Runner',
-  description: 'The same game as a runner: Aisha from Frost, on her feet, with her own stride and jump.',
+  description: 'A new way to play: run the five worlds on foot as Aisha from Frost, jumping rocks, ice and pits.',
   thumbnail: undefined, // PLACEHOLDER: e.g. 'images/versions/v2.jpg'
   playerConfig: V2_PLAYER,
 };
@@ -166,6 +175,9 @@ export function avatarAssetUrl(version) {
   const path = version.playerConfig.assetPath.replace(/^\/+/, '');
   return path ? `${import.meta.env?.BASE_URL ?? '/'}${path}` : '';
 }
+
+/** True when the version runs the ground-runner simulation (v2) and not the original flying game. */
+export const isRunner = (version) => version.ruleset === 'runner';
 
 /** True when the avatar stays upright (a running model) instead of pitching and tumbling with the flight path. */
 export const isUpright = (version) => !!version.playerConfig.upright;

@@ -1,8 +1,8 @@
 /**
  * Game version tests. Run with: npm run test:versions
- * v1 is the baseline and v2 only overrides the player's visuals: this checks the registry, that v1 still draws the
- * original bird at the original size, how a version is chosen (link, saved choice, menu), and that the simulation (the physics,
- * collisions, spawner, scoring) cannot see a version, so both play identically.
+ * v1 is the baseline (the original flying game) and v2 overrides the player's visuals and which simulation runs (the ground-runner). This
+ * checks the registry, that v1 still draws the original bird at the original size on the original simulation, how a version is chosen
+ * (link, saved choice, menu), and that neither simulation can see a version or an avatar. The runner's own rules are in test:runner.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import {
@@ -16,6 +16,7 @@ import {
   avatarAssetUrl,
   usesOriginalAvatar,
   isUpright,
+  isRunner,
   trailForVersion,
 } from '../src/systems/versions/versions.js';
 import { useGameStore, SCREENS } from '../src/store/useGameStore.js';
@@ -52,9 +53,10 @@ check('v1 keeps the skin trail untouched', trailForVersion(v1, skinTrail) === sk
 
 // ---- v2 is v1 plus player-visual overrides only
 check('v2 draws the runner', v2.playerConfig.avatarType === 'v2_runner' && !usesOriginalAvatar(v2));
+check('v1 runs the flying simulation and v2 the ground-runner', v1.ruleset === 'flight' && v2.ruleset === 'runner' && !isRunner(v1) && isRunner(v2));
 check('v2 is a running model (upright) and v1 stays the flying one', isUpright(v2) && !isUpright(v1) && v1.playerConfig.upright === undefined);
-check('v2 has the same fields as v1 (nothing else is configurable)', Object.keys(v2).sort().join() === Object.keys(v1).sort().join());
-const PLAYER_KEYS = ['avatarType', 'assetPath', 'scale', 'offset', 'rotation', 'upright', 'clips', 'trailColor'];
+check('v2 has the same fields as v1 (nothing else is configurable: its ruleset and its player visuals)', Object.keys(v2).sort().join() === Object.keys(v1).sort().join());
+const PLAYER_KEYS = ['avatarType', 'assetPath', 'scale', 'offset', 'centre', 'rotation', 'upright', 'clips', 'trailColor'];
 check('v2 player config only uses the documented visual fields', Object.keys(v2.playerConfig).every((k) => PLAYER_KEYS.includes(k)), Object.keys(v2.playerConfig).join());
 const GAMEPLAY = /gravity|impulse|speed|radius|hitbox|collision|score|multiplier|bonus|physics|spawn/i;
 check('no version field is gameplay-like', GAMES_CONFIG.every((v) => ![...Object.keys(v), ...Object.keys(v.playerConfig)].some((k) => GAMEPLAY.test(k))));
@@ -121,7 +123,7 @@ check('it can change again from the menu', st().versionId === 'v1');
   check('the store loads when window has no location, starting in v1', ok && fresh.useGameStore.getState().versionId === 'v1');
 }
 
-// ---- both versions play the same game
+// ---- choosing a version never touches the flying simulation: v1 plays exactly as it did
 const run = (seed) => {
   const sim = createGameSim();
   sim.reset(seed);
@@ -133,15 +135,17 @@ const run = (seed) => {
   return [sim.distance, sim.bird.y, sim.orbsCollected, sim.score, sim.phase].join();
 };
 st().selectVersion('v1');
-const asV1 = run(11);
+const before = run(11);
 st().selectVersion('v2');
-const asV2 = run(11);
-check('the same seed and inputs give the same run in v1 and v2', asV1 === asV2, `${asV1} vs ${asV2}`);
+st().selectVersion('v1');
+check('the flying game plays the same run after the version was switched to v2 and back', before === run(11));
 
-const dirs = ['src/systems/game', 'src/systems/physics', 'src/systems/obstacles', 'src/systems/hazards', 'src/systems/fliers', 'src/systems/scoring', 'src/systems/bot'];
+const dirs = ['src/systems/game', 'src/systems/physics', 'src/systems/obstacles', 'src/systems/hazards', 'src/systems/fliers', 'src/systems/scoring', 'src/systems/bot', 'src/systems/runner'];
 const simFiles = dirs.flatMap((d) => readdirSync(new URL(`../${d}`, import.meta.url)).filter((f) => f.endsWith('.js')).map((f) => `${d}/${f}`));
 const simSrc = strip(simFiles.map(read).join('\n'));
-check('the simulation, physics, collisions, spawner, hazards, scoring and the Auto play bot import no version code', simFiles.length > 10 && !/versions|versionId|useGameVersion|playerConfig/.test(simSrc), `${simFiles.length} files`);
+check('the simulations (flying and runner), physics, collisions, spawners, hazards, scoring and the Auto play bots import no version code', simFiles.length > 10 && !/versions|versionId|useGameVersion|playerConfig/.test(simSrc), `${simFiles.length} files`);
+const flightOnly = ['src/systems/game/createGameSim.js', 'src/systems/physics/flight.js', 'src/systems/physics/collision.js', 'src/systems/physics/constants.js', 'src/systems/obstacles/spawner.js', 'src/systems/obstacles/patterns.js', 'src/systems/hazards/biomeHazards.js', 'src/systems/fliers/fliers.js', 'src/systems/bot/autopilot.js'];
+check('the original flying simulation, its obstacles, hazards and bot know nothing of the runner (v1 is untouched by v2)', !/runner/i.test(strip(flightOnly.map(read).join('\n'))));
 check('the game loop and the input code do not know the version either', !/versionId|versions\.js/.test(strip(read('src/systems/game/useGameLoop.js') + read('src/hooks/useGameInput.js') + read('src/components/game/GameScreen.jsx'))));
 
 // ---- the visual layer

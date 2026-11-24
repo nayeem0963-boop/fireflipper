@@ -19,6 +19,8 @@ import { previewRewardIds, previewSeedFor } from '../systems/rewards/preview.js'
 import { WORLD_COUNT } from '../systems/world/worlds.js';
 import {
   VERSION_STORAGE_KEY,
+  getVersion,
+  isRunner,
   isVersionId,
   resolveInitialVersionId,
   syncVersionToLocation,
@@ -51,6 +53,9 @@ export const QUALITY = Object.freeze({ AUTO: 'auto', LOW: 'low', HIGH: 'high' })
  * throttled HUD snapshots and discrete events, so React never re-renders
  * at frame rate.
  */
+/** The version the page opens in (a ?version= link, else the saved choice, else v1): decided once, so the first state and its progress agree. */
+const START_VERSION = initialVersionId();
+
 export const useGameStore = create((set, get) => ({
   // --- navigation ---
   screen: SCREENS.HOME,
@@ -90,8 +95,8 @@ export const useGameStore = create((set, get) => ({
   /** Stats of the last finished run, plus isNewBest and the previousBest it was measured against. */
   lastResult: null,
 
-  // --- scores ---
-  bestScore: loadValue('bestScore', 0),
+  // --- scores and progress: kept separately per game version (see loadProgress): the flyer and the runner never share a best score, stats, achievements, daily goal or journey ---
+  ...loadProgress(START_VERSION),
   /** Best score since the page was opened (not persisted). */
   sessionBest: 0,
   runsThisSession: 0,
@@ -102,21 +107,11 @@ export const useGameStore = create((set, get) => ({
    * Game version ('v1' | 'v2', see systems/versions): which avatar the player is drawn with. Looks only: every version runs the
    * same simulation. Starts from ?version= in the URL, else the saved choice, else v1.
    */
-  versionId: initialVersionId(),
+  versionId: START_VERSION,
   /** Each theme remembers its own bird choice: { red: 'bulbuli-fire', blue: 'toco-toucan-blue', ... }. */
   skinsByTheme: initialSkins().byTheme,
-  /** Completed runs per bird species, for collection progress: { species: runs }. */
-  flown: loadValue('flown', {}),
-
-  // --- progression (see systems/progression) ---
-  stats: { ...EMPTY_STATS, ...loadValue('stats', {}) },
-  /** Earned achievements: { id: run number it was earned on }. */
-  earned: loadValue('achievements', {}),
-  /** Today's goal state: { key, done, streakDays, lastDoneKey }. */
-  daily: rollDaily(loadValue('daily', null), dayKey()),
-
-  /** The journey record (see systems/rewards): the permanent rewards owned, completions and how often each milestone was reached. Saved the moment a reward is granted. */
-  journey: sanitizeJourney(loadValue('journey', null)),
+  // (also from loadProgress: `flown` (completed runs per bird species, for collection progress), `stats`, `earned` (earned achievements: id -> the run number it was earned on),
+  // `daily` (today's goal state) and `journey` (the permanent rewards owned, completions and how often each milestone was reached; saved the moment a reward is granted))
 
   /** Visual theme id ('red' | 'blue'): looks only, no effect on gameplay. */
   theme: initialTheme(),
@@ -229,10 +224,15 @@ export const useGameStore = create((set, get) => ({
     const previousBest = s.bestScore;
     const isNewBest = score > previousBest;
     if (isNewBest) persistProgress('bestScore', score);
-    const species = resolveAvatar(s.skinId, s.bestScore, s.theme, s.journey.rewards).species;
-    const flown = { ...s.flown, [species]: (s.flown[species] ?? 0) + 1 };
-    persistProgress('flown', flown);
-    const unlockedSkins = newlyUnlocked(previousBest, score, s.theme).map((k) => k.name);
+    // Bird skins and the birds-flown count belong to the flying game: a run of the ground-runner (v2) touches neither.
+    const flyer = !isRunner(getVersion(s.versionId));
+    let flown = s.flown;
+    if (flyer) {
+      const species = resolveAvatar(s.skinId, s.bestScore, s.theme, s.journey.rewards).species;
+      flown = { ...s.flown, [species]: (s.flown[species] ?? 0) + 1 };
+      persistProgress('flown', flown);
+    }
+    const unlockedSkins = flyer ? newlyUnlocked(previousBest, score, s.theme).map((k) => k.name) : [];
 
     // Progression: lifetime stats, achievements and the daily goal.
     const run = { score, distance, orbs, bestStreak, nearMisses };
@@ -317,7 +317,8 @@ export const useGameStore = create((set, get) => ({
     if (!isVersionId(id) || s.screen !== SCREENS.HOME || id === s.versionId) return;
     saveValue(VERSION_STORAGE_KEY, id);
     syncVersionToLocation(id);
-    set({ versionId: id });
+    // each version has its own best score, stats, achievements, daily goal and journey: load the chosen version's
+    set({ versionId: id, ...loadProgress(id), sessionBest: 0 });
   },
   selectSkin: (id) => {
     const s = get();
@@ -342,6 +343,24 @@ function initialTheme() {
   const theme = getTheme(loadValue('theme', DEFAULT_THEME)).id;
   applyTheme(theme);
   return theme;
+}
+
+/** The key a piece of progress is saved under. v1 keeps the original keys (so nothing already saved moves); every other version has its own. */
+function progressKey(versionId, key) {
+  return versionId === 'v1' ? key : `${versionId}:${key}`;
+}
+
+/** A version's saved progress, loaded fresh: best score, birds flown, lifetime stats, achievements, today's goal and the journey record. */
+function loadProgress(versionId) {
+  const k = (key) => progressKey(versionId, key);
+  return {
+    bestScore: loadValue(k('bestScore'), 0),
+    flown: loadValue(k('flown'), {}),
+    stats: { ...EMPTY_STATS, ...loadValue(k('stats'), {}) },
+    earned: loadValue(k('achievements'), {}),
+    daily: rollDaily(loadValue(k('daily'), null), dayKey()),
+    journey: sanitizeJourney(loadValue(k('journey'), null)),
+  };
 }
 
 /** The version to start in: a valid ?version= link, else the saved choice, else v1 (where there is no window or location, as in Node tests, the saved/default one). */
@@ -371,6 +390,6 @@ function freshRun(s, preview = s.preview) {
 function persistProgress(key, value) {
   const s = useGameStore.getState();
   if (s.demo || s.preview) return false;
-  saveValue(key, value);
+  saveValue(progressKey(s.versionId, key), value);
   return true;
 }

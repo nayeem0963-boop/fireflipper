@@ -11,7 +11,7 @@ import { useGameInput } from '../../hooks/useGameInput.js';
 import { usePauseWhenHidden } from '../../hooks/usePauseWhenHidden.js';
 import { useGameAudio } from '../../hooks/useGameAudio.js';
 import { ACTIONS, onAction } from '../../systems/input/inputBus.js';
-import { game } from '../../systems/game/gameInstance.js';
+import { getActiveSim } from '../../hooks/useGameSim.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
 import '../../styles/game.css';
 
@@ -47,13 +47,14 @@ export default function GameScreen() {
           return;
         }
         if (st === STATUS.READY || st === STATUS.RUNNING) {
-          game.setHolding(true);
-          game.flap();
+          const sim = getActiveSim();
+          sim.setHolding(true);
+          sim.flap();
         }
       }),
-      onAction(ACTIONS.FLAP_RELEASE, () => !store().demo && game.setHolding(false)),
-      onAction(ACTIONS.DIVE_PRESS, () => !store().demo && game.setDive(true)),
-      onAction(ACTIONS.DIVE_RELEASE, () => !store().demo && game.setDive(false)),
+      onAction(ACTIONS.FLAP_RELEASE, () => !store().demo && getActiveSim().setHolding(false)),
+      onAction(ACTIONS.DIVE_PRESS, () => !store().demo && getActiveSim().setDive(true)),
+      onAction(ACTIONS.DIVE_RELEASE, () => !store().demo && getActiveSim().setDive(false)),
       onAction(ACTIONS.PAUSE, () => store().togglePause()),
     ];
     return () => offs.forEach((off) => off());
