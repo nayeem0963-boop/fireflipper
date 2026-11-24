@@ -184,7 +184,9 @@ section('Wiring and separation from the game');
   check('the start screen tolerates a stubbed window with no location (other tests stub one)', /window\.location\?\.search/.test(read('src/store/useGameStore.js')));
   const app = read('src/App.jsx');
   check('App shows the Art Lab on the Art screen, as a lazy chunk', /lazy\(\(\) => import\('\.\/art\/ArtLabScreen\.jsx'\)\)/.test(app) && app.includes('SCREENS.ART'));
-  check('the home screen has an Art Lab button', /label="Art Lab"/.test(read('src/components/ui/HomeScreen.jsx')));
+  check('the home screen shows an Art Lab card beside the version picker', /<ArtLabCard \/>/.test(read('src/components/ui/HomeScreen.jsx')) && /openArt/.test(read('src/components/ui/ArtLabCard.jsx')));
+  check('the card is a plain button, not a radio in the version group (it is not a game version)', !/role="radio"/.test(read('src/components/ui/ArtLabCard.jsx')) && /type="button"/.test(read('src/components/ui/ArtLabCard.jsx')));
+  check('the card says what it is: a name and a no-score note', /Art Lab/.test(read('src/components/ui/ArtLabCard.jsx')) && /No score/.test(read('src/components/ui/ArtLabCard.jsx')));
   check('the game store can open the lab and a direct ?art link starts there', /openArt:/.test(read('src/store/useGameStore.js')) && /has\('art'\)/.test(read('src/store/useGameStore.js')));
   // The lab must not depend on the runner: no simulation, physics, obstacles, bot, rewards or game store (the screen may use the
   // store only to go back to the menu).

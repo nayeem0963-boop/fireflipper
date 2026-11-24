@@ -200,7 +200,7 @@ A standalone place to experiment with digital 3D artwork: shaders, lighting, pro
 moods. It has no game loop, no score and no physics, and shares nothing with the runner except the app shell (the canvas
 wrapper, the buttons and the theme).
 
-**Open it** with the gem icon in the home screen's top bar, or go straight to it with `/?art` (handy for a bookmark or
+**Open it** with the **Art Lab** card beside the v1 / v2 picker on the home screen, or go straight to it with `/?art` (handy for a bookmark or
 for `npm run dev`). **Leave it** with the back button or `Esc`. It is a separate lazy-loaded chunk (about 19 kB plus one
 small chunk per piece), so players who never open it never download it.
 

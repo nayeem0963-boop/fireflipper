@@ -1,0 +1,37 @@
+/* The Art Lab card on the menu, beside the version picker. Reuses the version cards' look (versions.css), set apart by a dashed edge and a gem. */
+.versions-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+.versions-row .versions {
+  flex: 2 1 0;
+  min-width: 0;
+}
+.versions-row .artcard {
+  flex: 1 1 0;
+  border-style: dashed;
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.artcard__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(var(--accent-rgb), 0.16);
+  color: var(--fire-200);
+}
+.artcard:hover .artcard__icon {
+  color: var(--fire-100);
+  box-shadow: var(--glow-sm);
+}
+@media (max-height: 700px), (max-width: 520px) {
+  .artcard__icon {
+    width: 28px;
+    height: 28px;
+  }
+}
