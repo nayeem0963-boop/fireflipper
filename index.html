@@ -3,19 +3,129 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Fire Flipper: Free 3D Browser Flying Game</title>
+    <meta
+      name="description"
+      content="Play Fire Flipper free in your browser. Fly a bird through five 3D worlds to the Celestial City, dodging hazards and collecting orbs. No download needed."
+    />
+    <link rel="canonical" href="https://fireflipper.com/" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="theme-color" content="#0b0907" />
-    <meta name="description" content="Fire Flipper: Journey to the Celestial City. Five worlds. One extraordinary journey. A 3D fantasy arcade game in your browser." />
+    <meta name="application-name" content="Fire Flipper" />
+    <meta name="apple-mobile-web-app-title" content="Fire Flipper" />
+
+    <!-- Open Graph (Facebook, WhatsApp, LinkedIn, Discord, Slack...) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Fire Flipper" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="https://fireflipper.com/" />
+    <meta property="og:title" content="Fire Flipper: Journey to the Celestial City" />
+    <meta property="og:description" content="Fly a bird through five 3D worlds, dodge hazards, collect orbs and reach the Celestial City. Free, in your browser." />
+    <meta property="og:image" content="https://fireflipper.com/images/og-image.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Fire Flipper: Journey to the Celestial City, over a painted red rock canyon" />
+
+    <!-- X / Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Fire Flipper: Journey to the Celestial City" />
+    <meta name="twitter:description" content="Fly a bird through five 3D worlds, dodge hazards, collect orbs and reach the Celestial City. Free, in your browser." />
+    <meta name="twitter:image" content="https://fireflipper.com/images/og-image.jpg" />
+    <meta name="twitter:image:alt" content="Fire Flipper: Journey to the Celestial City, over a painted red rock canyon" />
+
+    <!-- Icons and manifest -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <title>Fire Flipper: Journey to the Celestial City</title>
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://fireflipper.com/#website",
+            "url": "https://fireflipper.com/",
+            "name": "Fire Flipper",
+            "inLanguage": "en"
+          },
+          {
+            "@type": "VideoGame",
+            "@id": "https://fireflipper.com/#game",
+            "url": "https://fireflipper.com/",
+            "name": "Fire Flipper: Journey to the Celestial City",
+            "alternateName": "Fire Flipper",
+            "description": "A free 3D arcade game that runs in the browser. Fly a bird through five worlds on a 10,000 metre journey to the Celestial City, dodging obstacles and flying hazards, collecting orbs and power-ups, and earning rewards.",
+            "image": "https://fireflipper.com/images/og-image.jpg",
+            "genre": ["Arcade", "Adventure"],
+            "gamePlatform": "Web browser",
+            "applicationCategory": "Game",
+            "operatingSystem": "Any",
+            "browserRequirements": "Requires JavaScript and WebGL",
+            "playMode": "SinglePlayer",
+            "inLanguage": "en",
+            "isAccessibleForFree": true,
+            "isPartOf": { "@id": "https://fireflipper.com/#website" },
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "availability": "https://schema.org/InStock" }
+          }
+        ]
+      }
+    </script>
+
+    <!-- Shown until the game loads (React replaces it), and to crawlers and visitors without JavaScript. -->
+    <style>
+      .ff-seo { box-sizing: border-box; max-width: 46rem; margin: 0 auto; padding: 3rem 1.25rem; color: #fbefe2; font: 16px/1.55 Inter, system-ui, sans-serif; }
+      .ff-seo h1 { margin: 0 0 0.25rem; font: 900 2.6rem/1.05 Cinzel, Georgia, serif; letter-spacing: 0.08em; text-transform: uppercase; color: #ffb347; }
+      .ff-seo h2 { margin: 1.75rem 0 0.4rem; font: 700 1.15rem/1.3 Cinzel, Georgia, serif; letter-spacing: 0.05em; color: #ffe3bf; }
+      .ff-seo p, .ff-seo li { color: #d9c5b2; }
+      .ff-seo ul { padding-left: 1.2rem; margin: 0.3rem 0; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main class="ff-seo">
+        <h1>Fire Flipper</h1>
+        <p><strong>Journey to the Celestial City</strong>: a free 3D arcade game that you play in your browser. No download and no sign-up.</p>
+        <p>Guide a bird through five painted worlds on a 10,000 metre journey. Dodge rocks and flying hazards, collect glowing orbs, use power-ups and earn rewards on the way to the Celestial City.</p>
+
+        <h2>Five worlds</h2>
+        <ul>
+          <li>Red Rock Canyon</li>
+          <li>Frosty Polar</li>
+          <li>Celestial Realm</li>
+          <li>Rose Sky Palace</li>
+          <li>Cloud Sanctuary</li>
+        </ul>
+
+        <h2>How to play</h2>
+        <ul>
+          <li>Tap, click or press Space to flap your wings.</li>
+          <li>Hold to climb higher, release to fall; on a keyboard press Down or S to dive.</li>
+          <li>Fly through the gaps, collect orbs, and grab the magnet and shield power-ups.</li>
+          <li>Watch the Auto play or the full Journey Preview first if you want to see how it is done.</li>
+        </ul>
+
+        <h2>Features</h2>
+        <ul>
+          <li>Five 2,000 metre worlds, each with its own scenery, obstacles and hazards</li>
+          <li>Flying hazards that arrive one new kind per world</li>
+          <li>Five birds, each in three skins, plus journey rewards</li>
+          <li>Works on desktop and on phones, in landscape or portrait</li>
+        </ul>
+        <noscript><p>Fire Flipper needs JavaScript and WebGL, so please turn JavaScript on to play.</p></noscript>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

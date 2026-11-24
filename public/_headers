@@ -15,3 +15,19 @@
   Cache-Control: public, max-age=0, must-revalidate
 /models/*
   Cache-Control: public, max-age=0, must-revalidate
+
+# Small site files (search engines, icons, the app manifest, the custom 404 page) also keep fixed names: always revalidated.
+/robots.txt
+  Cache-Control: public, max-age=0, must-revalidate
+/sitemap.xml
+  Cache-Control: public, max-age=0, must-revalidate
+/site.webmanifest
+  Cache-Control: public, max-age=0, must-revalidate
+/404.html
+  Cache-Control: public, max-age=0, must-revalidate
+/favicon.ico
+  Cache-Control: public, max-age=0, must-revalidate
+/apple-touch-icon.png
+  Cache-Control: public, max-age=0, must-revalidate
+/icon-*
+  Cache-Control: public, max-age=0, must-revalidate
