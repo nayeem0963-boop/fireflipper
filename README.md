@@ -161,10 +161,12 @@ reload), the choice is saved, and `?version=v1` / `?version=v2` opens straight i
   `playerConfig` (`avatarType`, `assetPath`, `scale`, `offset`, optional `rotation` and `trailColor`). Nothing else can differ.
 - `components/scene/PlayerAvatar.jsx` draws the avatar for a version. `PlayerBird` only places the player from the
   simulation each frame, and the collider lives in the simulation, so changing an avatar never changes a hitbox, a jump or the feel.
-- v1 draws the bird and skin you picked, exactly as before. v2 draws the GLB at `assetPath` (`RunnerAvatar.jsx`) and loops its
-  run / fly / flap animation if it has one. Until the file exists, the v1 bird stands in (with one console note), so v2 stays playable.
-- **To add the v2 asset:** put the GLB at `public/models/v2/runner.glb` (or change `assetPath`), then tune `scale`, `offset` and
-  `rotation` in the `PLACEHOLDER` block of `versions.js` until the body matches the 0.36 collision circle and faces the way you fly (+X).
+- v1 draws the bird and skin you picked, exactly as before. v2 draws **Aisha** from the Frost game (`public/models/v2/runner.glb`,
+  from `nayeem0963-boop/frostgirl`; see `public/models/CREDITS.md`) with `RunnerAvatar.jsx`: she runs while flying (her stride
+  quickens on each flap), sprints in a dive and stumbles when the run ends, using the `clips` setting. If the file is missing, the
+  v1 bird stands in (with one console note), so v2 stays playable.
+- **To use a different runner:** replace `public/models/v2/runner.glb` (or change `assetPath`), then tune `scale`, `offset`,
+  `rotation` and `clips` in `versions.js` until the body matches the 0.36 collision circle and faces the way you fly (+X).
 - `npm run test:versions` guards all of this, including that the simulation cannot see a version.
 
 ## Progression

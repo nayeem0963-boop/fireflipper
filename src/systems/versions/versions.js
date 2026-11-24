@@ -5,8 +5,7 @@
  * systems/game; it never imports this file (journey-test.mjs and versions-test.mjs check that), so a version cannot
  * change how a run plays out, only how the bird is drawn.
  *
- * To add or tune v2's look, edit the PLACEHOLDER block of `V2_PLAYER` below: that is the only place to put the new
- * asset's path, scale, offset and facing.
+ * To add or tune v2's look, edit `V2_PLAYER` below: that is the only place for the asset's path, scale, offset, facing and clips.
  *
  * (The project is plain JavaScript, so the shape is a JSDoc type rather than a TypeScript interface.)
  *
@@ -23,7 +22,15 @@
  *                                    only: the collider stays where the simulation puts it.
  * @property {[number, number, number]} [rotation]  Extra facing, in radians, to turn a model that does not face +X (the
  *                                    direction of flight) by default. Optional; defaults to [0, 0, 0].
+ * @property {AvatarClips} [clips]   Optional: which of the model's animation clips to play for each state. Without it the first
+ *                                    run/fly/flap/walk clip loops.
  * @property {string} [trailColor]    Optional CSS colour for the trail behind the player; omit to use the skin's trail.
+ *
+ * @typedef {Object} AvatarClips        Clip names inside the avatar's GLB, chosen from the player's flight state.
+ * @property {string} cruise          Loops while flying (it plays faster for a moment on each flap).
+ * @property {string} [dive]          Loops while diving (falling fast).
+ * @property {string} [dead]          Plays once, and holds, when the run ends.
+ * @property {[number, number]} [deadRange]  Seconds of the `dead` clip to use (a clip may recover at its end).
  *
  * @typedef {Object} GameVersion
  * @property {'v1' | 'v2'} id
@@ -48,24 +55,26 @@ const V1_PLAYER = {
 };
 
 /**
- * v2's player visuals: the overrides on top of v1.
- * ┌─ PLACEHOLDER ──────────────────────────────────────────────────────────────────────────────────────────────┐
- * │ assetPath : put the new runner's GLB at public/models/v2/runner.glb (or change this path).                 │
- * │ scale     : tune until the runner's body matches the 0.36 collision circle (try 0.4 to 1.2).               │
- * │ offset    : nudge the model so its body sits on the player's centre (x forward, y up, z toward the camera).│
- * │ rotation  : turn the model so its front points along +X (e.g. [0, Math.PI / 2, 0] if it faces +Z).        │
- * │ trailColor: the trail behind the runner.                                                                   │
- * └────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
- * Until the file exists, v2 draws the v1 bird in its place, so the version stays playable while the asset is added.
+ * v2's player visuals: the overrides on top of v1. v2 is Aisha, the heroine of the Frost game (nayeem0963-boop/frostgirl,
+ * `?game=frost`): a rigged, animated GLB, 1.68 m tall and facing +Z. Her model is public/models/v2/runner.glb.
+ * To use a different runner, replace the file and tune the fields below:
+ *   assetPath : the GLB under public/ (no leading slash).
+ *   scale     : size; the body should read against the 0.36 collision circle (the in-game bird is 0.6).
+ *   offset    : nudges the model so its body sits on the player's centre (x forward, y up, z toward the camera).
+ *   rotation  : turns the model so its front points along +X (a model that faces +Z needs [0, Math.PI / 2, 0]).
+ *   clips     : which animation clip plays for cruising, diving and the end of a run.
+ *   trailColor: the trail behind the runner.
+ * If the file is missing, v2 draws the v1 bird in its place, so the version stays playable.
  */
 const V2_PLAYER = {
   ...V1_PLAYER,
   avatarType: 'v2_runner',
-  assetPath: 'models/v2/runner.glb', // PLACEHOLDER: the new v2 asset
-  scale: [PLAYER_SCALE, PLAYER_SCALE, PLAYER_SCALE], // PLACEHOLDER: tune to the asset
-  offset: [0, 0, 0], // PLACEHOLDER: tune to the asset
-  rotation: [0, 0, 0], // PLACEHOLDER: tune to the asset's facing
-  trailColor: '#ff7a2a',
+  assetPath: 'models/v2/runner.glb',
+  scale: [0.8, 0.8, 0.8], // 1.68 m tall x 0.8 = 1.34 world units
+  offset: [0, -0.7, 0], // her body's centre (0.88 m up) lands on the player's centre, where the collider is
+  rotation: [0, Math.PI / 2, 0], // Aisha faces +Z; the game flies toward +X
+  clips: { cruise: 'run', dive: 'sprint', dead: 'slide', deadRange: [0.05, 1.05] },
+  trailColor: '#8fd8ff', // an icy blue, for Frost
 };
 
 /** @type {GameVersion} */
@@ -82,7 +91,7 @@ const V2 = {
   ...V1,
   id: 'v2',
   title: 'v2 · New Runner',
-  description: 'The same game with a brand-new runner as your avatar.',
+  description: 'The same game, flown as Aisha from Frost: a runner with her own stride.',
   thumbnail: undefined, // PLACEHOLDER: e.g. 'images/versions/v2.jpg'
   playerConfig: V2_PLAYER,
 };

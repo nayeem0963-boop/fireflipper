@@ -52,7 +52,7 @@ check('v1 keeps the skin trail untouched', trailForVersion(v1, skinTrail) === sk
 // ---- v2 is v1 plus player-visual overrides only
 check('v2 draws the runner', v2.playerConfig.avatarType === 'v2_runner' && !usesOriginalAvatar(v2));
 check('v2 has the same fields as v1 (nothing else is configurable)', Object.keys(v2).sort().join() === Object.keys(v1).sort().join());
-const PLAYER_KEYS = ['avatarType', 'assetPath', 'scale', 'offset', 'rotation', 'trailColor'];
+const PLAYER_KEYS = ['avatarType', 'assetPath', 'scale', 'offset', 'rotation', 'clips', 'trailColor'];
 check('v2 player config only uses the documented visual fields', Object.keys(v2.playerConfig).every((k) => PLAYER_KEYS.includes(k)), Object.keys(v2.playerConfig).join());
 const GAMEPLAY = /gravity|impulse|speed|radius|hitbox|collision|score|multiplier|bonus|physics|spawn/i;
 check('no version field is gameplay-like', GAMES_CONFIG.every((v) => ![...Object.keys(v), ...Object.keys(v.playerConfig)].some((k) => GAMEPLAY.test(k))));
@@ -62,6 +62,20 @@ check('the asset URL is built from the path', avatarAssetUrl(v2) === `/${v2.play
 check('a leading slash in the path is tolerated', avatarAssetUrl({ playerConfig: { assetPath: '/models/v2/x.glb' } }) === '/models/v2/x.glb');
 const t2 = trailForVersion(v2, skinTrail);
 check('v2 trail uses its colour and keeps the skin trail style', t2.stops.length === 3 && t2.stops.every((c) => c === v2.playerConfig.trailColor) && t2.spark === v2.playerConfig.trailColor && t2.style === 'sparks');
+
+// ---- the v2 asset in the repo is a real GLB with the clips the config names
+{
+  const buf = readFileSync(new URL(`../public/${v2.playerConfig.assetPath}`, import.meta.url));
+  const jsonLen = buf.readUInt32LE(12);
+  const gltf = JSON.parse(buf.subarray(20, 20 + jsonLen).toString('utf8'));
+  const names = (gltf.animations ?? []).map((a) => a.name);
+  check('the v2 file is a binary glTF', buf.readUInt32LE(0) === 0x46546c67 && buf.readUInt32LE(4) === 2);
+  const { clips } = v2.playerConfig;
+  check('every clip the config names exists in the model', [clips.cruise, clips.dive, clips.dead].every((n) => names.includes(n)), names.join());
+  check('the model is rigged (one skin)', (gltf.skins ?? []).length === 1);
+  const needs = (gltf.extensionsRequired ?? []).filter((e) => !['KHR_mesh_quantization', 'EXT_texture_webp'].includes(e));
+  check('it needs no decoder the game does not have (no Draco or meshopt)', needs.length === 0, needs.join());
+}
 
 // ---- choosing a version: link, saved choice, default
 check('?version=v2 opens v2', resolveInitialVersionId('?version=v2', null) === 'v2');
