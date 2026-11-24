@@ -56,7 +56,7 @@ check('v2 draws the runner', v2.playerConfig.avatarType === 'v2_runner' && !uses
 check('v1 runs the flying simulation and v2 the ground-runner', v1.ruleset === 'flight' && v2.ruleset === 'runner' && !isRunner(v1) && isRunner(v2));
 check('v2 is a running model (upright) and v1 stays the flying one', isUpright(v2) && !isUpright(v1) && v1.playerConfig.upright === undefined);
 check('v2 has the same fields as v1 (nothing else is configurable: its ruleset and its player visuals)', Object.keys(v2).sort().join() === Object.keys(v1).sort().join());
-const PLAYER_KEYS = ['avatarType', 'assetPath', 'scale', 'offset', 'centre', 'rotation', 'upright', 'clips', 'trailColor'];
+const PLAYER_KEYS = ['avatarType', 'assetPath', 'scale', 'offset', 'height', 'centre', 'rotation', 'upright', 'clips', 'trailColor'];
 check('v2 player config only uses the documented visual fields', Object.keys(v2.playerConfig).every((k) => PLAYER_KEYS.includes(k)), Object.keys(v2.playerConfig).join());
 const GAMEPLAY = /gravity|impulse|speed|radius|hitbox|collision|score|multiplier|bonus|physics|spawn/i;
 check('no version field is gameplay-like', GAMES_CONFIG.every((v) => ![...Object.keys(v), ...Object.keys(v.playerConfig)].some((k) => GAMEPLAY.test(k))));

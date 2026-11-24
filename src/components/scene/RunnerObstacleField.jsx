@@ -20,7 +20,8 @@ import { worldIndexAt } from '../../systems/world/worlds.js';
  * The ground-runner's obstacles (v2), drawn from the runner simulation's pooled records: low rocks, ice spikes and fallen logs she jumps,
  * and pits (crevasses) in the land she jumps across. Each look is ONE InstancedMesh, so the whole field is a handful of draw calls however
  * many are alive; matrices are rewritten from simulation data each frame and nothing is allocated per frame. Looks only: what hurts her is
- * the record's collider (box) or the land giving way (a pit), never these shapes.
+ * the record's collider (box) or the land giving way (a pit), never these shapes. They are drawn larger than their colliders so they read beside her
+ * (she is drawn big): a drawing bigger than the hitbox only ever forgives.
  *
  * Every obstacle takes the colours of the world it stands in (by its own track position), so a rock in the canyon is red sandstone and the same
  * rock in the Frosty Polar is pale blue stone.
@@ -125,16 +126,16 @@ export default function RunnerObstacleField({ sim }) {
       if (look === 'rock') {
         // a chunky boulder, wider and taller than its collider so it reads beside her (the drawing is bigger than what hurts, never smaller)
         dummy.position.set(x, RUN.groundY + o.h * 0.5, o.z);
-        dummy.scale.set(o.w * 1.35 * o.sx, o.h * 1.3 * o.sy, DEPTH * 1.2 * o.sz);
+        dummy.scale.set(o.w * 1.7 * o.sx, o.h * 1.6 * o.sy, DEPTH * 1.4 * o.sz);
         tint.copy(pal.rock);
       } else if (look === 'ice') {
         dummy.position.set(x, RUN.groundY - 0.02, o.z);
-        dummy.scale.set(o.w * 1.6, o.h * 1.18 * o.sy, DEPTH * 0.9 * o.sz);
+        dummy.scale.set(o.w * 2.0, o.h * 1.45 * o.sy, DEPTH * 1.0 * o.sz);
         tint.copy(pal.ice);
       } else {
         dummy.rotation.set(0, o.rot * 0.15, 0);
-        dummy.position.set(x, RUN.groundY + o.h * 0.55, o.z);
-        dummy.scale.set(o.w * 1.08, o.h * 1.2, o.h * 1.4 * o.sz);
+        dummy.position.set(x, RUN.groundY + o.h * 0.6, o.z);
+        dummy.scale.set(o.w * 1.12, o.h * 1.5, o.h * 1.7 * o.sz);
         tint.copy(pal.log);
       }
       dummy.updateMatrix();

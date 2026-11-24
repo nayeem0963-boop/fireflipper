@@ -22,6 +22,8 @@
  *                                    0.36 collision radius; wings and tail do not collide.
  * @property {[number, number, number]} offset  Position of the avatar inside the player's group, in world units. Visual
  *                                    only: the collider stays where the simulation puts it.
+ * @property {number} [height]       The avatar's height in the model's own units (metres). The menu preview sizes it to a fixed height from this, so a
+ *                                    bigger in-game avatar never overflows the preview ring.
  * @property {number} [centre]       Height of the avatar's body centre above its origin, in the model's own units (metres): where a menu preview
  *                                    centres it. For an avatar standing on its origin (a runner) it is about half its height.
  * @property {[number, number, number]} [rotation]  Extra facing, in radians, to turn a model that does not face +X (the
@@ -56,6 +58,9 @@
 /** The size every avatar is drawn at in the game: the body matches the simulation's 0.36 collision radius. */
 const PLAYER_SCALE = 0.6;
 
+/** How tall (world units) a menu preview draws an avatar whose `height` is known: it fits the ring on desktop and phones whatever its in-game size. */
+const PREVIEW_HEIGHT = 3.5;
+
 /** The menu previews draw the player at the size the original bird is shown there (it is unscaled), i.e. 1 / PLAYER_SCALE of its in-game size. */
 export const PREVIEW_SIZE_FACTOR = 1 / PLAYER_SCALE;
 
@@ -81,19 +86,21 @@ const V1_PLAYER = {
  *   trailColor: the trail behind the runner.
  * If the file is missing, v2 draws the v1 bird in its place, so the version stays playable.
  */
+const AISHA_SCALE = 1.6; // 1.68 m tall x 1.6 = 2.7 world units: big and prominent on the land (her collider is unchanged: see the note on `scale`)
 const V2_PLAYER = {
   ...V1_PLAYER,
   avatarType: 'v2_runner',
   assetPath: 'models/v2/runner.glb',
-  scale: [1.25, 1.25, 1.25], // 1.68 m tall x 1.25 = 2.1 world units: large and prominent, and it still fits the menu ring and phones
+  scale: [AISHA_SCALE, AISHA_SCALE, AISHA_SCALE], // NOTE: only the drawing grows; what hurts her (the runner's colliders) is fixed, so a bigger drawing is more forgiving, never less
+  height: 1.68, // her height in metres
   offset: [0, 0, 0], // her feet are her origin and stand on the land (the runner's `y` is the height of her feet)
   centre: 0.88, // her body's centre, 0.88 m up: where the menu preview centres her
   rotation: [0, Math.PI / 2, 0], // Aisha faces +Z; the game flies toward +X
   upright: true, // a runner stays on her feet: no pitching or tumbling
   clips: {
     idle: 'idle', // waiting for the first press
-    // The run cycle is matched to the ground speed so her feet don't slide: her run clip covers about 4.8 m/s at her own size, which the scale makes 6 units/s.
-    cruise: { clip: 'run', speedRef: 6 },
+    // The run cycle is matched to the ground speed so her feet don't slide: her run clip covers about 4.8 m/s at her own size, which the scale multiplies.
+    cruise: { clip: 'run', speedRef: 4.8 * AISHA_SCALE },
     // Her jump clip is one long hop: the take-off and apex are the rise, the descent is the fall (the hip lift is removed).
     rise: { clip: 'land', range: [0.52, 0.86], timeScale: 1.05, noLift: true },
     fall: { clip: 'land', range: [0.86, 1.06], timeScale: 0.35, noLift: true },
@@ -181,6 +188,12 @@ export const isRunner = (version) => version.ruleset === 'runner';
 
 /** True when the avatar stays upright (a running model) instead of pitching and tumbling with the flight path. */
 export const isUpright = (version) => !!version.playerConfig.upright;
+
+/** The factor a menu preview multiplies the configured scale by: an avatar of known height is drawn at a fixed preview height, any other at 1 / PLAYER_SCALE (as the bird is). */
+export function previewSizeFactor(version) {
+  const { height, scale } = version.playerConfig;
+  return height ? PREVIEW_HEIGHT / (height * scale[1]) : PREVIEW_SIZE_FACTOR;
+}
 
 /** True when the version draws the player's own picked bird and skin (the original game's avatar). */
 export const usesOriginalAvatar = (version) => version.playerConfig.avatarType === 'v1_original';

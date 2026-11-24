@@ -4,7 +4,7 @@ import AvatarBird from '../../components/scene/AvatarBird.jsx';
 import PlayerAvatar from '../../components/scene/PlayerAvatar.jsx';
 import { useSkin } from '../../hooks/useSkin.js';
 import { useGameVersion } from '../../hooks/useGameVersion.js';
-import { PREVIEW_SIZE_FACTOR, usesOriginalAvatar } from '../../systems/versions/versions.js';
+import { previewSizeFactor, usesOriginalAvatar } from '../../systems/versions/versions.js';
 import EmberParticles from '../../components/scene/EmberParticles.jsx';
 import { useTheme } from '../../hooks/useTheme.js';
 import { useRenderSettings } from '../../hooks/useRenderSettings.js';
@@ -35,9 +35,9 @@ export default function ShowcaseScene() {
         ) : (
           <PlayerAvatar
             version={version}
-            sizeFactor={PREVIEW_SIZE_FACTOR}
+            sizeFactor={previewSizeFactor(version)}
             // an avatar that stands on its origin is lifted so its body (not its feet) sits at the ring's centre
-            position={[0, -(version.playerConfig.centre ?? 0) * version.playerConfig.scale[1] * PREVIEW_SIZE_FACTOR, 0]}
+            position={[0, -(version.playerConfig.centre ?? 0) * version.playerConfig.scale[1] * previewSizeFactor(version), 0]}
             rotation={[0, -0.55, 0]}
             float={0.16}
             wingSpeed={5.5}

@@ -1,7 +1,8 @@
 import { Component, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
-import { AnimationMixer, AnimationUtils, LoopOnce, LoopRepeat } from 'three';
+import { AdditiveBlending, AnimationMixer, AnimationUtils, LoopOnce, LoopRepeat } from 'three';
+import { getNeutralGlowTexture } from '../../utils/textures.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { avatarAssetUrl } from '../../systems/versions/versions.js';
 
@@ -175,8 +176,16 @@ function RunnerModel({ version, flight, lightIntensity, float, wingSpeed, glow, 
     mixer.update(dt);
   });
 
+  // A soft glow behind her body so she stands out against the busy painted scenery (looks only).
+  const glowMap = useMemo(getNeutralGlowTexture, []);
+  const bodyY = (playerConfig.centre ?? 0.9) * playerConfig.scale[1];
+  const halo = 1.7 * (playerConfig.height ?? 1.7) * playerConfig.scale[1];
+
   return (
     <group {...props}>
+      <sprite position={[0, bodyY, -0.4]} scale={[halo, halo, 1]} renderOrder={-1}>
+        <spriteMaterial map={glowMap} color={playerConfig.trailColor ?? '#ffb36b'} transparent opacity={0.28} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+      </sprite>
       <pointLight
         color={playerConfig.trailColor ?? '#ff7a2a'}
         intensity={lightIntensity}
