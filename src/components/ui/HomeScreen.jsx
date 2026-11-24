@@ -3,7 +3,7 @@ import { useGameStore } from '../../store/useGameStore.js';
 import IconButton from './IconButton.jsx';
 import SoundToggle from './SoundToggle.jsx';
 import ThemeSwitch from './ThemeSwitch.jsx';
-import { FlameIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
+import { ArtIcon, FlameIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
 import { useSkin } from '../../hooks/useSkin.js';
 import { ACHIEVEMENTS, achievementProgress, dailyGoalFor } from '../../systems/progression/progression.js';
 import { useTheme } from '../../hooks/useTheme.js';
@@ -21,6 +21,7 @@ export default function HomeScreen() {
   const startDemo = useGameStore((s) => s.startDemo);
   const startPreview = useGameStore((s) => s.startPreview);
   const openSettings = useGameStore((s) => s.openSettings);
+  const openArt = useGameStore((s) => s.openArt);
   const settingsOpen = useGameStore((s) => s.settingsOpen);
   const avatarsOpen = useGameStore((s) => s.avatarsOpen);
   const openAvatars = useGameStore((s) => s.openAvatars);
@@ -45,6 +46,9 @@ export default function HomeScreen() {
         <div className="home__topbar-actions">
           <ThemeSwitch compact />
           <SoundToggle />
+          <IconButton label="Art Lab" onClick={openArt}>
+            <ArtIcon />
+          </IconButton>
           <IconButton label="Settings" onClick={openSettings}>
             <SettingsIcon />
           </IconButton>

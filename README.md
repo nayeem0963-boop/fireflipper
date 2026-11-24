@@ -37,8 +37,9 @@ printed network URL.
 public/                 static assets served as-is
   models/ textures/ audio/ images/
 src/
-  App.jsx               screen router (home ↔ game), nothing else
+  App.jsx               screen router (home ↔ game, and the Art Lab), nothing else
   main.jsx              React entry
+  art/                  the Art Lab, a standalone 3D artwork playground (see "Art Lab" below); lazy-loaded
   store/
     useGameStore.js     Zustand store: screens, run status, HUD values, settings
   components/
@@ -156,6 +157,107 @@ a deterministic daily goal (same for everyone each UTC day, with a day streak) a
 shown on the start prompt, new achievements and the daily result appear compactly on the game-over screen, and the
 Achievements panel lists everything, including skin unlock milestones. Local only (no accounts or leaderboard yet),
 and nothing in it affects gameplay. `npm run test:progression` covers the logic.
+
+## Art Lab (3D artwork playground)
+
+A standalone place to experiment with digital 3D artwork: shaders, lighting, procedural geometry, materials and camera
+moods. It has no game loop, no score and no physics, and shares nothing with the runner except the app shell (the canvas
+wrapper, the buttons and the theme).
+
+**Open it** with the gem icon in the home screen's top bar, or go straight to it with `/?art` (handy for a bookmark or
+for `npm run dev`). **Leave it** with the back button or `Esc`. It is a separate lazy-loaded chunk (about 19 kB plus one
+small chunk per piece), so players who never open it never download it.
+
+**Controls** (a panel on the right; a bottom sheet on a phone; `H` hides it for a clean view or a screenshot):
+
+| Control | What it does |
+| --- | --- |
+| Piece | Switch the artwork (`[` and `]` step through them) |
+| View | Camera presets Hero / Close-up / Overview (`1` `2` `3`), Reset view (`R`), Pause / Play (`Space`), Save PNG, global speed, colour palette |
+| Helpers | Studio room, grid, axes, wireframe |
+| Piece parameters | Sliders, switches, selects and colour pickers built from the piece's own schema |
+
+Everything you set (piece, parameters, palette, camera preset, speed, helpers) is remembered between visits under its own
+storage key. The camera is a normal orbit camera: drag to orbit, scroll or pinch to zoom, right-drag to pan.
+
+**The three starter pieces**
+
+- **Ribbon Knot** (generative sculpture): a ribbon twisted along a (p, q) torus knot with a counter-ribbon, built as plain
+  geometry in `src/art/geometry/ribbonKnot.js`.
+- **Iridescent Study** (shader and material study): a sphere pushed about by animated noise in a hand-written
+  `ShaderMaterial` (fresnel rim, thin-film hue), ringed by `MeshPhysicalMaterial` glass with transmission and iridescence.
+- **Light Orbit** (kinetic light composition): a shell of breathing metal forms lit by three coloured lights that circle
+  through it, each with a bright core and a halo.
+
+There is **no postprocessing library**. Glow comes from emissive materials and additive halo sprites (`src/art/Glow.jsx`),
+and reflections from a procedural environment built from `Lightformer`s, so nothing is fetched from the network. If you
+want true bloom later, adding `@react-three/postprocessing` is a small change in `ArtStage.jsx`.
+
+### How to add a new artwork
+
+A piece is two files in `src/art/pieces/` and one line in the registry.
+
+1. **The definition**, `myPiece.js`: pure data, so the tests can check it without a browser.
+
+   ```js
+   export default {
+     id: 'my-piece',                    // lowercase slug, unique
+     title: 'My Piece',
+     blurb: 'One sentence about it.',
+     params: {                          // the HUD builds its controls from this
+       speed:  { type: 'range',  label: 'Pulse',  min: 0, max: 3, step: 0.05, default: 1 },
+       style:  { type: 'select', label: 'Style',  options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }], default: 'a' },
+       glow:   { type: 'toggle', label: 'Glow',   default: true },
+       tint:   { type: 'color',  label: 'Tint',   default: '#ff7a2a' },
+     },
+     // Optional:
+     camera: { hero: { position: [5, 2, 7] } },   // override a camera preset for this piece
+     lighting: 'dark',                              // 'studio' (default) or 'dark' (the piece lights itself)
+     floorY: -3,                                    // where the grid and floor sit
+   };
+   ```
+
+2. **The component**, `MyPiece.jsx`: ordinary react-three-fiber content. It receives four props and returns scene content
+   (no `<Canvas>`, no lights are required: the stage already has studio lighting and a reflection environment).
+
+   ```jsx
+   import { useRef } from 'react';
+   import { useFrame } from '@react-three/fiber';
+
+   export default function MyPiece({ params, palette, clock, quality }) {
+     const mesh = useRef();
+     useFrame(() => { mesh.current.rotation.y = clock.current.t * params.speed; });
+     return (
+       <mesh ref={mesh}>
+         <icosahedronGeometry args={[1, quality === 'low' ? 2 : 5]} />
+         <meshStandardMaterial color={palette.colors[0]} metalness={0.9} roughness={0.2} />
+       </mesh>
+     );
+   }
+   ```
+
+   - `params`: the current, already validated values (every key in your schema).
+   - `palette`: `{ id, name, colors: [4 hex], accent, light, bg: [2 hex] }`, so a piece follows the palette switcher.
+   - `clock`: `{ current: { t } }`, art time in seconds. It already includes the speed setting and stops on Pause, so
+     read `clock.current.t` instead of keeping your own time.
+   - `quality`: `'high'` or `'low'`. Use it to cut vertex counts, instances and transmission on phones.
+   - Wireframe, grid, axes, the camera presets and Save PNG work for every piece with no extra code. Rebuild geometry
+     in `useMemo` (not per frame) and dispose what you create in a `useEffect` cleanup.
+
+3. **Register it**, one line in `src/art/pieces/index.js`:
+
+   ```js
+   import myPiece from './myPiece.js';
+   // ...
+   piece(myPiece, () => import('./MyPiece.jsx')),
+   ```
+
+`npm run test:art` then checks the new piece's id, schema (ranges, defaults, options), camera overrides and that its
+component file is registered, and fails if anything in `src/art` imports the simulation or the game scenes.
+
+**Files:** `src/art/` holds `ArtLabScreen.jsx` (screen and keys), `ArtStage.jsx` (lights, environment, controls, camera
+rig, helpers), `ArtHud.jsx` and `ParamControls.jsx` (the panel), `useArtStore.js` (its own small store), `params.js`
+(schemas), `palettes.js`, `cameraPresets.js`, `geometry/`, `shaders/` and `pieces/`; the styles are `src/styles/art.css`.
 
 ## Auto play (watch-only)
 

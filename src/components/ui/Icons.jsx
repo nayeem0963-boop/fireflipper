@@ -92,3 +92,11 @@ export const TrophyIcon = () => (
     <path d="M17 6h3a3 3 0 0 1-3 4M7 6H4a3 3 0 0 0 3 4" />
   </svg>
 );
+
+/** A faceted gem: the Art Lab. */
+export const ArtIcon = () => (
+  <svg {...base}>
+    <path d="M6 3h12l4 6-10 12L2 9l4-6z" />
+    <path d="M2 9h20M9 3l3 6 3-6M12 9v12" />
+  </svg>
+);

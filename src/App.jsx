@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { useGameStore, SCREENS } from './store/useGameStore.js';
 import HomeScreen from './components/ui/HomeScreen.jsx';
 import GameScreen from './components/game/GameScreen.jsx';
@@ -6,6 +7,9 @@ import AvatarPicker from './components/ui/AvatarPicker.jsx';
 import AchievementsPanel from './components/ui/AchievementsPanel.jsx';
 import CreditsPanel from './components/ui/CreditsPanel.jsx';
 import RewardsPanel from './components/ui/RewardsPanel.jsx';
+
+/** The Art Lab is a separate chunk: players who never open it never download it. */
+const ArtLabScreen = lazy(() => import('./art/ArtLabScreen.jsx'));
 
 /**
  * Top-level screen router. Intentionally thin: screens own their own
@@ -23,6 +27,11 @@ export default function App() {
     <>
       {screen === SCREENS.HOME && <HomeScreen />}
       {screen === SCREENS.GAME && <GameScreen />}
+      {screen === SCREENS.ART && (
+        <Suspense fallback={null}>
+          <ArtLabScreen />
+        </Suspense>
+      )}
       {settingsOpen && <SettingsPanel />}
       {avatarsOpen && <AvatarPicker />}
       {achievementsOpen && <AchievementsPanel />}

@@ -18,7 +18,10 @@ import { reachMilestone, sanitizeJourney } from '../systems/rewards/rewards.js';
 import { previewRewardIds, previewSeedFor } from '../systems/rewards/preview.js';
 import { WORLD_COUNT } from '../systems/world/worlds.js';
 
-export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
+export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game', ART: 'art' });
+
+/** The Art Lab opens straight away when the address has ?art (a direct link); otherwise the game starts at the home screen. */
+const startScreen = () => (typeof window !== 'undefined' && new URLSearchParams(window.location?.search ?? '').has('art') ? SCREENS.ART : SCREENS.HOME);
 
 /**
  * Run lifecycle (mirrors the simulation's phases, plus PAUSED):
@@ -47,7 +50,7 @@ export const QUALITY = Object.freeze({ AUTO: 'auto', LOW: 'low', HIGH: 'high' })
  */
 export const useGameStore = create((set, get) => ({
   // --- navigation ---
-  screen: SCREENS.HOME,
+  screen: startScreen(),
   settingsOpen: false,
   /** Auto play (watch-only): a bot flies, nothing is scored or saved. Keep this feature (see CLAUDE.md). */
   demo: false,
@@ -146,6 +149,8 @@ export const useGameStore = create((set, get) => ({
   closeCredits: () => set({ creditsOpen: false }),
   openRewards: () => set({ rewardsOpen: true }),
   closeRewards: () => set({ rewardsOpen: false }),
+  /** The Art Lab: a standalone 3D art playground (src/art). Leave it with exitToMenu. */
+  openArt: () => set({ screen: SCREENS.ART }),
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
 

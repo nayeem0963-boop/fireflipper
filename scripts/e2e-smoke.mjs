@@ -156,6 +156,44 @@ for (const [name, opts] of CASES) {
   await ctx.close();
 }
 
+// The Art Lab (a standalone 3D art playground, reached from the home screen): every piece must load and run without page errors or shader
+// errors on every screen size, the panel must fit the screen, and leaving must return to a working menu and game.
+for (const [name, opts] of CASES) {
+  const ctx = await browser.newContext(opts);
+  const p = await ctx.newPage();
+  const errors = [];
+  p.on('pageerror', (e) => errors.push(e.message));
+  p.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text().slice(0, 160));
+  });
+  await p.goto(`http://localhost:${PORT}`);
+  await p.waitForSelector('.birdchip', { timeout: 20000 });
+  await p.getByRole('button', { name: 'Art Lab' }).click();
+  await p.waitForSelector('.art-hud', { timeout: 20000 });
+  await p.waitForSelector('.art canvas', { timeout: 20000 });
+  const pieces = await p.locator('.art-piece').count();
+  check(`${name}: Art Lab lists its pieces`, pieces >= 3, `${pieces}`);
+  for (let i = 0; i < pieces; i++) {
+    await p.locator('.art-piece').nth(i).click();
+    await p.waitForTimeout(1500);
+  }
+  const fit = await p.evaluate(() => {
+    const r = document.querySelector('.art-hud').getBoundingClientRect();
+    return { ok: r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight + 1, r: [r.left, r.top, r.right, r.bottom].map(Math.round), vw: innerWidth, vh: innerHeight };
+  });
+  check(`${name}: Art Lab panel fits the screen`, fit.ok, JSON.stringify(fit));
+  await p.getByRole('button', { name: 'Hide' }).click();
+  check(`${name}: Art Lab panel can be hidden for a clean view`, (await p.locator('.art-hud').count()) === 0 && (await p.locator('.art-reveal').count()) === 1);
+  await p.getByRole('button', { name: /show the controls/i }).click();
+  await p.getByRole('button', { name: /back to fire flipper/i }).click();
+  await p.waitForSelector('.birdchip', { timeout: 20000 });
+  await p.getByRole('button', { name: /^play/i }).first().click();
+  await p.waitForSelector('.start-prompt', { timeout: 20000 });
+  check(`${name}: the game still starts after the Art Lab`, true);
+  check(`${name}: Art Lab: no page or console errors`, errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 await browser.close();
 server.kill();
 console.log(failures ? `\n${failures} failed` : '\nbrowser smoke tests passed');
