@@ -19,6 +19,10 @@ import { diamondGeometry } from '../src/art/geometry/diamond.js';
 import { galaxyPoints } from '../src/art/geometry/galaxy.js';
 import { helixCurve, helixPoint } from '../src/art/geometry/helix.js';
 import { petalGeometry } from '../src/art/geometry/petal.js';
+import { BONES, SKIRT, dancerPoints } from '../src/art/geometry/dancer.js';
+import { TERRAIN_MAX, terrainHeight } from '../src/art/geometry/landscape.js';
+import { RIBBON_HEIGHT, ribbonPoint } from '../src/art/geometry/ribbons.js';
+import { dancerUniforms, dancerVertex, moteUniforms, moteVertex } from '../src/art/shaders/dancer.js';
 import { POINT_FRAGMENT, dynamicUniforms, dynamicVertex, emberUniforms, emberVertex, galaxyUniforms, galaxyVertex } from '../src/art/shaders/pointFields.js';
 import { coronaFragment, coronaUniforms, coronaVertex, plasmaFragment, plasmaUniforms, plasmaVertex } from '../src/art/shaders/plasma.js';
 import { terrainFragment, terrainUniforms, terrainVertex } from '../src/art/shaders/terrain.js';
@@ -51,6 +55,7 @@ section('Exhibition (piece registry)');
     check(`${p.id}: has a component (loaded on demand)`, p.Component != null);
     check(`${p.id}: its params schema is valid`, validateSchema(p.params).length === 0, validateSchema(p.params).join('; '));
     check(`${p.id}: has at least three adjustable parameters`, Object.keys(p.params).length >= 3);
+    check(`${p.id}: backdrop (if set) is black`, p.backdrop === undefined || p.backdrop === 'black');
     check(`${p.id}: lighting is studio or dark`, p.lighting === undefined || ['studio', 'dark'].includes(p.lighting));
     check(`${p.id}: floorY (if set) is below the origin`, p.floorY === undefined || p.floorY < 0);
     check(`${p.id}: camera overrides name real presets with 3 numbers`, Object.entries(p.camera ?? {}).every(([k, v]) => CAMERA_PRESETS.some((c) => c.id === k) && (!v.position || (v.position.length === 3 && v.position.every(Number.isFinite)))));
@@ -139,10 +144,10 @@ section('Shaders');
   check('braces and parentheses balance', [iridescentVertex, iridescentFragment].every((s) => (s.match(/\{/g) ?? []).length === (s.match(/\}/g) ?? []).length && (s.match(/\(/g) ?? []).length === (s.match(/\)/g) ?? []).length));
 }
 
-section('The eleven pieces');
+section('The exhibition (every piece)');
 {
-  const ids = ['ribbon-knot', 'crystal-study', 'light-orbit', 'vortex-core', 'fractal-lattice', 'quantum-prism', 'starlight-canopy', 'cyber-helix', 'bioluminescent-lotus', 'monolith-grid', 'plasma-sphere', 'neural-landscape'];
-  check('the exhibition has the three originals, the eight new pieces and the Neural Landscape, in order', PIECES.map((p) => p.id).join() === ids.join(), PIECES.map((p) => p.id).join());
+  const ids = ['ribbon-knot', 'crystal-study', 'light-orbit', 'vortex-core', 'fractal-lattice', 'quantum-prism', 'starlight-canopy', 'cyber-helix', 'bioluminescent-lotus', 'monolith-grid', 'plasma-sphere', 'neural-landscape', 'particle-dancer'];
+  check('the exhibition has the three originals, the eight new pieces, the Neural Landscape and the Particle Dancer, in order', PIECES.map((p) => p.id).join() === ids.join(), PIECES.map((p) => p.id).join());
   check('every slider default sits on its own step (so the panel never shows a value the slider cannot reach)', PIECES.every((p) => Object.values(p.params).filter((d) => d.type === 'range').every((d) => clampParam(d, d.default) === d.default)));
   check('every range has at least a hundred values to choose from or a small whole-number span', PIECES.every((p) => Object.values(p.params).filter((d) => d.type === 'range').every((d) => (d.max - d.min) / d.step >= 3)));
   // What every piece promises: it reads art time from the shared clock (so Speed and Pause work), takes its colours from the palette
@@ -155,7 +160,7 @@ section('The eleven pieces');
     check(`${f}: takes its colours from the palette`, /usePaletteColors|palette\./.test(src));
     check(`${f}: takes its parameters from the params prop`, /\{[^}]*params[^}]*\}/.test(src.split('export default function')[1]?.split(')')[0] ?? ''));
   }
-  const heavy = ['VortexCore', 'FractalLattice', 'QuantumPrism', 'StarlightCanopy', 'CyberHelix', 'Lotus', 'MonolithGrid', 'PlasmaSphere', 'NeuralLandscape'];
+  const heavy = ['VortexCore', 'FractalLattice', 'QuantumPrism', 'StarlightCanopy', 'CyberHelix', 'Lotus', 'MonolithGrid', 'PlasmaSphere', 'NeuralLandscape', 'ParticleDancer'];
   check('every new piece honours the quality tier (fewer points, vertices or transmission on low)', heavy.every((f) => /quality/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8')) && /low|Math\.min/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8'))));
   check('pieces that make geometry or materials dispose them', heavy.filter((f) => /new \w*Geometry|useMemo\(\s*\(\) =>\s*\{?\s*(const g = new)/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8')) || /TubeGeometry|BufferGeometry|petalGeometry|diamondGeometry/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8'))).every((f) => /dispose\(\)/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8'))));
   check('no piece needs a new dependency', !/postprocessing|leva|lil-gui/.test(read('package.json')));
@@ -203,6 +208,49 @@ section('Geometry helpers');
   check('petal: pointed at the tip, fullest in the middle', (() => { const w = (r) => { const a = petal.attributes.position.array; return a[(r * 4 + 3) * 3] - a[r * 4 * 3]; }; return w(5) < 0.05 && w(3) > w(5) && w(2) > w(0); })());
 }
 
+section('Particle Dancer');
+{
+  check('the skeleton is well formed: every bone has finite joints and positive radii', BONES.every(([a, b, ra, rb]) => [...a, ...b].every(Number.isFinite) && a.length === 3 && b.length === 3 && ra > 0 && rb > 0));
+  const d = dancerPoints({ count: 12000 });
+  const at = (i) => [d.positions[i * 3], d.positions[i * 3 + 1], d.positions[i * 3 + 2]];
+  const all = Array.from({ length: 12000 }, (_, i) => at(i));
+  check('the right number of points, all finite, with a random value, a kind and a height each', d.positions.length === 36000 && d.positions.every(Number.isFinite) && d.rands.length === 12000 && d.kinds.length === 12000 && d.heights.length === 12000);
+  check('she is about 3.5 units tall, standing on the ground', d.minY > -0.1 && d.minY < 0.1 && d.maxY > 3.3 && d.maxY < 3.75, `${d.minY} .. ${d.maxY}`);
+  check('heights run from 0 (feet) to 1 (raised hand)', d.heights.every((h) => h >= 0 && h <= 1) && Math.min(...d.heights) < 0.01 && Math.max(...d.heights) > 0.99);
+  check('the arabesque: a leg is raised behind her (far back and high up)', all.some(([x, y]) => x < -1.5 && y > 2.2));
+  check('the reach: a hand is stretched up and forward', all.some(([x, y]) => x > 1.2 && y > 3.3));
+  check('the other arm is stretched behind for balance', all.some(([x, , z]) => x < -0.55 && z < -0.35));
+  check('the standing foot is on the ground under her', all.some(([x, y]) => y < 0.12 && x > -0.1 && x < 0.3));
+  check('the head is above the shoulders, forward of the hips', all.filter(([x, y]) => y > 2.9 && y < 3.25 && Math.abs(x - 0.62) < 0.2).length > 100);
+  check('the skirt is the stated share of the points and hangs in its band', Math.abs(d.kinds.reduce((a, b) => a + b, 0) / 12000 - 0.22) < 0.01 && all.filter((_, i) => d.kinds[i] === 1).every(([x, y, z]) => y >= SKIRT.hemY - 1e-4 && y <= SKIRT.waistY + 1e-4 && Math.hypot(x - SKIRT.waistX, z) < SKIRT.hemRadius * 1.4));
+  check('deterministic for a seed, different for another', d.positions.every((v, i) => v === dancerPoints({ count: 12000 }).positions[i]) && dancerPoints({ count: 12000, seed: 9 }).positions.some((v, i) => v !== d.positions[i]));
+  check('volumetric: points sit a little inside and outside the surface, not on one thin shell', (() => { const body = all.filter((_, i) => d.kinds[i] === 0); const torso = body.filter(([, y]) => y > 2.0 && y < 2.4); const r = torso.map(([x, y, z]) => Math.hypot(x - (0.1 + (y - 1.92) * 0.37), z)); return Math.max(...r) - Math.min(...r) > 0.03; })());
+  check('a different point count builds too, down to a handful', dancerPoints({ count: 50 }).positions.every(Number.isFinite));
+
+  let worst = 0;
+  for (let i = 0; i < 4000; i++) worst = Math.max(worst, Math.abs(terrainHeight((i * 0.13) % 20 - 10, (i * 0.07) % 20 - 10, i * 0.31, 1)));
+  check('the landscape stays within its stated bound and uses most of it', worst <= TERRAIN_MAX + 1e-9 && worst > 0.7 * TERRAIN_MAX, `${worst}`);
+  check('the amplitude scales every wave, and zero is flat', terrainHeight(1.3, -2.1, 4, 0) === 0 && Math.abs(terrainHeight(1.3, -2.1, 4, 2) - 2 * terrainHeight(1.3, -2.1, 4, 1)) < 1e-12);
+  check('the landscape rolls with time and is deterministic', terrainHeight(1, 2, 0) !== terrainHeight(1, 2, 1.5) && terrainHeight(1, 2, 3) === terrainHeight(1, 2, 3));
+
+  const o = [0, 0, 0];
+  const pts = [];
+  for (let i = 0; i < 8; i++) for (let k = 0; k <= 30; k++) pts.push([...ribbonPoint(i, k / 30, k * 0.9, o), i, k / 30]);
+  check('ribbon paths are finite and stay close round the figure', pts.every((p) => p.slice(0, 3).every(Number.isFinite) && Math.hypot(p[0] - 0.3, p[2]) < 1.5 && Math.abs(p[0]) < 1.9));
+  check('ribbons run from her feet to her raised hand', (() => { const lo = ribbonPoint(0, 0, 0); const hi = ribbonPoint(0, 1, 0); return lo[1] < 0.3 && hi[1] > RIBBON_HEIGHT - 0.3 && hi[1] < RIBBON_HEIGHT + 0.5; })());
+  check('they pinch in towards the hand and swell round the skirt', (() => { const w = (u) => { let m = 0; for (let t = 0; t < 6; t += 0.5) { const q = ribbonPoint(0, u, t); m = Math.max(m, Math.hypot(q[0] - (0.05 + 0.55 * u * u), q[2])); } return m; }; return w(0.95) < w(0.35); })());
+  check('each ribbon is different, and they swirl with time', ribbonPoint(0, 0.5, 0)[0] !== ribbonPoint(1, 0.5, 0)[0] && ribbonPoint(2, 0.5, 0)[2] !== ribbonPoint(2, 0.5, 2)[2]);
+
+  // The component's promises (see also "The exhibition" above).
+  const src = fs.readFileSync(path.join(root, 'src/art/pieces/ParticleDancer.jsx'), 'utf8');
+  check('the figure is points only: no solid mesh of her is ever drawn', !/<mesh[\s>]/.test(src) && /<points geometry=\{body\}/.test(src));
+  check('the landscape and the figure are both points, the ribbons are lines', /<points geometry=\{terrain\}/.test(src) && /<Line/.test(src));
+  check('the figure turns, and the ribbons, landscape and figure all move from the shared clock', /rotation\.y = t \* spin/.test(src) && /ribbonPoint\(i, k \/ segments, t, point\)/.test(src) && /terrainHeight\(x, z, t, waves\)/.test(src) && /dancer\.uTime\.value = t/.test(src));
+  check('colours: the picture\'s blue, purple, magenta, gold, or the palette through the same gradient', /#2f6bff.*#8a3dff.*#ff3fd0.*#ffc34a/.test(src) && /colours === 'image'/.test(src) && /usePaletteColors/.test(src));
+  check('the colour setting offers the picture\'s colours and the palette', (() => { const sel = PIECES.find((x) => x.id === 'particle-dancer').params.colours; return sel.options.map((x) => x.value).join() === 'image,palette'; })());
+  check('the piece asks for a black backdrop and the stage honours it', PIECES.find((x) => x.id === 'particle-dancer').backdrop === 'black' && /piece\.backdrop === 'black'/.test(read('src/art/ArtStage.jsx')));
+}
+
 section('Shaders (the new pieces)');
 {
   const sets = [
@@ -212,6 +260,8 @@ section('Shaders (the new pieces)');
     ['plasma', plasmaVertex + plasmaFragment, plasmaUniforms()],
     ['corona', coronaVertex + coronaFragment, coronaUniforms()],
     ['terrain', terrainVertex + terrainFragment, terrainUniforms()],
+    ['dancer', dancerVertex + POINT_FRAGMENT, dancerUniforms()],
+    ['dancer embers', moteVertex + POINT_FRAGMENT, moteUniforms()],
   ];
   for (const [name, src, u] of sets) {
     check(`${name}: every uniform the code sets is declared in the shader`, Object.keys(u).every((k) => new RegExp(`uniform \\w+ ${k};`).test(src)), Object.keys(u).join());

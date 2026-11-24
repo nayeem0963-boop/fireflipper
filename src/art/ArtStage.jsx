@@ -173,7 +173,7 @@ export default function ArtStage({ piece, params, palette, speed, paused, preset
         <Lightformer form="circle" intensity={2} color={palette.colors[0]} position={[0, -4, -3]} scale={4} rotation-x={Math.PI / 2} />
       </Environment>
 
-      {studio ? <StudioBackdrop palette={palette} floorY={floorY} /> : <color attach="background" args={[palette.bg[0]]} />}
+      {piece.backdrop === 'black' ? <color attach="background" args={['#020205']} /> : studio ? <StudioBackdrop palette={palette} floorY={floorY} /> : <color attach="background" args={[palette.bg[0]]} />}
       {grid && (
         <Grid
           position={[0, floorY, 0]}

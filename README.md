@@ -216,7 +216,7 @@ small chunk per piece), so players who never open it never download it.
 Everything you set (piece, parameters, palette, camera preset, speed, helpers) is remembered between visits under its own
 storage key. The camera is a normal orbit camera: drag to orbit, scroll or pinch to zoom, right-drag to pan.
 
-**The twelve pieces** (each is a definition plus a component in `src/art/pieces/`; every one responds to Speed, Pause, the four palettes and the quality tier):
+**The thirteen pieces** (each is a definition plus a component in `src/art/pieces/`; every one responds to Speed, Pause, the four palettes and the quality tier):
 
 | Piece | What it is | Made with |
 | --- | --- | --- |
@@ -232,6 +232,7 @@ storage key. The camera is a normal orbit camera: drag to orbit, scroll or pinch
 | Monolith Grid | An obsidian slab over a neon terrain that ripples where you touch it | A displaced plane with grid lines drawn in the fragment shader (`shaders/terrain.js`), pointer events |
 | Plasma Sphere | A boiling, sun-like sphere with glowing veins and a corona | A displaced sphere with a heat-ramp shader (`shaders/plasma.js`) |
 | Neural Landscape | A grid of glowing points rolling in waves, coloured by height | Points whose heights and colours are written into the geometry each frame |
+| Particle Dancer | A dancer in arabesque made of thousands of glowing points, with swirling ribbons, on rolling waves of particles | A procedural point-cloud figure (`geometry/dancer.js`) animated in a vertex shader (`shaders/dancer.js`), sine-wave terrain points, glowing `Line` ribbons; blue-purple-gold or the active palette |
 
 There is **no postprocessing library**. Glow comes from emissive materials and additive halo sprites (`src/art/Glow.jsx`),
 and reflections from a procedural environment built from `Lightformer`s, so nothing is fetched from the network. If you
@@ -257,6 +258,7 @@ A piece is two files in `src/art/pieces/` and one line in the registry.
      // Optional:
      camera: { hero: { position: [5, 2, 7] } },   // override a camera preset for this piece
      lighting: 'dark',                              // 'studio' (default) or 'dark' (the piece lights itself)
+     backdrop: 'black',                             // optional: a deep black room instead of the palette's backdrop
      floorY: -3,                                    // where the grid and floor sit
    };
    ```
