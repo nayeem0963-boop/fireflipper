@@ -3,6 +3,14 @@ import { validateSchema } from '../params.js';
 import ribbonKnot from './ribbonKnot.js';
 import crystalStudy from './crystalStudy.js';
 import lightOrbit from './lightOrbit.js';
+import vortexCore from './vortexCore.js';
+import fractalLattice from './fractalLattice.js';
+import quantumPrism from './quantumPrism.js';
+import starlightCanopy from './starlightCanopy.js';
+import cyberHelix from './cyberHelix.js';
+import lotus from './lotus.js';
+import monolithGrid from './monolithGrid.js';
+import plasmaSphere from './plasmaSphere.js';
 
 /**
  * The Art Lab's exhibition: every art piece, in the order the HUD lists them.
@@ -20,6 +28,14 @@ export const PIECES = Object.freeze([
   piece(ribbonKnot, () => import('./RibbonKnot.jsx')),
   piece(crystalStudy, () => import('./CrystalStudy.jsx')),
   piece(lightOrbit, () => import('./LightOrbit.jsx')),
+  piece(vortexCore, () => import('./VortexCore.jsx')),
+  piece(fractalLattice, () => import('./FractalLattice.jsx')),
+  piece(quantumPrism, () => import('./QuantumPrism.jsx')),
+  piece(starlightCanopy, () => import('./StarlightCanopy.jsx')),
+  piece(cyberHelix, () => import('./CyberHelix.jsx')),
+  piece(lotus, () => import('./Lotus.jsx')),
+  piece(monolithGrid, () => import('./MonolithGrid.jsx')),
+  piece(plasmaSphere, () => import('./PlasmaSphere.jsx')),
 ]);
 
 export function getPiece(id) {

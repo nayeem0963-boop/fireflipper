@@ -216,14 +216,21 @@ small chunk per piece), so players who never open it never download it.
 Everything you set (piece, parameters, palette, camera preset, speed, helpers) is remembered between visits under its own
 storage key. The camera is a normal orbit camera: drag to orbit, scroll or pinch to zoom, right-drag to pan.
 
-**The three starter pieces**
+**The eleven pieces** (each is a definition plus a component in `src/art/pieces/`; every one responds to Speed, Pause, the four palettes and the quality tier):
 
-- **Ribbon Knot** (generative sculpture): a ribbon twisted along a (p, q) torus knot with a counter-ribbon, built as plain
-  geometry in `src/art/geometry/ribbonKnot.js`.
-- **Iridescent Study** (shader and material study): a sphere pushed about by animated noise in a hand-written
-  `ShaderMaterial` (fresnel rim, thin-film hue), ringed by `MeshPhysicalMaterial` glass with transmission and iridescence.
-- **Light Orbit** (kinetic light composition): a shell of breathing metal forms lit by three coloured lights that circle
-  through it, each with a bright core and a halo.
+| Piece | What it is | Made with |
+| --- | --- | --- |
+| Ribbon Knot | A ribbon twisted along a torus knot, with a counter-ribbon | Generated geometry (`geometry/ribbonKnot.js`), physical metal |
+| Iridescent Study | A noise-pushed sphere ringed by glass | A hand-written `ShaderMaterial` (fresnel rim, thin-film hue) and `MeshPhysicalMaterial` transmission |
+| Light Orbit | Breathing metal forms lit by three circling coloured lights | One `InstancedMesh`, real point lights, halos |
+| Vortex Core | Nested wireframe tori round a pulsing orb, with orbiting embers | Grid-line geometry (`geometry/torusGrid.js`), GPU embers (`shaders/pointFields.js`) |
+| Fractal Lattice | A matrix of cubes that swell, rise and turn as noise flows through | One `InstancedMesh` driven by CPU fractal noise (`noise.js`) |
+| Quantum Prism | A faceted gem that splits a beam into a fan of colour, turning on two axes | Flat-shaded lathe gem (`geometry/diamond.js`), transmission with dispersion |
+| Starlight Canopy | A spiral galaxy of tens of thousands of stars, with rings of light | `geometry/galaxy.js`, a vertex shader that turns and twinkles the stars |
+| Cyber Helix | Two metal strands with rungs and pulses racing up and down | Tube geometry along a helix (`geometry/helix.js`), glowing points |
+| Bioluminescent Lotus | Low-poly petals that open and close round pulsing stamens | `geometry/petal.js`, flat shading, glowing points |
+| Monolith Grid | An obsidian slab over a neon terrain that ripples where you touch it | A displaced plane with grid lines drawn in the fragment shader (`shaders/terrain.js`), pointer events |
+| Plasma Sphere | A boiling, sun-like sphere with glowing veins and a corona | A displaced sphere with a heat-ramp shader (`shaders/plasma.js`) |
 
 There is **no postprocessing library**. Glow comes from emissive materials and additive halo sprites (`src/art/Glow.jsx`),
 and reflections from a procedural environment built from `Lightformer`s, so nothing is fetched from the network. If you
@@ -277,6 +284,7 @@ A piece is two files in `src/art/pieces/` and one line in the registry.
    - `clock`: `{ current: { t } }`, art time in seconds. It already includes the speed setting and stops on Pause, so
      read `clock.current.t` instead of keeping your own time.
    - `quality`: `'high'` or `'low'`. Use it to cut vertex counts, instances and transmission on phones.
+   - Shared helpers you can reuse: `usePaletteColors(palette)` (the palette as three.js colours), `Glow` (an additive halo), `noise.js` (seeded random and CPU noise), `shaders/noise.js` (GPU simplex noise) and the point shaders in `shaders/pointFields.js`.
    - Wireframe, grid, axes, the camera presets and Save PNG work for every piece with no extra code. Rebuild geometry
      in `useMemo` (not per frame) and dispose what you create in a `useEffect` cleanup.
 
@@ -289,7 +297,7 @@ A piece is two files in `src/art/pieces/` and one line in the registry.
    ```
 
 `npm run test:art` then checks the new piece's id, schema (ranges, defaults, options), camera overrides and that its
-component file is registered, and fails if anything in `src/art` imports the simulation or the game scenes.
+component file is registered, that its component reads the shared clock and the palette (so Speed, Pause and the themes work), and that every slider default sits on its own step, and fails if anything in `src/art` imports the simulation or the game scenes.
 
 **Files:** `src/art/` holds `ArtLabScreen.jsx` (screen and keys), `ArtStage.jsx` (lights, environment, controls, camera
 rig, helpers), `ArtHud.jsx` and `ParamControls.jsx` (the panel), `useArtStore.js` (its own small store), `params.js`

@@ -107,7 +107,7 @@ function StudioBackdrop({ palette, floorY }) {
       </mesh>
       <mesh rotation-x={-Math.PI / 2} position-y={floorY - 0.01}>
         <circleGeometry args={[40, 64]} />
-        <meshStandardMaterial color={palette.bg[1]} roughness={0.55} metalness={0.35} envMapIntensity={0.6} />
+        <meshStandardMaterial color={palette.bg[1]} roughness={0.75} metalness={0.12} envMapIntensity={0.25} />
       </mesh>
     </>
   );

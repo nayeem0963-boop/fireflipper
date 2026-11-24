@@ -13,6 +13,15 @@ import { CAMERA_PRESETS, presetFor } from '../src/art/cameraPresets.js';
 import { RIBBON_ACROSS, ribbonKnotGeometry } from '../src/art/geometry/ribbonKnot.js';
 import { iridescentFragment, iridescentUniforms, iridescentVertex } from '../src/art/shaders/iridescentBlob.js';
 import { NOISE_GLSL } from '../src/art/shaders/noise.js';
+import { createRng, fbm3, noise3 } from '../src/art/noise.js';
+import { torusGridLines, torusGridSegmentCount } from '../src/art/geometry/torusGrid.js';
+import { diamondGeometry } from '../src/art/geometry/diamond.js';
+import { galaxyPoints } from '../src/art/geometry/galaxy.js';
+import { helixCurve, helixPoint } from '../src/art/geometry/helix.js';
+import { petalGeometry } from '../src/art/geometry/petal.js';
+import { POINT_FRAGMENT, dynamicUniforms, dynamicVertex, emberUniforms, emberVertex, galaxyUniforms, galaxyVertex } from '../src/art/shaders/pointFields.js';
+import { coronaFragment, coronaUniforms, coronaVertex, plasmaFragment, plasmaUniforms, plasmaVertex } from '../src/art/shaders/plasma.js';
+import { terrainFragment, terrainUniforms, terrainVertex } from '../src/art/shaders/terrain.js';
 import { useArtStore } from '../src/art/useArtStore.js';
 import { SCREENS } from '../src/store/useGameStore.js';
 
@@ -128,6 +137,94 @@ section('Shaders');
   check('the noise snippet is included once and defines snoise', iridescentVertex.includes('float snoise(vec3 v)') && (iridescentVertex.match(/float snoise/g) ?? []).length === 1 && NOISE_GLSL.includes('snoise'));
   check('the shader has a fresnel rim and an iridescence term', /pow\(1\.0 - facing, uRim\)/.test(iridescentFragment) && iridescentFragment.includes('uIridescence'));
   check('braces and parentheses balance', [iridescentVertex, iridescentFragment].every((s) => (s.match(/\{/g) ?? []).length === (s.match(/\}/g) ?? []).length && (s.match(/\(/g) ?? []).length === (s.match(/\)/g) ?? []).length));
+}
+
+section('The eleven pieces');
+{
+  const ids = ['ribbon-knot', 'crystal-study', 'light-orbit', 'vortex-core', 'fractal-lattice', 'quantum-prism', 'starlight-canopy', 'cyber-helix', 'bioluminescent-lotus', 'monolith-grid', 'plasma-sphere'];
+  check('the exhibition has the three originals and the eight new pieces, in order', PIECES.map((p) => p.id).join() === ids.join(), PIECES.map((p) => p.id).join());
+  check('every slider default sits on its own step (so the panel never shows a value the slider cannot reach)', PIECES.every((p) => Object.values(p.params).filter((d) => d.type === 'range').every((d) => clampParam(d, d.default) === d.default)));
+  check('every range has at least a hundred values to choose from or a small whole-number span', PIECES.every((p) => Object.values(p.params).filter((d) => d.type === 'range').every((d) => (d.max - d.min) / d.step >= 3)));
+  // What every piece promises: it reads art time from the shared clock (so Speed and Pause work), takes its colours from the palette
+  // (so the four themes work), and never uses wall-clock time or its own time source.
+  const dir = path.join(root, 'src/art/pieces');
+  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.jsx'))) {
+    const src = fs.readFileSync(path.join(dir, f), 'utf8');
+    check(`${f}: animates from the shared art clock (clock.current.t) in useFrame`, /useFrame/.test(src) && /clock\.current\.t/.test(src));
+    check(`${f}: never uses its own time source (so Speed and Pause apply)`, !/state\.clock|getElapsedTime|performance\.now|Date\.now|new Clock/.test(src));
+    check(`${f}: takes its colours from the palette`, /usePaletteColors|palette\./.test(src));
+    check(`${f}: takes its parameters from the params prop`, /\{[^}]*params[^}]*\}/.test(src.split('export default function')[1]?.split(')')[0] ?? ''));
+  }
+  const heavy = ['VortexCore', 'FractalLattice', 'QuantumPrism', 'StarlightCanopy', 'CyberHelix', 'Lotus', 'MonolithGrid', 'PlasmaSphere'];
+  check('every new piece honours the quality tier (fewer points, vertices or transmission on low)', heavy.every((f) => /quality/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8')) && /low|Math\.min/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8'))));
+  check('pieces that make geometry or materials dispose them', heavy.filter((f) => /new \w*Geometry|useMemo\(\s*\(\) =>\s*\{?\s*(const g = new)/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8')) || /TubeGeometry|BufferGeometry|petalGeometry|diamondGeometry/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8'))).every((f) => /dispose\(\)/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8'))));
+  check('no piece needs a new dependency', !/postprocessing|leva|lil-gui/.test(read('package.json')));
+}
+
+section('Noise and random');
+{
+  const r1 = createRng(42);
+  const r2 = createRng(42);
+  const a = Array.from({ length: 50 }, () => r1());
+  check('the random generator is deterministic for a seed', a.every((v, i) => v === r2()) && a.every((v) => v >= 0 && v < 1));
+  check('different seeds differ', createRng(1)() !== createRng(2)());
+  const vals = Array.from({ length: 4000 }, (_, i) => noise3(i * 0.37, i * 0.11, i * 0.73));
+  check('noise3 stays within -1..1 and is not constant', vals.every((v) => v >= -1 && v <= 1) && Math.max(...vals) - Math.min(...vals) > 0.8);
+  check('noise3 is deterministic and smooth (nearby points give nearby values)', noise3(1.3, 2.1, 0.4) === noise3(1.3, 2.1, 0.4) && Math.abs(noise3(1.3, 2.1, 0.4) - noise3(1.3001, 2.1, 0.4)) < 0.01);
+  check('fbm3 stays within -1..1', Array.from({ length: 2000 }, (_, i) => fbm3(i * 0.21, i * 0.07, i * 0.5, 4)).every((v) => v >= -1 && v <= 1));
+  check('noise changes with every axis (it is really three-dimensional)', noise3(0.5, 0.5, 0.5) !== noise3(0.5, 0.5, 1.7) && noise3(0.5, 0.5, 0.5) !== noise3(0.5, 1.7, 0.5) && noise3(0.5, 0.5, 0.5) !== noise3(1.7, 0.5, 0.5));
+}
+
+section('Geometry helpers');
+{
+  const lines = torusGridLines();
+  check('torus grid: segment count matches the formula, all finite', lines.length === torusGridSegmentCount() * 6 && lines.every(Number.isFinite));
+  check('torus grid: every point lies on the torus', (() => { for (let i = 0; i < lines.length; i += 3) { const d = Math.hypot(Math.hypot(lines[i], lines[i + 2]) - 2.2, lines[i + 1]); if (Math.abs(d - 0.55) > 1e-4) return false; } return true; })());
+  const gem = diamondGeometry({ facets: 8 });
+  gem.computeBoundingBox();
+  check('diamond: finite, about 2.7 tall, widest at the girdle', gem.attributes.position.array.every(Number.isFinite) && Math.abs(gem.boundingBox.max.y - gem.boundingBox.min.y - 2.3) < 0.2 && gem.boundingBox.max.x > 1.1);
+  check('diamond: more facets give more vertices', diamondGeometry({ facets: 14 }).attributes.position.count > diamondGeometry({ facets: 5 }).attributes.position.count);
+  check('diamond: a silly facet count still builds', diamondGeometry({ facets: 1 }).attributes.position.count > 0);
+  const gal = galaxyPoints({ count: 3000, radius: 4 });
+  const radii = Array.from({ length: 3000 }, (_, i) => Math.hypot(gal.positions[i * 3], gal.positions[i * 3 + 2]));
+  check('galaxy: the right number of stars, all finite, with a random value each', gal.positions.length === 9000 && gal.rands.length === 3000 && gal.positions.every(Number.isFinite) && gal.rands.every((v) => v >= 0 && v < 1));
+  check('galaxy: stars stay near the rim and crowd the core', Math.max(...radii) < 5.6 && radii.filter((r) => r < 2).length > radii.filter((r) => r > 2).length);
+  check('galaxy: thin disc (stars sit close to the plane)', Math.max(...Array.from({ length: 3000 }, (_, i) => Math.abs(gal.positions[i * 3 + 1]))) < 1.2);
+  check('galaxy: deterministic, and the arm count changes it', gal.positions.every((v, i) => v === galaxyPoints({ count: 3000, radius: 4 }).positions[i]) && galaxyPoints({ count: 3000, arms: 2 }).positions.some((v, i) => v !== gal.positions[i]));
+  const a = helixPoint(0.3, { radius: 1, turns: 3, height: 5, phase: 0 });
+  const b = helixPoint(0.3, { radius: 1, turns: 3, height: 5, phase: Math.PI });
+  check('helix: the two strands are on opposite sides of the axis at the same height', Math.abs(a.x + b.x) < 1e-9 && Math.abs(a.z + b.z) < 1e-9 && a.y === b.y);
+  check('helix: runs from the bottom to the top of its height at a fixed radius', helixPoint(0, { height: 5 }).y === -2.5 && Math.abs(helixPoint(1, { height: 5 }).y - 2.5) < 1e-9 && Math.abs(Math.hypot(a.x, a.z) - 1) < 1e-9);
+  check('helix: the curve is as long as the helix (about 17.8 for the defaults)', Math.abs(helixCurve({}).getLength() - 17.8) < 0.6);
+  const petal = petalGeometry({ length: 1.6, rows: 5, cols: 3 });
+  petal.computeBoundingBox();
+  check('petal: (rows+1)x(cols+1) vertices, finite, starts at the base and ends at its length', petal.attributes.position.count === 24 && petal.attributes.position.array.every(Number.isFinite) && Math.abs(petal.boundingBox.min.y) < 1e-5 && Math.abs(petal.boundingBox.max.y - 1.6) < 1e-5); // positions are 32-bit floats
+  check('petal: curl bends the tip inwards (towards -z)', petalGeometry({ curl: 0.8 }).boundingBox === null && (() => { const g = petalGeometry({ curl: 0.8 }); g.computeBoundingBox(); return g.boundingBox.min.z < -0.3; })());
+  check('petal: pointed at the tip, fullest in the middle', (() => { const w = (r) => { const a = petal.attributes.position.array; return a[(r * 4 + 3) * 3] - a[r * 4 * 3]; }; return w(5) < 0.05 && w(3) > w(5) && w(2) > w(0); })());
+}
+
+section('Shaders (the new pieces)');
+{
+  const sets = [
+    ['embers', emberVertex + POINT_FRAGMENT, emberUniforms()],
+    ['galaxy', galaxyVertex + POINT_FRAGMENT, galaxyUniforms()],
+    ['pulse points', dynamicVertex + POINT_FRAGMENT, dynamicUniforms()],
+    ['plasma', plasmaVertex + plasmaFragment, plasmaUniforms()],
+    ['corona', coronaVertex + coronaFragment, coronaUniforms()],
+    ['terrain', terrainVertex + terrainFragment, terrainUniforms()],
+  ];
+  for (const [name, src, u] of sets) {
+    check(`${name}: every uniform the code sets is declared in the shader`, Object.keys(u).every((k) => new RegExp(`uniform \\w+ ${k};`).test(src)), Object.keys(u).join());
+    check(`${name}: every declared uniform exists in the uniform set`, [...src.matchAll(/uniform \w+ (u\w+);/g)].every((m) => m[1] in u));
+    check(`${name}: braces and parentheses balance`, (src.match(/\{/g) ?? []).length === (src.match(/\}/g) ?? []).length && (src.match(/\(/g) ?? []).length === (src.match(/\)/g) ?? []).length);
+    check(`${name}: writes a colour and finishes with the colour-space chunk`, src.includes('gl_FragColor') && src.includes('<colorspace_fragment>'));
+  }
+  const all = sets.map((x) => x[1]).join('\n') + read('src/art/ArtStage.jsx');
+  check('every #include is on its own line', [...all.matchAll(/^(.*)#include/gm)].every((m) => /^\s*$/.test(m[1]) || /^\s*(\/\/|\*)/.test(m[1])));
+  check('the point shaders cap the point size (a near star cannot fill the screen)', /min\(/.test(emberVertex) && /min\(/.test(galaxyVertex) && /min\(/.test(dynamicVertex));
+  check('the point fragment shader makes a soft round point', POINT_FRAGMENT.includes('discard') && POINT_FRAGMENT.includes('gl_PointCoord'));
+  check('the terrain draws its grid lines in the fragment shader with fwidth (a constant line width)', terrainFragment.includes('fwidth'));
+  check('plasma and corona use the shared noise exactly once each', (plasmaVertex.match(/float snoise/g) ?? []).length === 1 && (plasmaFragment.match(/float snoise/g) ?? []).length === 1);
 }
 
 section('Art Lab store');
