@@ -71,7 +71,7 @@ export default function RewardsPanel() {
                     <button
                       type="button"
                       className="ghost-btn rcard__equip"
-                      onClick={() => selectSkin(wearing ? avatarFor('bulbuli', FREE_COLOR).id : 'flipper-celestial')}
+                      onClick={() => selectSkin(wearing ? avatarFor('flamebird', FREE_COLOR).id : 'flipper-celestial')}
                     >
                       {wearing ? 'Unequip' : 'Equip skin'}
                     </button>

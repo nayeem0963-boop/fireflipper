@@ -124,7 +124,7 @@ export function stepMotion(m, flight, dt, wingSpeed, t) {
 
   // follow-through springs
   const pitch = flight ? (flight.pitch ?? 0) : 0;
-  const head = stepSpring(m.head, dead ? 0 : clamp(0.45 * pitch, -0.35, 0.35), dt);
+  const head = stepSpring(m.head, dead ? 0 : clamp(0.45 * pitch, -0.35, 0.35), dt); // counter part of the body's pitch so the face stays readable
   const crest = stepSpring(m.crest, -(0.05 + Math.min(0.12, 0.012 * Math.abs(vy))) + (dead ? 0.2 : 0), dt);
   const tail = stepSpring(m.tail, clamp(-0.022 * vy, -0.18, 0.24), dt);
   const fan = stepSpring(m.fan, clamp(-0.015 * vy, -0.12, 0.18), dt);

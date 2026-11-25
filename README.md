@@ -131,10 +131,10 @@ The run also pauses automatically when the tab is hidden or the window loses foc
 ## Bird customisation
 
 Three birds (FlameBird, Honeybell (the blue-and-yellow macaw) and Morpho Butterfly),
-each in three skins (Fire, Blue, White): 9 in all. FlameBird, the Fire Flipper mascot, is first and is the bird a new player starts with (a saved choice of Honeybell or Morpho is kept; a save that chose a bird no longer offered shows FlameBird); it is a rigged model whose real flight clip drives its wings, and its Fire skin shows the model's own painted colours. Bulbuli, the Rainbow Macaw, the Toco Toucan and the Fire Eagle are no longer offered (their code and model files are kept, unlisted: see `LISTED_MODELS` in `src/systems/avatars/avatars.js`). The Flipper and the Scarlet Macaw are also out of the list; the Flipper's model remains only as the gold Celestial reward skin. Fire is always free; Blue and White unlock at best scores of
+each in three skins (Fire, Blue, White): 9 in all. FlameBird, the Fire Flipper mascot, is first and is the bird a new player starts with (a saved choice of Honeybell or Morpho is kept; a save that chose a bird no longer offered shows FlameBird); it is a rigged model whose real flight clip drives its wings, and its Fire skin shows the model's own painted colours. Bulbuli, the Rainbow Macaw, the Toco Toucan and the Fire Eagle have been removed (their code and model files are gone; a save that chose one shows FlameBird). The Flipper and the Scarlet Macaw are also out of the list; the Flipper's model remains only as the gold Celestial reward skin. Fire is always free; Blue and White unlock at best scores of
 600 and 1,500. Each skin has its own cosmetic trail colours and tints the orb-pickup sparks. Everything is visual:
 birds share one hitbox and one physics model (`npm run test:avatars` guards against gameplay fields on a bird).
-Bird models are third-party (CC BY 4.0, except FlameBird, made for this game, and the Fire Eagle, which has its own licence that still needs confirming); see `public/models/CREDITS.md` and the in-app credits.
+Honeybell and the Morpho Butterfly are third-party models (CC BY 4.0); FlameBird was made for this game; see `public/models/CREDITS.md` and the in-app credits.
 The Fire Eagle (`public/models/birds/fire-eagle.glb`) is the one skeletal model: `FireEagle.jsx` plays its `Fly` clip from the flight state and
 re-skins it with the avatar's 8-colour palette, a flame shell and glow sprites. It falls back to the Firebird while loading.
 

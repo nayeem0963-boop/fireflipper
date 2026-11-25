@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { createPortal, useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
-import { AdditiveBlending, AnimationClip, AnimationMixer, Color, Quaternion, Vector3 } from 'three';
+import { AdditiveBlending, AnimationClip, AnimationMixer, Color, Matrix4, Quaternion, Vector3 } from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { getGlowTexture } from '../../utils/textures.js';
 import { modelUrl } from '../../systems/avatars/avatars.js';
 import { createMotion, stepMotion } from './flameBirdMotion.js';
+import AvatarEyes from './AvatarEyes.jsx';
 
 /**
  * FlameBird, the Fire Flipper mascot (see systems/avatars/avatars.js and public/models/CREDITS.md). A rigged GLB with
@@ -15,7 +16,11 @@ import { createMotion, stepMotion } from './flameBirdMotion.js';
  *    cross-fades in FB_WingFlap's powered downstroke (STROKE_TIME, the same stroke as every other bird), so taps never
  *    make the wings jump; the head, crest and tail follow through on springs (see flameBirdMotion.js);
  *  - Fire shows the model's own painted textures; Blue and White re-colour them by brightness (see `palette.mix`);
- *  - a soft halo and a warm light in the colour's `glow`, like the other fire birds.
+ *  - a soft halo and a warm light in the colour's `glow`, like the other fire birds;
+ *  - in flight it is seen in profile, facing the direction of flight (+X), and pitches with the game; in menus and the
+ *    picker (no flight state) it turns to face the viewer (FACE_YAW), so its face and eyes show;
+ *  - animated eyes (AvatarEyes: blink, look ahead with small glances, look up when climbing, shut on a crash) are
+ *    flattened into the face over the painted eyes, on the head bone, so they follow every head movement.
  *
  * Purely cosmetic: the simulation never reads it, so collision and physics are the same for every bird.
  * The other clips in the file (FB_Idle, FB_TailSway, FB_Celebrate) are available for later use.
@@ -26,6 +31,16 @@ import { createMotion, stepMotion } from './flameBirdMotion.js';
 const MODEL_HEIGHT = 1.903; // the model's own height in metres
 const SIZE = 2.6; // drawn height, in the Firebird's local units: matches the Fire Eagle's on-screen size (it is a chunky, upright bird, so it needs more height than the 2.0 to 2.4 length of the slim model birds)
 const MODEL_SCALE = SIZE / MODEL_HEIGHT;
+const FLIGHT_YAW = Math.PI / 2; // in flight: profile, the beak towards +X (the direction of flight)
+const FACE_YAW = 0.35; // in menus: front to the viewer, turned a little towards +X
+// The painted eyes, in the model's own glTF space (metres; the model faces +Z): the point between them, half the
+// distance between their centres, and the eye size (AvatarEyes units: its rim is 1.2 x this across).
+const EYE_MID = new Vector3(-0.0025, 0.255, 0.452); // just under the face surface (about 0.476), so the eyes sit in it
+const EYE_HALF = 0.15;
+const EYE_SIZE = 0.072;
+const EYE_FLATTEN = 0.38; // the eyes are discs, not balls: they barely rise from the face
+const EYE_TURN_OUT = 0.2; // radians: each eye follows the face as it curves back to the side
+const GAZE = [0, 0, 1]; // straight ahead along the beak (in flight that is the direction of flight)
 /** Re-colour the painted texture by brightness onto a low / mid / high ramp (Blue and White); `mix` 0 leaves it as painted. */
 function recolour(material, palette) {
   const m = material.clone();
@@ -68,7 +83,18 @@ export default function FlameBird({ avatar, float = 0.12, wingSpeed = 7, glow = 
       o.frustumCulled = false; // the skinned pose moves the wings well outside the rest bounds
       materials.push(o.material);
     });
-    return { scene, materials };
+    // A frame on the head bone, aligned with the model's own axes, centred between the painted eyes.
+    scene.updateMatrixWorld(true);
+    const head = scene.getObjectByName('head');
+    let eyeFrame = null;
+    if (head) {
+      const inv = new Matrix4().copy(head.matrixWorld).invert();
+      const q = new Quaternion();
+      const sc = new Vector3();
+      head.matrixWorld.decompose(new Vector3(), q, sc);
+      eyeFrame = { position: EYE_MID.clone().applyMatrix4(inv), quaternion: q.invert(), scale: 1 / sc.x };
+    }
+    return { scene, materials, head, eyeFrame };
   }, [gltf, palette]);
 
   const mixer = useMemo(() => {
@@ -98,6 +124,8 @@ export default function FlameBird({ avatar, float = 0.12, wingSpeed = 7, glow = 
 
   const motion = useMemo(createMotion, [mixer]);
   const tilt = useRef(0);
+  const turn = useRef(null);
+  const model = useRef();
   const tmp = useMemo(() => ({ rootQ: new Quaternion(), parentQ: new Quaternion(), add: new Quaternion(), axis: new Vector3() }), []);
   const X = useMemo(() => new Vector3(1, 0, 0), []);
   const Y = useMemo(() => new Vector3(0, 1, 0), []);
@@ -147,6 +175,11 @@ export default function FlameBird({ avatar, float = 0.12, wingSpeed = 7, glow = 
       root.current.position.y = Math.sin(t * 1.6) * float - out.beat * 0.03;
       root.current.rotation.z = Math.sin(t * 1.1) * 0.05 + tilt.current;
     }
+    if (model.current) {
+      const target = flight ? FLIGHT_YAW : FACE_YAW;
+      turn.current = turn.current === null ? target : turn.current + (target - turn.current) * (1 - Math.exp(-dt / 0.2));
+      model.current.rotation.y = turn.current;
+    }
     if (halo.current) {
       const target = flight?.dead ? glow * 0.35 : glow;
       halo.current.opacity += (target - halo.current.opacity) * (1 - Math.exp(-4 * dt));
@@ -169,10 +202,29 @@ export default function FlameBird({ avatar, float = 0.12, wingSpeed = 7, glow = 
             toneMapped={false}
           />
         </sprite>
-        {/* The model faces +Z with its origin at its centre; turn it to face +X (the direction of flight). */}
-        <group rotation={[0, Math.PI / 2, 0]} scale={MODEL_SCALE}>
+        {/* The model faces +Z with its origin at its centre: in flight it turns to profile (+X), in menus it faces the viewer. */}
+        <group ref={model} rotation={[0, flight ? FLIGHT_YAW : FACE_YAW, 0]} scale={MODEL_SCALE}>
           <primitive object={rig.scene} />
         </group>
+        {rig.head &&
+          rig.eyeFrame &&
+          createPortal(
+            <group position={rig.eyeFrame.position} quaternion={rig.eyeFrame.quaternion} scale={rig.eyeFrame.scale}>
+              <AvatarEyes
+                at={[EYE_HALF, 0, 0]}
+                size={EYE_SIZE}
+                outwardAxis="x"
+                forward={1}
+                palette={palette}
+                flight={flight}
+                gaze={GAZE}
+                wander
+                flatten={EYE_FLATTEN}
+                turnOut={EYE_TURN_OUT}
+              />
+            </group>,
+            rig.head,
+          )}
       </group>
     </group>
   );

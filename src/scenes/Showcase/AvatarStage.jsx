@@ -16,7 +16,7 @@ const ease = (p) => p * p * (3 - 2 * p);
 
 /**
  * Picks the camera distance so a bird fits the preview whatever its size or the stage's shape: a morpho
- * butterfly (4 units across) and a bulbuli (1.9) both fill about the same share of the frame.
+ * butterfly (4 units across) and FlameBird (2.6 tall) both fill about the same share of the frame.
  */
 function useFitCamera(length) {
   const { camera, size } = useThree();

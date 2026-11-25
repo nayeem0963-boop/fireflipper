@@ -12,6 +12,12 @@ import { BackSide, Color, MathUtils, MeshBasicMaterial, SphereGeometry, Vector3 
  * the left one is its mirror image. `outwardAxis` is the axis the eyes sit apart on ('x' for birds that face along
  * z, 'z' for birds that face along x) and `forward` (+1 or -1) is the way the head points along the other axis.
  *
+ * Optional, for a bird that faces the viewer: `gaze` ([x, y, z] in the eyes' own frame) replaces the default look
+ * direction for both eyes (so they look at the viewer together instead of out to the sides), and `wander` adds small
+ * glances around it every second or two. `flatten` (< 1) squashes each eye along the way it faces, so it lies in the
+ * face like a painted eye instead of standing out as a ball, and `turnOut` (radians) turns each eye outward to follow a
+ * face that curves back to the sides. Without these the eyes behave exactly as before.
+ *
  * Basic (unlit) materials keep the eyes bright whatever the lighting or flame colour. Purely cosmetic.
  */
 const SPHERE = new SphereGeometry(1, 20, 16);
@@ -31,9 +37,9 @@ export function irisColor(palette) {
   return new Color(palette?.glow ?? '#ff9a2a').lerp(new Color('#ffb347'), 0.35);
 }
 
-export default function AvatarEyes({ at, size = 0.05, outwardAxis = 'x', forward = 1, palette, flight }) {
+export default function AvatarEyes({ at, size = 0.05, outwardAxis = 'x', forward = 1, palette, flight, gaze, wander = false, flatten = 1, turnOut = 0 }) {
   const eyes = useRef([]);
-  const state = useRef({ next: 1.5 + Math.random() * 2, p: -1, closed: 0, glance: 0 });
+  const state = useRef({ next: 1.5 + Math.random() * 2, p: -1, closed: 0, glance: 0, wx: 0, wy: 0, tx: 0, ty: 0, nextLook: 1 });
   const v = useMemo(
     () => ({ look: new Vector3(), n: new Vector3(), back: new Vector3(), up: new Vector3(0, 1, 0) }),
     [],
@@ -71,6 +77,17 @@ export default function AvatarEyes({ at, size = 0.05, outwardAxis = 'x', forward
     // Look up while climbing, down while falling.
     s.glance = MathUtils.damp(s.glance, MathUtils.clamp((flight?.vy ?? 0) / 9, -1, 1) * 0.45, 10, dt);
     const squash = 1 - 0.9 * Math.max(blink, s.closed);
+    // Small glances around the gaze point (a quick saccade, then a hold), for a bird that looks at the viewer.
+    if (wander) {
+      s.nextLook -= dt;
+      if (s.nextLook <= 0) {
+        s.tx = (Math.random() * 2 - 1) * 0.35;
+        s.ty = (Math.random() * 2 - 1) * 0.18;
+        s.nextLook = 0.9 + Math.random() * 2.2;
+      }
+      s.wx = MathUtils.damp(s.wx, s.tx, 16, dt);
+      s.wy = MathUtils.damp(s.wy, s.ty, 16, dt);
+    }
 
     eyes.current.forEach((eye, i) => {
       if (!eye?.blink || !eye.pupil) return;
@@ -81,7 +98,8 @@ export default function AvatarEyes({ at, size = 0.05, outwardAxis = 'x', forward
       const fz = outwardAxis === 'x' ? forward : 0;
       const ox = outwardAxis === 'x' ? side : 0;
       const oz = outwardAxis === 'x' ? 0 : side;
-      v.look.set(ox * 0.8 + fx * 0.5, s.glance, oz * 0.8 + fz * 0.5).normalize();
+      if (gaze) v.look.set(gaze[0] + s.wx, gaze[1] + s.glance + s.wy, gaze[2]).normalize();
+      else v.look.set(ox * 0.8 + fx * 0.5, s.glance, oz * 0.8 + fz * 0.5).normalize();
       eye.pupil.position.copy(v.look).multiplyScalar(PUPIL_SHIFT);
       // The big catch-light sits on the pupil towards the upper back; the small one at the lower front.
       v.n
@@ -107,7 +125,12 @@ export default function AvatarEyes({ at, size = 0.05, outwardAxis = 'x', forward
   return (
     <>
       {[1, -1].map((side, i) => (
-        <group key={side} position={place(side)} scale={size}>
+        <group
+          key={side}
+          position={place(side)}
+          rotation={outwardAxis === 'x' ? [0, side * turnOut * forward, 0] : [0, -side * turnOut * forward, 0]}
+          scale={outwardAxis === 'x' ? [size, size, size * flatten] : [size * flatten, size, size]}
+        >
           <group ref={keep(i, 'blink')} scale={OVAL}>
             <mesh geometry={SPHERE} material={mats.rim} scale={1.2} />
             <mesh geometry={SPHERE} material={mats.iris} />

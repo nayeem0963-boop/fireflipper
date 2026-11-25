@@ -21,8 +21,11 @@ check('9 skins', AVATARS.length === 9);
 check('FlameBird, the mascot, is the first bird and the default (Fire, its own painted colours)', AVATAR_SPECIES[0].id === 'flamebird' && AVATARS[0].id === 'flamebird-fire' && AVATARS[0].kind === 'flamebird' && AVATARS[0].palette.mix === 0 && AVATARS.filter((a) => a.species === 'flamebird').length === 3);
 check('unique ids', new Set(AVATARS.map((a) => a.id)).size === AVATARS.length);
 {
-  const { getAvatar, UNLISTED_SPECIES } = await import('../src/systems/avatars/avatars.js');
-  check('a saved choice of a bird no longer in the list shows FlameBird', ['bulbuli-fire', 'bulbuli-blue', 'macaw-flying-white', 'toco-toucan-fire', 'fire-eagle-blue', 'ember', 'scarlet-macaw'].every((id) => getAvatar(id).id === 'flamebird-fire') && UNLISTED_SPECIES.length === 4);
+  const { getAvatar } = await import('../src/systems/avatars/avatars.js');
+  const { CREDITS } = await import('../src/systems/avatars/credits.js');
+  const { existsSync } = await import('node:fs');
+  check('a saved choice of a removed bird shows FlameBird', ['bulbuli-fire', 'bulbuli-blue', 'macaw-flying-white', 'toco-toucan-fire', 'fire-eagle-blue', 'ember', 'scarlet-macaw'].every((id) => getAvatar(id).id === 'flamebird-fire'));
+  check('removed birds: model files and credits gone; the remaining birds have their files', ['fire-eagle', 'macaw-flying', 'toco-toucan'].every((f) => !existsSync(new URL(`../public/models/birds/${f}.glb`, import.meta.url))) && ['flamebird', 'macaw-blue-yellow', 'morpho'].every((f) => existsSync(new URL(`../public/models/birds/${f}.glb`, import.meta.url))) && CREDITS.map((c) => c.id).join() === 'macaw-blue-yellow,morpho');
   check('Honeybell and Morpho keep their saved colours', getAvatar('macaw-blue-yellow-white').id === 'macaw-blue-yellow-white' && getAvatar('morpho-blue').id === 'morpho-blue');
 }
 for (const sp of AVATAR_SPECIES) {
