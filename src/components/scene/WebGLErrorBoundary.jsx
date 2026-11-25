@@ -20,8 +20,7 @@ export default class WebGLErrorBoundary extends Component {
     if (this.state.error) {
       return (
         <div className="webgl-fallback" role="alert">
-          3D graphics could not start on this device. Try updating your browser or enabling hardware
-          acceleration.
+          3D graphics could not start on this device. Try updating your browser or enabling hardware acceleration.
         </div>
       );
     }

@@ -1,133 +1,244 @@
-import { useGameStore, MODE } from '../../store/useGameStore.js';
+import { useEffect, useMemo, useState } from 'react';
+import { useGameStore } from '../../store/useGameStore.js';
 import { SCORING } from '../../systems/physics/constants.js';
-import { formatDistance, formatScore, scoreBreakdown } from '../../systems/scoring/scoring.js';
+import { formatDistance, formatScore } from '../../systems/scoring/scoring.js';
+import { useTheme } from '../../hooks/useTheme.js';
+import { biomeAt } from '../../systems/world/biomes.js';
+import { sfx } from '../../systems/audio/sfx.js';
+import { getReward } from '../../systems/rewards/rewards.js';
 import { isCoarsePointer } from '../../utils/device.js';
 import { RestartIcon } from './Icons.jsx';
-import SubmitScore from './SubmitScore.jsx';
 import '../../styles/panel.css';
 
-/** One line of the score breakdown: what it was, how much of it, and the points it gave. */
-function Row({ label, detail, points }) {
-  return (
-    <div className="gameover__row">
-      <dt>{label}</dt>
-      <dd className="gameover__detail">{detail}</dd>
-      <dd className="gameover__points">+{formatScore(points)}</dd>
-    </div>
-  );
-}
+const COUNT_MS = 1000;
+const CONFETTI = 22;
 
-/**
- * The record line: how far a new best beat the old one, or what the player is chasing.
- * Display only; the bests themselves are decided by the store.
- */
-function recordNote(result, daily) {
-  const isRecord = daily ? result.isNewDailyBest : result.isNewBest;
-  if (!isRecord) return null;
-  const label = daily ? 'New daily best!' : 'New best score!';
-  const margin = result.score - result.previousBest;
-  const sub =
-    result.previousBest > 0
-      ? `+${formatScore(margin)} over ${formatScore(result.previousBest)}`
-      : daily
-        ? 'First score today'
-        : 'Your first best score';
-  return { label, sub };
+const CAUSES = {
+  lava: 'Burned in the lava',
+  column: 'Smashed into a column',
+  block: 'Crashed into a stone block',
+  rock: 'Struck by a boulder',
+  firering: 'Burned on a fire ring',
+  energyring: 'Zapped by an energy ring',
+  tornado: 'Swept up by an ember tornado',
+  disc: 'Sliced by a spinning disc',
+};
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/** Counts from 0 to `target` with an ease-out curve; `done` flips true at the end. */
+function useCountUp(target, onTick) {
+  const [value, setValue] = useState(0);
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (prefersReducedMotion() || target <= 0) {
+      setValue(target);
+      setDone(true);
+      return undefined;
+    }
+    let raf;
+    let lastTick = 0;
+    const t0 = performance.now();
+    const frame = (now) => {
+      const p = Math.min(1, (now - t0) / COUNT_MS);
+      setValue(Math.round(target * (1 - Math.pow(1 - p, 3))));
+      if (now - lastTick > 70 && p < 1) {
+        lastTick = now;
+        onTick?.(p);
+      }
+      if (p < 1) raf = requestAnimationFrame(frame);
+      else setDone(true);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target]);
+  return [value, done];
 }
 
 export default function GameOverPanel() {
   const result = useGameStore((s) => s.lastResult);
-  const bestScore = useGameStore((s) => s.bestScore);
-  const dailyBests = useGameStore((s) => s.dailyBests);
-  const dailyKey = useGameStore((s) => s.dailyKey);
   const sessionBest = useGameStore((s) => s.sessionBest);
+  const soundEnabled = useGameStore((s) => s.soundEnabled);
+  const theme = useTheme();
   const restart = useGameStore((s) => s.restart);
   const exitToMenu = useGameStore((s) => s.exitToMenu);
+
+  const score = result?.score ?? 0;
+  const [shown, done] = useCountUp(score, (p) => soundEnabled && sfx.tick(p));
+  const [barReady, setBarReady] = useState(false);
+  const isRecord = !!result?.isNewBest;
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setBarReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => {
+    if (!done || !soundEnabled) return;
+    if (isRecord) sfx.record();
+    else sfx.result();
+  }, [done, isRecord, soundEnabled]);
+
+  const confetti = useMemo(
+    () =>
+      Array.from({ length: CONFETTI }, (_, i) => {
+        const a = (i / CONFETTI) * Math.PI * 2 + (i % 3) * 0.2;
+        const d = 120 + ((i * 37) % 90);
+        return {
+          '--dx': `${Math.cos(a) * d * 1.5}px`,
+          '--dy': `${Math.sin(a) * d * 0.9 - 30}px`,
+          '--rot': `${(i * 83) % 360}deg`,
+          '--delay': `${(i % 5) * 0.04}s`,
+          '--hue': i % 3 === 0 ? 'var(--fire-100)' : i % 3 === 1 ? 'var(--fire-300)' : 'var(--fire-500)',
+        };
+      }),
+    [],
+  );
+
   if (!result) return null;
 
-  const daily = result.mode === MODE.DAILY;
-  const record = recordNote(result, daily);
-  const parts = scoreBreakdown(result);
-  const best = daily ? (dailyBests[dailyKey] ?? 0) : bestScore;
-  // The session best only adds information when it differs from the all-time best.
-  const showSession = !daily && !record && sessionBest > 0 && sessionBest < bestScore;
+  const { previousBest, distance, orbs, bestStreak, nearMisses, cause, unlockedSkins = [] } = result;
+  const { achievements = [], daily, nextGoal } = result;
+  const hasBest = previousBest > 0;
+  const personalBest = Math.max(previousBest, score);
+  const pct = hasBest ? Math.min(1, score / previousBest) : 1;
+  const toGo = Math.max(0, previousBest - score + 1);
+  let progressText;
+  if (isRecord) progressText = hasBest ? `+${formatScore(score - previousBest)} past your old best!` : 'First score on the board!';
+  else progressText = `${Math.floor(pct * 100)}% of your best · ${formatScore(toGo)} to beat it`;
 
   return (
     <div className="overlay overlay--soft overlay--gameover">
       <div
-        className={`panel gameover${record ? ' gameover--record' : ''}`}
+        className={`panel gameover${isRecord ? ' gameover--record' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="gameover-title"
       >
         <div className="gameover__body">
-          <header className="gameover__head">
-            {daily && <span className="gameover__tag">Daily challenge</span>}
+          <section className="gameover__hero">
+            <p className="gameover__kicker">Run over</p>
             <h2 id="gameover-title" className="panel__title panel__title--big">
-              Scorched!
+              {isRecord ? 'New record!' : theme.copy.over}
             </h2>
-          </header>
+            {cause && <p className="gameover__cause">{cause === 'lava' ? (biomeAt(distance)?.lavaCopy ?? theme.copy.lava) : (CAUSES[cause] ?? 'Crashed')}</p>}
 
-          {record && (
-            <p className="gameover__record">
-              <span className="gameover__record-label">{record.label}</span>
-              <span className="gameover__record-sub">{record.sub}</span>
-            </p>
-          )}
-          {result.unlockedSkins.length > 0 && (
-            <span className="badge">New Flipper colour unlocked: {result.unlockedSkins.join(', ')}</span>
-          )}
+            <div className="gameover__scorewrap">
+              {isRecord && done && (
+                <div className="confetti" aria-hidden="true">
+                  {confetti.map((style, i) => (
+                    <i key={i} style={style} />
+                  ))}
+                </div>
+              )}
+              <div className={`gameover__score${done ? ' is-done' : ''}`} aria-label={`Score ${score}`}>
+                {formatScore(shown)}
+              </div>
+            </div>
+            {isRecord && <span className={`badge${done ? ' badge--pop' : ''}`}>New personal best</span>}
 
-          <div className="gameover__score" aria-label={`Score ${result.score}`}>
-            {formatScore(result.score)}
-          </div>
+            {unlockedSkins.length > 0 && (
+              <p className="gameover__unlock">
+                Skin unlocked: {unlockedSkins.join(', ')} — pick it under Your bird
+              </p>
+            )}
 
-          <dl className="gameover__breakdown" aria-label="Score breakdown">
-            <Row label="Distance" detail={formatDistance(result.distance)} points={parts.distancePoints} />
-            <Row
-              label="Fire orbs"
-              detail={`${result.orbs} × ${SCORING.orbPoints}`}
-              points={parts.orbPoints}
-            />
-            <Row
-              label="Near misses"
-              detail={result.nearMisses.toLocaleString()}
-              points={parts.nearMissPoints}
-            />
+            <div className="pb" aria-label="Progress toward personal best">
+              <div className="pb__track">
+                <div
+                  className={`pb__fill${isRecord ? ' pb__fill--record' : ''}`}
+                  style={{ width: barReady ? `${Math.round(pct * 100)}%` : '0%' }}
+                />
+              </div>
+              <p className="pb__text">{progressText}</p>
+            </div>
+          </section>
+
+          <dl className="gameover__stats">
+            <Stat label="Distance" delay={0}>
+              {formatDistance(distance)}
+            </Stat>
+            <Stat label="Fire orbs" delay={1}>
+              {orbs} <span className="gameover__sub">(+{orbs * SCORING.orbPoints})</span>
+            </Stat>
+            <Stat label="Best orb streak" delay={2}>
+              {bestStreak}
+            </Stat>
+            <Stat label="Near misses" delay={3}>
+              {nearMisses}
+            </Stat>
+            <Stat label="Personal best" delay={4} highlight={isRecord}>
+              {formatScore(personalBest)}
+            </Stat>
+            <Stat label="Session best" delay={5}>
+              {formatScore(sessionBest)}
+            </Stat>
           </dl>
 
-          {!record && (
-            <p className="gameover__best">
-              <span>{daily ? "Today's best" : 'Best'}</span>
-              <strong>{formatScore(best)}</strong>
-              {showSession && (
-                <span className="gameover__session">
-                  This session <strong>{formatScore(sessionBest)}</strong>
+          <section className="rewards" aria-label="Rewards and next goal">
+            {(result.worlds ?? 0) > 0 && (
+              <p className="reward">
+                Worlds completed: <strong>{result.worlds}/5</strong>
+              </p>
+            )}
+            {(result.rewards ?? []).map((id) => (
+              <p key={id} className="reward reward--earned">
+                <span aria-hidden="true">✦</span> Reward unlocked: <strong>{getReward(id)?.name}</strong>
+              </p>
+            ))}
+            {achievements.map((a) => (
+              <p key={a.id} className="reward reward--earned" title={a.desc}>
+                <span aria-hidden="true">★</span> Achievement: <strong>{a.name}</strong>
+              </p>
+            ))}
+            {daily?.justCompleted && (
+              <p className="reward reward--earned">
+                <span aria-hidden="true">🔥</span> Daily goal complete
+                {daily.streakDays > 1 ? ` · ${daily.streakDays}-day streak` : ''}
+              </p>
+            )}
+            {daily && !daily.done && (
+              <p className="reward">
+                Daily: <strong>{daily.text}</strong>
+              </p>
+            )}
+            {nextGoal && (
+              <p className="reward reward--goal">
+                Next goal: <strong>{nextGoal.text}</strong>
+                <span className="reward__bar" aria-hidden="true">
+                  <i style={{ width: `${Math.round(nextGoal.ratio * 100)}%` }} />
                 </span>
-              )}
-            </p>
-          )}
-
-          {daily && <SubmitScore result={result} />}
+              </p>
+            )}
+          </section>
         </div>
 
-        <div className="gameover__actions">
-          <button
-            type="button"
-            className="play-btn gameover__retry"
-            onClick={restart}
-            autoFocus={!daily}
-            aria-keyshortcuts="Space"
-          >
+        <footer className="gameover__footer">
+          <button type="button" className="play-btn play-btn--compact" onClick={restart} autoFocus>
             <RestartIcon />
             <span>Retry</span>
-            {!isCoarsePointer() && <kbd className="gameover__key">Space</kbd>}
           </button>
-          <button type="button" className="ghost-btn gameover__menu" onClick={exitToMenu}>
+          <button type="button" className="ghost-btn" onClick={exitToMenu}>
             Main menu
           </button>
-        </div>
+          {!isCoarsePointer() && (
+            <p className="gameover__hint">
+              Press <kbd>Space</kbd> to retry
+            </p>
+          )}
+        </footer>
       </div>
+    </div>
+  );
+}
+
+function Stat({ label, delay, highlight, children }) {
+  return (
+    <div className={`stat${highlight ? ' stat--hot' : ''}`} style={{ '--i': delay }}>
+      <dt>{label}</dt>
+      <dd>{children}</dd>
     </div>
   );
 }

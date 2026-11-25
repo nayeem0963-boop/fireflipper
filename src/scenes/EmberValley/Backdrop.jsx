@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { Object3D } from 'three';
 import { useFrame } from '@react-three/fiber';
-import { MeshStandardMaterial } from 'three';
-import { biomeBlendAt } from '../../systems/biomes/biomes.js';
-import { getBiome, SKY_STOPS } from './biomeColors.js';
 import { WORLD } from '../../systems/physics/constants.js';
 import { createGroundTexture, createSkyTexture } from './valleyTextures.js';
+import { useTheme } from '../../hooks/useTheme.js';
+import { zoneStrength } from '../../systems/world/biomes.js';
 
 /**
  * Ember Valley scenery. Everything scrolls from the simulation's distance,
@@ -18,68 +18,39 @@ const GROUND_WIDTH = 200;
 const GROUND_REPEAT = 50; // → 4 world units per tile
 
 export default function Backdrop({ sim }) {
+  const { scene } = useTheme();
   return (
     <>
-      <Sky sim={sim} />
-      <PeakLayer sim={sim} depth={-34} scale={8} count={14} span={160} speedFactor={0.1} tier={0} seed={1} />
-      <PeakLayer sim={sim} depth={-20} scale={5} count={14} span={120} speedFactor={0.28} tier={1} seed={7} />
-      <PeakLayer
-        sim={sim}
-        depth={-9}
-        scale={2.6}
-        count={12}
-        span={80}
-        speedFactor={0.6}
-        tier={2}
-        seed={13}
-        spire
-      />
-      <Ground sim={sim} />
+      <Sky scene={scene} />
+      <PeakLayer sim={sim} depth={-34} scale={8} count={14} span={160} speedFactor={0.1} color={scene.peaks[0]} emissive={scene.peakEmissive} seed={1} />
+      <PeakLayer sim={sim} depth={-20} scale={5} count={14} span={120} speedFactor={0.28} color={scene.peaks[1]} emissive={scene.peakEmissive} seed={7} />
+      <PeakLayer sim={sim} depth={-9} scale={2.6} count={12} span={80} speedFactor={0.6} color={scene.peaks[2]} emissive={scene.peakEmissive} seed={13} spire />
+      <Ground sim={sim} scene={scene} />
     </>
   );
 }
 
-/** Two stacked sky planes: the Obsidian Reach sky fades in over the Ember Valley one. */
-function Sky({ sim }) {
-  const ember = useMemo(() => createSkyTexture(SKY_STOPS.ember), []);
-  const obsidian = useMemo(() => createSkyTexture(SKY_STOPS.obsidian), []);
-  const overlay = useRef();
-  useEffect(
-    () => () => {
-      ember.dispose();
-      obsidian.dispose();
-    },
-    [ember, obsidian],
-  );
-  useFrame(() => {
-    if (overlay.current) overlay.current.material.opacity = biomeBlendAt(sim.renderDistance());
-  });
+function Sky({ scene }) {
+  const tex = useMemo(() => createSkyTexture(scene), [scene]);
+  useEffect(() => () => tex.dispose(), [tex]);
   return (
-    <>
-      <mesh position={[0, 8, -60]}>
-        <planeGeometry args={[400, 60]} />
-        <meshBasicMaterial map={ember} fog={false} toneMapped={false} />
-      </mesh>
-      <mesh ref={overlay} position={[0, 8, -59.9]}>
-        <planeGeometry args={[400, 60]} />
-        <meshBasicMaterial map={obsidian} fog={false} toneMapped={false} transparent opacity={0} />
-      </mesh>
-    </>
+    <mesh position={[0, 8, -60]}>
+      <planeGeometry args={[400, 60]} />
+      <meshBasicMaterial map={tex} fog={false} toneMapped={false} />
+    </mesh>
   );
 }
 
-function Ground({ sim }) {
+function Ground({ sim, scene }) {
   const tex = useMemo(() => {
-    const t = createGroundTexture();
+    const t = createGroundTexture(scene);
     t.repeat.set(GROUND_REPEAT, 25);
     return t;
-  }, []);
+  }, [scene]);
   useEffect(() => () => tex.dispose(), [tex]);
   const mesh = useRef();
 
   useFrame((state) => {
-    const biome = getBiome(biomeBlendAt(sim.renderDistance()));
-    if (mesh.current) mesh.current.material.emissive.copy(biome.groundGlow);
     const tileSize = GROUND_WIDTH / GROUND_REPEAT;
     tex.offset.x = (sim.renderDistance() / tileSize) % 1;
     // Keep the ground centred under the camera so its edges are never seen.
@@ -89,13 +60,7 @@ function Ground({ sim }) {
   return (
     <mesh ref={mesh} rotation={[-Math.PI / 2, 0, 0]} position={[0, WORLD.groundY, -30]}>
       <planeGeometry args={[GROUND_WIDTH, 100]} />
-      <meshStandardMaterial
-        map={tex}
-        emissiveMap={tex}
-        emissive="#ff6a1a"
-        emissiveIntensity={0.45}
-        roughness={0.9}
-      />
+      <meshStandardMaterial map={tex} emissiveMap={tex} emissive={scene.groundEmissive} emissiveIntensity={0.45} roughness={0.9} />
     </mesh>
   );
 }
@@ -109,14 +74,14 @@ function seeded(seed) {
   };
 }
 
-function PeakLayer({ sim, depth, scale, count, span, speedFactor, tier, seed, spire = false }) {
-  const group = useRef();
-  // One shared material per layer, re-tinted per biome.
-  const material = useMemo(
-    () => new MeshStandardMaterial({ emissiveIntensity: 0.4, roughness: 1, flatShading: true }),
-    [],
-  );
-  useEffect(() => () => material.dispose(), [material]);
+/**
+ * One layer of distant peaks as a single InstancedMesh (one draw call for the whole layer instead of one per
+ * peak). Each peak is a unit cone scaled to its own radius and height; positions are rewritten every frame as the
+ * layer scrolls with parallax.
+ */
+function PeakLayer({ sim, depth, scale, count, span, speedFactor, color, emissive, seed, spire = false }) {
+  const mesh = useRef();
+  const dummy = useMemo(() => new Object3D(), []);
   const peaks = useMemo(() => {
     const rand = seeded(seed);
     return Array.from({ length: count }, (_, i) => ({
@@ -127,27 +92,31 @@ function PeakLayer({ sim, depth, scale, count, span, speedFactor, tier, seed, sp
   }, [count, scale, seed, span, spire]);
 
   useFrame((state) => {
-    if (!group.current) return;
-    const biome = getBiome(biomeBlendAt(sim.renderDistance()));
-    material.color.copy(biome.peaks[tier]);
-    material.emissive.copy(biome.peakEmissive);
+    const m = mesh.current;
+    if (!m) return;
     const camX = state.camera.position.x;
     const offset = (sim.renderDistance() * speedFactor) % span;
-    const children = group.current.children;
-    for (let i = 0; i < children.length; i++) {
-      let x = peaks[i].x - offset;
+    // The mountains rise out of the ground as a scenery zone (Sundarbans, Amazon) fades away, and sink while one grows in.
+    const rise = Math.max(0.0001, 1 - zoneStrength(sim.renderDistance()));
+    m.visible = rise > 0.001;
+    for (let i = 0; i < peaks.length; i++) {
+      const p = peaks[i];
+      let x = p.x - offset;
       if (x < -span / 2) x += span;
-      children[i].position.x = x + camX;
+      dummy.position.set(x + camX, p.h / 2, 0);
+      dummy.scale.set(p.r, p.h * rise, p.r);
+      dummy.updateMatrix();
+      m.setMatrixAt(i, dummy.matrix);
     }
+    m.instanceMatrix.needsUpdate = true;
   });
 
   return (
-    <group ref={group} position={[0, WORLD.groundY, depth]}>
-      {peaks.map((p, i) => (
-        <mesh key={i} position={[p.x, p.h / 2, 0]} material={material}>
-          <coneGeometry args={[p.r, p.h, spire ? 6 : 5]} />
-        </mesh>
-      ))}
+    <group position={[0, WORLD.groundY, depth]}>
+      <instancedMesh ref={mesh} args={[undefined, undefined, count]} frustumCulled={false}>
+        <coneGeometry args={[1, 1, spire ? 6 : 5]} />
+        <meshStandardMaterial color={color} emissive={emissive} emissiveIntensity={0.4} roughness={1} flatShading />
+      </instancedMesh>
     </group>
   );
 }

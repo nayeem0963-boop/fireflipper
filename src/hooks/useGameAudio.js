@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import { GAME_EVENTS, gameEvents } from '../systems/events/gameEvents.js';
 import { sfx } from '../systems/audio/sfx.js';
-import { setMusicActive } from '../systems/audio/music.js';
-import { useGameStore, STATUS } from '../store/useGameStore.js';
+import { useGameStore } from '../store/useGameStore.js';
 
 /** Plays sound effects for gameplay events while sound is enabled. */
 export function useGameAudio() {
@@ -12,26 +11,25 @@ export function useGameAudio() {
     };
     const offs = [
       gameEvents.on(GAME_EVENTS.FLAP, play(sfx.flap)),
-      gameEvents.on(GAME_EVENTS.START, play(sfx.start)),
-      gameEvents.on(GAME_EVENTS.ORB, play(sfx.orb)),
-      gameEvents.on(GAME_EVENTS.POWERUP, play(sfx.powerup)),
-      gameEvents.on(GAME_EVENTS.SHIELD_BREAK, play(sfx.shieldBreak)),
-      gameEvents.on(GAME_EVENTS.ROCK_IMPACT, play(sfx.rockImpact)),
-      gameEvents.on(GAME_EVENTS.NEAR_MISS, (e) => {
-        if (useGameStore.getState().soundEnabled) sfx.nearMiss(e.streak);
+      gameEvents.on(GAME_EVENTS.ORB, (e) => {
+        if (useGameStore.getState().soundEnabled) sfx.orb(e.streak);
       }),
+      gameEvents.on(GAME_EVENTS.NEAR, play(sfx.near)),
       gameEvents.on(GAME_EVENTS.CRASH, play(sfx.crash)),
+      gameEvents.on(GAME_EVENTS.POWERUP, (e) => {
+        if (useGameStore.getState().soundEnabled) sfx.powerup(e.kind);
+      }),
+      gameEvents.on(GAME_EVENTS.SHIELD_BREAK, play(sfx.shieldBreak)),
+      // the milestone chime and the finish fanfare belong to real play and the Journey Preview; plain Auto play stays quiet about them
+      gameEvents.on(GAME_EVENTS.MILESTONE, () => {
+        const s = useGameStore.getState();
+        if (s.soundEnabled && (!s.demo || s.preview)) sfx.milestone();
+      }),
+      gameEvents.on(GAME_EVENTS.COMPLETE, () => {
+        const s = useGameStore.getState();
+        if (s.soundEnabled && (!s.demo || s.preview)) sfx.journey();
+      }),
     ];
-
-    // Music plays only while a run is live, and follows the sound setting and pause state.
-    const syncMusic = (s) => setMusicActive(s.soundEnabled && s.status === STATUS.RUNNING);
-    syncMusic(useGameStore.getState());
-    const unsubscribe = useGameStore.subscribe(syncMusic);
-
-    return () => {
-      offs.forEach((off) => off());
-      unsubscribe();
-      setMusicActive(false);
-    };
+    return () => offs.forEach((off) => off());
   }, []);
 }

@@ -1,7 +1,8 @@
-import { SKINS, isUnlocked } from '../skins/skins.js';
+import { SKINS, colorUnlockScore, isUnlocked } from '../skins/skins.js';
+import { DEFAULT_THEME, getTheme } from '../theme/themes.js';
 
 /**
- * Every bird the player can fly as: seven species, each in three colours (Fire, Blue and White), so 21 avatars.
+ * Every bird the player can fly as: five species, each in three colours (Fire, Blue and White), so 15 avatars. (The Flipper is no longer in the list; its model is kept only for the Celestial reward skin.)
  * A species is named for what it is (never for its colour); the colour is chosen separately.
  *
  * Each avatar carries its species' fields plus `species` (the species id), `color` ('fire' | 'blue' | 'white'),
@@ -28,29 +29,6 @@ import { SKINS, isUnlocked } from '../skins/skins.js';
  */
 const MODEL_BASE = Object.freeze([
   {
-    id: 'scarlet-macaw',
-    name: 'Scarlet Macaw',
-    tagline: 'A macaw trailing a ribbon of flame',
-    file: 'scarlet-macaw.glb',
-    facing: Math.PI / 2,
-    pitch: 0,
-    length: 2.0,
-    lift: 0,
-    // Wing beats (fractions of the half wingspan): the wing bends from the shoulder outward.
-    flap: { start: 0.2, full: 0.5, hingeFrac: 0.4, strength: 0.8 },
-    // Eyes (model units from the model's centre): `at` is one eye's centre, mirrored for the other.
-    eye: { at: [0.036, 0.075, 0.23], size: 0.014 },
-    palette: {
-      low: '#a3120a',
-      mid: '#ff5a14',
-      high: '#ffd36b',
-      glow: '#ff7a2a',
-      mix: 0.85,
-      glowStrength: 0.9,
-      lumFloor: 0.2,
-    },
-  },
-  {
     id: 'macaw-flying',
     name: 'Rainbow Macaw',
     tagline: 'A painted macaw in full flight',
@@ -76,7 +54,7 @@ const MODEL_BASE = Object.freeze([
   },
   {
     id: 'macaw-blue-yellow',
-    name: 'Blue-and-Yellow Macaw',
+    name: 'Honeybell',
     tagline: 'A big-hearted macaw, wings spread wide',
     file: 'macaw-blue-yellow.glb',
     facing: Math.PI / 2,
@@ -273,21 +251,49 @@ export const COLOURS = Object.freeze([
   { id: 'white', name: 'White' },
 ]);
 
-/** The original bird as a species: its colours come from skins.js (which also holds their unlock scores). */
+/**
+ * Cosmetic trail colours: three stops from the bird's head to the end of its trail, plus a spark colour and a
+ * style ('flame' | 'sparks' | 'shimmer', which only changes how the trail looks). Each species has its own Fire
+ * trail; Blue and White share cool ramps. Purely visual: a trail has no collision and changes nothing in play.
+ */
+const FIRE_TRAILS = {
+  flipper: { stops: ['#fff3b0', '#3a8cff', '#0b3fb8'], spark: '#ffd84a', style: 'shimmer' }, // the macaw leaves a blue shimmer with gold sparks
+  bulbuli: { stops: ['#ffb347', '#ff2e1a', '#7a0d08'], spark: '#ff9a2e', style: 'sparks' },
+  'macaw-flying': { stops: ['#ffe14a', '#ff4a8a', '#3a7bff'], spark: '#7dffb0', style: 'shimmer' },
+  'macaw-blue-yellow': { stops: ['#ffe14a', '#2ea6ff', '#0b3fb8'], spark: '#d8f6ff', style: 'flame' },
+  'toco-toucan': { stops: ['#ffd36b', '#e0361a', '#5a0a06'], spark: '#ffb33a', style: 'sparks' },
+  morpho: { stops: ['#ffe9a8', '#ff7a3a', '#b21e6a'], spark: '#ffb3e0', style: 'shimmer' },
+};
+const COOL_TRAILS = {
+  blue: { stops: ['#e8fbff', '#2ea6ff', '#0b3fb8'], spark: '#9fe8ff' },
+  white: { stops: ['#ffffff', '#cfe4ff', '#8fa3c4'], spark: '#ffffff' },
+};
+
+function trailFor(speciesId, colorId) {
+  const fire = FIRE_TRAILS[speciesId];
+  const cool = COOL_TRAILS[colorId];
+  return Object.freeze(cool ? { ...cool, style: fire.style } : { ...fire });
+}
+
+/** The original bird. It is no longer a pickable species; it is only worn as the Celestial reward skin below (its colours come from skins.js). */
 const FLIPPER_SPECIES = {
   id: 'flipper',
   name: 'Flipper',
-  tagline: 'The original flyer, light on its wings',
+  tagline: 'The original flyer: a blue-and-yellow macaw',
   kind: 'firebird',
 };
 
 /** One avatar per species and colour. */
 function make(species, color, extra) {
   const { variants: _variants, ...rest } = species;
+  const skin = SKINS.find((k) => k.color === color.id);
   return {
-    unlockScore: 0,
     ...rest,
     ...extra,
+    // Skins are visual only and unlock with the best score (the theme's own colour is always free); never a gameplay perk.
+    // `unlockScore` is the red-theme value; use colorUnlockScore(color, theme) for the active theme.
+    unlockScore: skin ? skin.unlockScore : Infinity, // a reward skin has no score threshold: it unlocks by its journey reward
+    trail: trailFor(species.id, color.id),
     species: species.id,
     id: `${species.id}-${color.id}`,
     color: color.id,
@@ -297,10 +303,6 @@ function make(species, color, extra) {
 
 /** The full list: every species in each colour, species in the order the picker shows them. */
 export const AVATARS = Object.freeze([
-  ...COLOURS.map((c) => {
-    const skin = SKINS.find((k) => k.color === c.id);
-    return make(FLIPPER_SPECIES, c, { palette: skin.palette, unlockScore: skin.unlockScore });
-  }),
   ...COLOURS.map((c) =>
     make(BULBULI_SPECIES, c, {
       kind: 'bird',
@@ -319,17 +321,54 @@ export const AVATAR_SPECIES = Object.freeze(
   }),
 );
 
+/**
+ * Reward skins: earned by journey rewards, never by score, and NOT part of the 15-skin collection above (its counts and the picker are unchanged). Purely cosmetic: like every
+ * bird it only changes how the bird LOOKS; the simulation never reads an avatar, so the hitbox, the physics and the scoring are the same.
+ */
+const CELESTIAL_PALETTE = {
+  body: '#ffc93c',
+  bodyEmissive: '#ff9a1f',
+  belly: '#fff3c4',
+  bellyEmissive: '#ffd877',
+  wing: '#ffd25a',
+  wingEmissive: '#ffa52e',
+  wingInner: '#fff8dc',
+  flame: '#fff1a8',
+  beak: '#ffe9a0',
+  beakEmissive: '#ffcf5a',
+  glow: '#ffd870',
+  crown: '#fff1a8',
+  face: '#fff8dc',
+  chin: '#b8680c',
+  low: '#d9902a',
+  mid: '#ffd25a',
+  high: '#fff6d0',
+};
+export const REWARD_AVATARS = Object.freeze([
+  Object.freeze({
+    ...make(FLIPPER_SPECIES, { id: 'celestial', name: 'Celestial' }, { palette: CELESTIAL_PALETTE }),
+    reward: 'celestial-skin',
+    trail: Object.freeze({ stops: ['#fffbe0', '#ffd25a', '#e08a1a'], spark: '#fff2a8', style: 'shimmer' }),
+  }),
+]);
+
 export const DEFAULT_AVATAR_ID = AVATARS[0].id;
 
 /** Choices saved before birds had colours, mapped to the nearest bird and colour that exists now. */
 const LEGACY_IDS = {
-  ember: 'flipper-fire',
-  azure: 'flipper-blue',
-  verdant: 'flipper-blue',
-  void: 'flipper-white',
+  ember: 'bulbuli-fire',
+  azure: 'bulbuli-blue',
+  verdant: 'bulbuli-blue',
+  void: 'bulbuli-white',
+  'flipper-fire': 'bulbuli-fire',
+  'flipper-blue': 'bulbuli-blue',
+  'flipper-white': 'bulbuli-white',
   'bulbuli-sunburst': 'bulbuli-fire',
   'bulbuli-obsidian': 'bulbuli-fire',
-  'scarlet-macaw': 'scarlet-macaw-fire',
+  'scarlet-macaw': 'macaw-flying-fire',
+  'scarlet-macaw-fire': 'macaw-flying-fire',
+  'scarlet-macaw-blue': 'macaw-flying-blue',
+  'scarlet-macaw-white': 'macaw-flying-white',
   'macaw-flying': 'macaw-flying-fire',
   'macaw-blue-yellow': 'macaw-blue-yellow-blue',
   'toco-toucan': 'toco-toucan-fire',
@@ -338,24 +377,57 @@ const LEGACY_IDS = {
 
 export function getAvatar(id) {
   const wanted = LEGACY_IDS[id] ?? id;
-  return AVATARS.find((a) => a.id === wanted) ?? AVATARS[0];
+  return AVATARS.find((a) => a.id === wanted) ?? REWARD_AVATARS.find((a) => a.id === wanted) ?? AVATARS[0];
 }
 
 /** The avatar of a species in a colour (or the species' Fire one if that colour does not exist). */
 export function avatarFor(speciesId, colorId) {
   const all = AVATARS.filter((a) => a.species === speciesId);
+  if (!all.length) return avatarFor(AVATARS[0].species, colorId); // a species that is not in the list (the Flipper) shows the first bird instead
   return all.find((a) => a.color === colorId) ?? all[0];
 }
 
-/** Only the original bird's colours are locked (by best score); every other bird is free. */
-export function isAvatarUnlocked(avatar, bestScore) {
-  return avatar.kind !== 'firebird' || isUnlocked(avatar, bestScore);
+/** Each species is free in the theme's colour; the other warm/cool skin and White unlock with the best score; a reward skin unlocks with its journey reward (`rewards`: the owned map). */
+export function isAvatarUnlocked(avatar, bestScore, themeId = DEFAULT_THEME, rewards = null) {
+  if (avatar.reward) return !!rewards?.[avatar.reward];
+  return isUnlocked(avatar, bestScore, themeId);
 }
 
-/** The avatar to actually show: the selected one if unlocked, otherwise the default. */
-export function resolveAvatar(id, bestScore) {
+/** Best score needed for this avatar in a theme (0 when free). */
+export function avatarUnlockScore(avatar, themeId = DEFAULT_THEME) {
+  return colorUnlockScore(avatar.color, themeId);
+}
+
+/** The avatar to actually show: the selected one if unlocked, otherwise that bird in the theme's free colour. */
+export function resolveAvatar(id, bestScore, themeId = DEFAULT_THEME, rewards = null) {
   const avatar = getAvatar(id);
-  return isAvatarUnlocked(avatar, bestScore) ? avatar : AVATARS[0];
+  return isAvatarUnlocked(avatar, bestScore, themeId, rewards) ? avatar : avatarFor(avatar.species, getTheme(themeId).freeSkin);
+}
+
+/**
+ * Collection progress: skins unlocked out of all skins (a skin is one bird in one colour), and how many of the
+ * species have been flown at least once. `flown` maps species id to completed runs.
+ */
+export function collectionProgress(bestScore, flown = {}, themeId = DEFAULT_THEME) {
+  const unlocked = AVATARS.filter((a) => isAvatarUnlocked(a, bestScore, themeId)).length;
+  const flownSpecies = AVATAR_SPECIES.filter((sp) => (flown[sp.id] ?? 0) > 0).length;
+  return {
+    unlocked,
+    total: AVATARS.length,
+    species: AVATAR_SPECIES.length,
+    flownSpecies,
+    /** The next skin score to reach, or null when every skin is unlocked. */
+    nextUnlock:
+      AVATARS.map((a) => avatarUnlockScore(a, themeId))
+        .filter((u) => u > bestScore)
+        .sort((x, y) => x - y)[0] ?? null,
+  };
+}
+
+/** Skins unlocked in one species. */
+export function speciesProgress(speciesId, bestScore, themeId = DEFAULT_THEME) {
+  const all = AVATARS.filter((a) => a.species === speciesId);
+  return { unlocked: all.filter((a) => isAvatarUnlocked(a, bestScore, themeId)).length, total: all.length };
 }
 
 /** URL of a model bird's GLB (respects Vite's base path). */

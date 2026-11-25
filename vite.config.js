@@ -1,60 +1,34 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { createMemoryStore, getBoard, openDays, submitScore, MAX_BODY_BYTES } from './server/leaderboard.js';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 /**
- * Serves /api/leaderboard and /api/scores during `npm run dev` / `npm run preview` with an in-memory
- * store, using the same code as the Netlify functions. Scores reset when the server restarts.
+ * Keeps Netlify deploy previews and branch deploys out of search results. Netlify sets CONTEXT to 'production', 'deploy-preview' or 'branch-deploy'; for anything but
+ * production this build says noindex in the page and ships a robots.txt that disallows everything. Production (and a local build, where CONTEXT is unset) is unchanged.
+ * Every copy already points at https://fireflipper.com/ as its canonical URL.
  */
-function devLeaderboardApi() {
-  const store = createMemoryStore();
-  const send = (res, status, body, retryAfter) => {
-    res.statusCode = status;
-    if (retryAfter) res.setHeader('Retry-After', String(retryAfter));
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'no-store');
-    res.end(JSON.stringify(body));
-  };
-  const handler = async (req, res, next) => {
-    const url = new URL(req.url, 'http://localhost');
-    if (url.pathname === '/api/leaderboard' && req.method === 'GET') {
-      const result = await getBoard(store, url.searchParams.get('key') ?? openDays()[0], {
-        playerId: url.searchParams.get('playerId') ?? undefined,
-        clientId: req.socket.remoteAddress,
-      });
-      return send(res, result.status, result.ok ? result.data : { error: result.error }, result.retryAfter);
-    }
-    if (url.pathname === '/api/scores' && req.method === 'POST') {
-      let text = '';
-      for await (const chunk of req) {
-        text += chunk;
-        if (text.length > MAX_BODY_BYTES) return send(res, 413, { error: 'Request too large' });
-      }
-      let body;
-      try {
-        body = JSON.parse(text);
-      } catch {
-        return send(res, 400, { error: 'Invalid JSON' });
-      }
-      const result = await submitScore(store, body, new Date(), { clientId: req.socket.remoteAddress });
-      return send(res, result.status, result.ok ? result.data : { error: result.error }, result.retryAfter);
-    }
-    next();
-  };
+const keepNonProductionOutOfSearch = () => {
+  const context = process.env.CONTEXT;
+  const hidden = !!context && context !== 'production';
+  let outDir = 'dist';
   return {
-    name: 'dev-leaderboard-api',
-    configureServer(server) {
-      server.middlewares.use(handler);
+    name: 'fireflipper-noindex-outside-production',
+    configResolved(config) {
+      outDir = config.build.outDir;
     },
-    configurePreviewServer(server) {
-      server.middlewares.use(handler);
+    transformIndexHtml(html) {
+      return hidden ? html.replace(/(<meta name="robots" content=")[^"]*(")/, '$1noindex, nofollow$2') : html;
+    },
+    closeBundle() {
+      if (hidden) writeFileSync(join(outDir, 'robots.txt'), `# ${context}: not for search engines\nUser-agent: *\nDisallow: /\n`);
     },
   };
-}
+};
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), devLeaderboardApi()],
+  plugins: [react(), keepNonProductionOutOfSearch()],
   server: {
     port: 5173,
     // Allows testing on phones/tablets on the same network: npm run dev -- --host
@@ -62,16 +36,21 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
-    rollupOptions: {
+    // Vendor code is split from the application so a code-only deploy leaves the (large, rarely changing) library chunks with the same
+    // fingerprinted file names, and returning visitors keep them cached (see public/_headers). Three groups, so none is needlessly large:
+    // React (with the small state library), three.js (with its helpers) and the react-three-fiber renderer glue.
+    rolldownOptions: {
       output: {
-        // three.js is the bulk of the bundle; keep it in its own long-cacheable chunk
-        // so game-code changes don't invalidate it.
-        manualChunks(id) {
-          if (id.includes('node_modules/three/')) return 'three';
+        codeSplitting: {
+          groups: [
+            { name: 'vendor-react', test: /node_modules[\\/](react|react-dom|scheduler|zustand|use-sync-external-store)[\\/]/, priority: 30 },
+            { name: 'vendor-three', test: /node_modules[\\/](three|three-stdlib)[\\/]/, priority: 20 },
+            { name: 'vendor-r3f', test: /node_modules[\\/](@react-three|its-fine|react-use-measure|suspend-react|react-reconciler)[\\/]/, priority: 10 },
+          ],
         },
       },
     },
-    // three.js alone is ~700 kB minified; it loads lazily, after the menu paints.
-    chunkSizeWarningLimit: 800,
+    // three.js is the one big library (about 820 kB minified, 210 kB gzip, in its own chunk).
+    chunkSizeWarningLimit: 900,
   },
 });

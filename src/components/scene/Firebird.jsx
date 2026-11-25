@@ -6,13 +6,14 @@ import { secondaryMotion } from './birdMotion.js';
 import AvatarEyes from './AvatarEyes.jsx';
 
 /**
- * Placeholder firebird built from primitive geometry. It faces +X, so a
- * side-scrolling camera sees it in profile. It will later be replaced by
- * a GLB model loaded with drei's useGLTF; keep the public props stable so
- * the swap is local to this file.
+ * The Flipper: a blue-and-yellow macaw built from primitive geometry. It faces +X, so a side-scrolling camera sees it in profile. (The file keeps its old name: it was the original
+ * "firebird".) Cobalt-blue back, head and wings with a yellow lining, a green forehead, a yellow breast and belly, a white face patch with a dark chin strap, a big dark hooked beak and a
+ * long narrow blue tail with yellow tips. Purely cosmetic: the same size and the same collision as before (the simulation never reads the avatar). It could be replaced by a GLB model loaded
+ * with drei's useGLTF; keep the public props stable so the swap is local to this file.
  *
  * Props:
- *  - palette:     optional colour overrides (see systems/skins/skins.js)
+ *  - palette:     optional colour overrides (see systems/skins/skins.js): body, bodyEmissive, belly, bellyEmissive, wing, wingEmissive, wingInner, flame (the tail tips), beak, beakEmissive,
+ *                 glow, and for the head crown, face and chin
  *  - neutralGlow: use a plain white halo texture (for the Blue and White colours) instead of the warm one
  *  - float:       vertical bob amplitude (world units)
  *  - wingSpeed:   base wing-beat speed (radians/sec)
@@ -36,32 +37,58 @@ function flapStroke(u) {
 }
 
 const COLORS = {
-  body: '#ff5a14',
-  bodyEmissive: '#c22a06',
-  belly: '#ffb347',
-  wing: '#ff6a1a',
-  wingEmissive: '#ff3c00',
-  wingInner: '#ffd36b',
-  flame: '#ffe39a',
-  bellyEmissive: '#ff9a2e',
-  beak: '#ffcf6a',
-  beakEmissive: '#ff9d2a',
-  glow: '#ff7a2a',
+  body: '#1f5fe0',
+  bodyEmissive: '#0b2f8a',
+  belly: '#ffd23a',
+  bellyEmissive: '#e0a000',
+  wing: '#1b52d4',
+  wingEmissive: '#0a3fb8',
+  wingInner: '#ffd84a',
+  flame: '#fff0a0',
+  beak: '#25252c',
+  beakEmissive: '#050508',
+  glow: '#ffe08a',
+  crown: '#2faa6a',
+  face: '#f6f3ea',
+  chin: '#14141a',
 };
 
+/**
+ * A macaw's wing, drawn in the XY plane (x = chord, front is +x; y = span, outwards from the shoulder): long, narrow and pointed, swept back like a blade, with a nearly straight leading edge
+ * and a trailing edge made of separate long flight feathers (splayed primary feathers, then the shorter secondaries) instead of one broad rounded sheet.
+ */
 function createWingShape() {
-  // Drawn in the XY plane: x = chord (front/back), y = span (outwards).
   const s = new Shape();
-  s.moveTo(0.28, 0);
-  s.quadraticCurveTo(0.55, 0.55, 0.3, 1.15);
-  s.quadraticCurveTo(0.1, 1.5, -0.25, 1.72); // wing tip
-  s.lineTo(-0.3, 1.38);
-  s.lineTo(-0.48, 1.28); // feather notches along the trailing edge
-  s.lineTo(-0.45, 0.98);
-  s.lineTo(-0.62, 0.86);
-  s.lineTo(-0.52, 0.56);
-  s.lineTo(-0.66, 0.42);
-  s.quadraticCurveTo(-0.45, 0.1, -0.3, 0);
+  s.moveTo(0.22, 0);
+  s.quadraticCurveTo(0.34, 0.9, 0.1, 1.6); // a straight, slim leading edge
+  s.quadraticCurveTo(-0.1, 2.15, -0.38, 2.68); // sweeping back to the tip of the longest primary
+  // the trailing edge: each feather ends in its own point, longest at the tip
+  const feathers = [
+    [-0.24, 2.1, -0.66, 2.38],
+    [-0.4, 1.78, -0.9, 2.02],
+    [-0.52, 1.46, -1.08, 1.62],
+    [-0.6, 1.14, -1.1, 1.12],
+    [-0.56, 0.78, -0.98, 0.66],
+    [-0.46, 0.4, -0.78, 0.2],
+  ];
+  for (const [nx, ny, tx, ty] of feathers) {
+    s.lineTo(nx, ny); // the notch between two feathers
+    s.lineTo(tx, ty); // the point of the next one
+  }
+  s.lineTo(-0.3, 0);
+  s.closePath();
+  return s;
+}
+
+/** The yellow-gold lining: only the underwing coverts near the body, a slim band that shows as the wing beats. */
+function createLiningShape() {
+  const s = new Shape();
+  s.moveTo(0.16, 0.05);
+  s.quadraticCurveTo(0.26, 0.6, 0.12, 1.05);
+  s.lineTo(-0.2, 1.0);
+  s.lineTo(-0.5, 0.74);
+  s.lineTo(-0.42, 0.36);
+  s.lineTo(-0.28, 0.06);
   s.closePath();
   return s;
 }
@@ -80,7 +107,6 @@ export default function Firebird({
   const leftWing = useRef();
   const rightWing = useRef();
   const tail = useRef();
-  const crest = useRef();
   const halo = useRef();
   const colors = useMemo(() => ({ ...COLORS, ...palette }), [palette]);
   const phase = useRef(0);
@@ -88,6 +114,7 @@ export default function Firebird({
   const lag = useRef(0.25);
 
   const wingShape = useMemo(createWingShape, []);
+  const liningShape = useMemo(createLiningShape, []);
   const glowMap = useMemo(() => (neutralGlow ? getNeutralGlowTexture() : getGlowTexture()), [neutralGlow]);
 
   useFrame((state, delta) => {
@@ -144,10 +171,6 @@ export default function Firebird({
       tail.current.rotation.z = Math.sin(t * 2.4) * 0.12 + move.tailPitch;
       tail.current.rotation.y = Math.sin(t * 1.7) * 0.1;
     }
-    if (crest.current) {
-      const flicker = 1 + Math.sin(t * 13) * 0.08 + Math.sin(t * 21) * 0.05;
-      crest.current.scale.set(1, flicker, 1);
-    }
   });
 
   return (
@@ -176,107 +199,85 @@ export default function Firebird({
           />
         </sprite>
 
-        {/* Body */}
+        {/* Body: the blue back, with the yellow breast and belly in front of and below it */}
         <mesh scale={[1.25, 0.82, 0.78]}>
           <sphereGeometry args={[0.5, 32, 24]} />
-          <meshStandardMaterial
-            color={colors.body}
-            emissive={colors.bodyEmissive}
-            emissiveIntensity={1.4}
-            roughness={0.45}
-            metalness={0.1}
-          />
+          <meshStandardMaterial color={colors.body} emissive={colors.bodyEmissive} emissiveIntensity={0.8} roughness={0.5} metalness={0.05} />
         </mesh>
-        {/* Belly highlight */}
-        <mesh position={[0.12, -0.12, 0]} scale={[0.9, 0.55, 0.62]}>
+        <mesh position={[0.2, -0.08, 0]} scale={[1.05, 0.76, 0.8]}>
           <sphereGeometry args={[0.5, 24, 16]} />
-          <meshStandardMaterial
-            color={colors.belly}
-            emissive={colors.bellyEmissive}
-            emissiveIntensity={1.1}
-            roughness={0.5}
-          />
+          <meshStandardMaterial color={colors.belly} emissive={colors.bellyEmissive} emissiveIntensity={0.55} roughness={0.55} />
         </mesh>
 
         {/* Head */}
-        <group position={[0.6, 0.3, 0]}>
+        <group position={[0.62, 0.32, 0]}>
           <mesh>
             <sphereGeometry args={[0.3, 28, 20]} />
-            <meshStandardMaterial
-              color={colors.body}
-              emissive={colors.bodyEmissive}
-              emissiveIntensity={1.4}
-              roughness={0.4}
-            />
+            <meshStandardMaterial color={colors.body} emissive={colors.bodyEmissive} emissiveIntensity={0.8} roughness={0.45} />
           </mesh>
-          {/* Beak */}
-          <mesh position={[0.34, -0.04, 0]} rotation={[0, 0, -Math.PI / 2]}>
-            <coneGeometry args={[0.085, 0.3, 12]} />
-            <meshStandardMaterial
-              color={colors.beak}
-              emissive={colors.beakEmissive}
-              emissiveIntensity={1.2}
-              roughness={0.3}
-            />
+          {/* The green forehead: a cap over the front of the crown */}
+          <mesh position={[0.03, 0.02, 0]} rotation={[0, 0, -0.55]} scale={1.02}>
+            <sphereGeometry args={[0.3, 24, 12, 0, Math.PI * 2, 0, 0.78]} />
+            <meshStandardMaterial color={colors.crown} emissive={colors.crown} emissiveIntensity={0.35} roughness={0.5} />
           </mesh>
-          {/* Eyes: big and glowing so they read against the flame-coloured head */}
-          <AvatarEyes
-            at={[0.17, 0.09, 0.2]}
-            size={0.07}
-            outwardAxis="z"
-            forward={1}
-            palette={colors}
-            flight={flight}
-          />
-          {/* Flame crest */}
-          <group ref={crest} position={[-0.05, 0.22, 0]}>
-            {[
-              [0.06, 0.1, -0.35, 0.34],
-              [-0.08, 0.06, -0.7, 0.28],
-              [-0.2, 0.0, -1.0, 0.22],
-            ].map(([x, y, rz, h], i) => (
-              <mesh key={i} position={[x, y + h / 2, 0]} rotation={[0, 0, rz]}>
-                <coneGeometry args={[0.07, h * 1.6, 10]} />
-                <meshBasicMaterial color={colors.flame} transparent opacity={0.92} toneMapped={false} />
-              </mesh>
-            ))}
+          {/* The white face patch round each eye, and the dark chin strap under the beak */}
+          {[1, -1].map((side) => (
+            <mesh key={side} position={[0.15, 0.04, 0.235 * side]} scale={[0.17, 0.14, 0.05]}>
+              <sphereGeometry args={[1, 18, 12]} />
+              <meshStandardMaterial color={colors.face} emissive={colors.face} emissiveIntensity={0.25} roughness={0.7} />
+            </mesh>
+          ))}
+          <mesh position={[0.27, -0.2, 0]} scale={[0.12, 0.05, 0.12]}>
+            <sphereGeometry args={[1, 14, 10]} />
+            <meshStandardMaterial color={colors.chin} roughness={0.6} />
+          </mesh>
+          {/* The big hooked beak: a deep upper mandible curving down to a point over a smaller lower one */}
+          <group position={[0.3, -0.03, 0]}>
+            <mesh position={[0.06, 0.0, 0]} scale={[1.5, 1.0, 0.78]}>
+              <sphereGeometry args={[0.14, 20, 14]} />
+              <meshStandardMaterial color={colors.beak} emissive={colors.beakEmissive} emissiveIntensity={0.5} roughness={0.35} />
+            </mesh>
+            <mesh position={[0.26, -0.09, 0]} rotation={[0, 0, -2.5]}>
+              <coneGeometry args={[0.065, 0.16, 12]} />
+              <meshStandardMaterial color={colors.beak} emissive={colors.beakEmissive} emissiveIntensity={0.5} roughness={0.35} />
+            </mesh>
+            <mesh position={[0.02, -0.12, 0]} scale={[1.2, 0.55, 0.7]}>
+              <sphereGeometry args={[0.1, 16, 10]} />
+              <meshStandardMaterial color={colors.beak} emissive={colors.beakEmissive} emissiveIntensity={0.5} roughness={0.4} />
+            </mesh>
           </group>
+          {/* Eyes: big and bright, on the white patch */}
+          <AvatarEyes at={[0.17, 0.08, 0.23]} size={0.07} outwardAxis="z" forward={1} palette={colors} flight={flight} />
         </group>
 
         {/* Wings: pivot at the shoulder; rotation.x is animated */}
         <group position={[0.05, 0.18, 0.22]}>
           <group ref={rightWing} rotation={[Math.PI / 2, 0, 0]}>
-            <Wing shape={wingShape} colors={colors} />
+            <Wing shape={wingShape} lining={liningShape} colors={colors} />
           </group>
         </group>
         <group position={[0.05, 0.18, -0.22]}>
           <group ref={leftWing} rotation={[-Math.PI / 2, 0, 0]}>
-            <Wing shape={wingShape} colors={colors} />
+            <Wing shape={wingShape} lining={liningShape} colors={colors} />
           </group>
         </group>
 
-        {/* Tail plumes */}
+        {/* A long graduated tail: five leaf-shaped blue feathers, the two in the middle longest, fanned a little, with yellow tips */}
         <group ref={tail} position={[-0.55, 0.02, 0]}>
           {[
-            [0.25, 0, 1.15],
-            [0.05, 0.22, 1.35],
-            [0.05, -0.22, 1.35],
-            [-0.18, 0.4, 1.0],
-            [-0.18, -0.4, 1.0],
-          ].map(([rz, ry, len], i) => (
-            <group key={i} rotation={[0, ry, rz]}>
-              <mesh position={[-len / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]} scale={[1, 1, 0.35]}>
-                <coneGeometry args={[0.13, len, 10]} />
-                <meshStandardMaterial
-                  color={colors.wing}
-                  emissive={colors.wingEmissive}
-                  emissiveIntensity={1.6}
-                  toneMapped={false}
-                  roughness={0.6}
-                />
+            [0.08, 0.0, 2.8, 0.05],
+            [0.15, 0.1, 2.55, -0.05],
+            [0.02, -0.1, 2.55, 0.0],
+            [0.22, 0.22, 2.1, -0.03],
+            [-0.04, -0.22, 2.1, 0.03],
+          ].map(([rz, ry, len, lift], i) => (
+            <group key={i} rotation={[0, ry, rz]} position={[0, lift, 0]}>
+              <mesh position={[-len / 2, 0, 0]} scale={[len / 2, 0.095, 0.03]}>
+                <sphereGeometry args={[1, 14, 8]} />
+                <meshStandardMaterial color={colors.wing} emissive={colors.wingEmissive} emissiveIntensity={0.9} toneMapped={false} roughness={0.6} />
               </mesh>
-              <mesh position={[-len + 0.05, 0, 0]}>
-                <sphereGeometry args={[0.07, 10, 8]} />
+              <mesh position={[-len + 0.14, 0, 0.004]} scale={[0.17, 0.075, 0.03]}>
+                <sphereGeometry args={[1, 12, 8]} />
                 <meshBasicMaterial color={colors.flame} toneMapped={false} />
               </mesh>
             </group>
@@ -287,30 +288,17 @@ export default function Firebird({
   );
 }
 
-function Wing({ shape, colors }) {
+function Wing({ shape, lining, colors }) {
   return (
     <>
       <mesh>
         <shapeGeometry args={[shape, 12]} />
-        <meshStandardMaterial
-          color={colors.wing}
-          emissive={colors.wingEmissive}
-          emissiveIntensity={1.3}
-          side={DoubleSide}
-          roughness={0.55}
-          toneMapped={false}
-        />
+        <meshStandardMaterial color={colors.wing} emissive={colors.wingEmissive} emissiveIntensity={0.9} side={DoubleSide} roughness={0.55} toneMapped={false} />
       </mesh>
-      {/* Inner, brighter layer for a hot-core gradient */}
-      <mesh position={[0.06, 0.02, 0.01]} scale={[0.62, 0.6, 1]}>
-        <shapeGeometry args={[shape, 8]} />
-        <meshBasicMaterial
-          color={colors.wingInner}
-          side={DoubleSide}
-          transparent
-          opacity={0.85}
-          toneMapped={false}
-        />
+      {/* The yellow-gold lining of the underwing, showing as the wing beats */}
+      <mesh position={[0, 0, 0.012]}>
+        <shapeGeometry args={[lining, 8]} />
+        <meshBasicMaterial color={colors.wingInner} side={DoubleSide} transparent opacity={0.92} toneMapped={false} />
       </mesh>
     </>
   );

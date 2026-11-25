@@ -11,13 +11,7 @@ import WebGLErrorBoundary from './WebGLErrorBoundary.jsx';
  *
  * `frameloop="demand"` can be passed to stop rendering (e.g. when paused).
  */
-export default function SceneCanvas({
-  children,
-  camera,
-  frameloop = 'always',
-  className,
-  background = '#0b0907',
-}) {
+export default function SceneCanvas({ children, camera, frameloop = 'always', className, background = '#0b0907' }) {
   const { maxDpr, antialias } = useRenderSettings();
   const deviceDpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
   const [dpr, setDpr] = useState(() => Math.min(deviceDpr, maxDpr));
@@ -29,6 +23,13 @@ export default function SceneCanvas({
         className={className}
         dpr={cappedDpr}
         frameloop={frameloop}
+        onCreated={({ gl, scene }) => {
+          // development only: lets checks read renderer stats (window.__fireflipper.gl.info)
+          if (import.meta.env?.DEV && window.__fireflipper) {
+            window.__fireflipper.gl = gl;
+            window.__fireflipper.scene = scene;
+          }
+        }}
         camera={camera}
         gl={{ antialias, alpha: false, powerPreference: 'high-performance', stencil: false }}
       >

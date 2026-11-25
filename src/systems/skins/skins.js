@@ -1,5 +1,8 @@
+import { DEFAULT_THEME, getTheme } from '../theme/themes.js';
+
 /**
- * The original bird's colours (Fire, Blue, White). Pure data: a skin is a colour palette for the bird, and
+ * The original bird's colours (Fire, Blue, White). The Flipper is a blue-and-yellow macaw (components/scene/Firebird.jsx), so the base colour (still called Fire, like the other birds' base colour) is the macaw's
+ * own blue and yellow (the palette is empty: the bird's defaults), and Blue and White recolour the same macaw. Pure data: a skin is a colour palette for the bird, and
  * unlocks once the player's best free-play score reaches `unlockScore`.
  * (A typical skilled 3,000 m run scores about 5,000.)
  */
@@ -28,6 +31,9 @@ export const SKINS = Object.freeze([
       beak: '#e8fbff',
       beakEmissive: '#6cc8ff',
       glow: '#3aa8ff',
+      crown: '#7fe8ff',
+      face: '#f4fbff',
+      chin: '#0a4fc2',
     },
   },
   {
@@ -47,9 +53,23 @@ export const SKINS = Object.freeze([
       beak: '#ffd88a',
       beakEmissive: '#ffcf6a',
       glow: '#cfe4ff',
+      crown: '#ffffff',
+      face: '#ffffff',
+      chin: '#9fb4d6',
     },
   },
 ]);
+
+/**
+ * Best score at which a colour unlocks in a theme. The theme's own colour (Fire in red, Blue in blue) is free from
+ * the start, so every bird begins matching the theme; the other warm/cool colour unlocks at the Blue threshold and
+ * White at its own. Purely cosmetic.
+ */
+export function colorUnlockScore(colorId, themeId = DEFAULT_THEME) {
+  if (colorId === 'white') return SKINS.find((k) => k.color === 'white').unlockScore;
+  if (colorId === getTheme(themeId).freeSkin) return 0;
+  return SKINS.find((k) => k.color === 'blue').unlockScore;
+}
 
 export const DEFAULT_SKIN_ID = SKINS[0].id;
 
@@ -57,17 +77,20 @@ export function getSkin(id) {
   return SKINS.find((s) => s.id === id) ?? SKINS[0];
 }
 
-export function isUnlocked(skin, bestScore) {
-  return bestScore >= skin.unlockScore;
+export function isUnlocked(skin, bestScore, themeId = DEFAULT_THEME) {
+  return bestScore >= colorUnlockScore(skin.color, themeId);
 }
 
 /** The skin to actually show: the selected one if unlocked, otherwise the default. */
-export function resolveSkin(id, bestScore) {
+export function resolveSkin(id, bestScore, themeId = DEFAULT_THEME) {
   const skin = getSkin(id);
-  return isUnlocked(skin, bestScore) ? skin : SKINS[0];
+  return isUnlocked(skin, bestScore, themeId) ? skin : SKINS[0];
 }
 
 /** Skins that a score newly unlocks (previous best < threshold <= new best). */
-export function newlyUnlocked(previousBest, newBest) {
-  return SKINS.filter((s) => s.unlockScore > previousBest && s.unlockScore <= newBest);
+export function newlyUnlocked(previousBest, newBest, themeId = DEFAULT_THEME) {
+  return SKINS.filter((k) => {
+    const at = colorUnlockScore(k.color, themeId);
+    return at > previousBest && at <= newBest;
+  });
 }

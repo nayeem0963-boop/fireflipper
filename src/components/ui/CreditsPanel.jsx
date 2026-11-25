@@ -5,6 +5,7 @@ import { AVATARS } from '../../systems/avatars/avatars.js';
 import IconButton from './IconButton.jsx';
 import { CloseIcon } from './Icons.jsx';
 import '../../styles/panel.css';
+import '../../styles/avatars.css';
 
 /**
  * Credits for the third-party bird models. CC BY 4.0 requires the author to be credited, the licence linked and

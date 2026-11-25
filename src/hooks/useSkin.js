@@ -1,9 +1,11 @@
 import { useGameStore } from '../store/useGameStore.js';
 import { resolveAvatar } from '../systems/avatars/avatars.js';
 
-/** The bird the player is flying as: the selected avatar, or the default while it is still locked. */
+/** The bird the player is flying as: the selected skin, or that bird's free Fire colour while it is locked. */
 export function useSkin() {
   const skinId = useGameStore((s) => s.skinId);
   const bestScore = useGameStore((s) => s.bestScore);
-  return resolveAvatar(skinId, bestScore);
+  const theme = useGameStore((s) => s.theme);
+  const rewards = useGameStore((s) => s.journey.rewards);
+  return resolveAvatar(skinId, bestScore, theme, rewards);
 }

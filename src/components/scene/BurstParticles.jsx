@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending } from 'three';
-import { getGlowTexture } from '../../utils/textures.js';
+import { getGlowTexture, getNeutralGlowTexture } from '../../utils/textures.js';
+import { useTheme } from '../../hooks/useTheme.js';
 import { GAME_EVENTS, gameEvents } from '../../systems/events/gameEvents.js';
-import { POWERUP_INFO } from '../../systems/powerups/appearance.js';
+import { useSkin } from '../../hooks/useSkin.js';
+import { Color } from 'three';
 
 /**
  * Pooled spark bursts for orb pickups and crashes: one THREE.Points with
@@ -13,13 +15,22 @@ import { POWERUP_INFO } from '../../systems/powerups/appearance.js';
  * while it scrolls.
  */
 const CAPACITY = 160;
-const ORB_COLOR = [1.0, 0.82, 0.4];
-const CRASH_COLOR = [1.0, 0.42, 0.1];
-const DUST_COLOR = [0.7, 0.45, 0.3];
+/** Every this many orbs in a streak, the pickup bursts bigger (a collectible flourish, cosmetic only). */
+const STREAK_FLOURISH = 5;
 
 export default function BurstParticles({ sim }) {
   const points = useRef();
-  const glowMap = useMemo(getGlowTexture, []);
+  const theme = useTheme();
+  const glowMap = useMemo(() => (theme.neutralGlow ? getNeutralGlowTexture() : getGlowTexture()), [theme]);
+  const { trail } = useSkin();
+  // The pickup effect is tinted with the chosen bird's trail colours.
+  const orbColors = useMemo(() => {
+    const c = (hex) => {
+      const col = new Color(hex);
+      return [col.r, col.g, col.b];
+    };
+    return { main: c(trail.stops[0]), accent: c(trail.spark), edge: c(trail.stops[1]) };
+  }, [trail]);
 
   const state = useMemo(
     () => ({
@@ -54,23 +65,21 @@ export default function BurstParticles({ sim }) {
         state.base[k * 3 + 2] = color[2];
       }
     };
-    const offOrb = gameEvents.on(GAME_EVENTS.ORB, (e) => emit(e.x, e.y, 14, 3.2, ORB_COLOR, 0.55));
-    const offCrash = gameEvents.on(GAME_EVENTS.CRASH, (e) => emit(e.x, e.y, 42, 5.5, CRASH_COLOR, 0.9));
-    const offPower = gameEvents.on(GAME_EVENTS.POWERUP, (e) =>
-      emit(e.x, e.y, 26, 4, POWERUP_INFO[e.kind].rgb, 0.8),
-    );
-    const offShield = gameEvents.on(GAME_EVENTS.SHIELD_BREAK, (e) =>
-      emit(e.x, e.y, 34, 5, POWERUP_INFO.shield.rgb, 0.7),
-    );
-    const offRock = gameEvents.on(GAME_EVENTS.ROCK_IMPACT, (e) => emit(e.x, e.y, 22, 3.4, DUST_COLOR, 0.9));
+    const offOrb = gameEvents.on(GAME_EVENTS.ORB, (e) => {
+      emit(e.x, e.y, 10, 3.2, orbColors.main, 0.55);
+      emit(e.x, e.y, 6, 2.4, orbColors.accent, 0.7);
+      if (e.streak > 0 && e.streak % STREAK_FLOURISH === 0) {
+        // Streak flourish: an extra ring of sparks in the bird's colours.
+        emit(e.x, e.y, 24, 5.2, orbColors.edge, 0.8);
+        emit(e.x, e.y, 12, 3.6, orbColors.main, 0.9);
+      }
+    });
+    const offCrash = gameEvents.on(GAME_EVENTS.CRASH, (e) => emit(e.x, e.y, 42, 5.5, theme.scene.crash, 0.9));
     return () => {
-      offRock();
-      offPower();
-      offShield();
       offOrb();
       offCrash();
     };
-  }, [state]);
+  }, [state, orbColors, theme]);
 
   useFrame((_, delta) => {
     const geom = points.current?.geometry;

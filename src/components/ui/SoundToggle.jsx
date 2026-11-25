@@ -7,11 +7,7 @@ export default function SoundToggle() {
   const soundEnabled = useGameStore((s) => s.soundEnabled);
   const toggleSound = useGameStore((s) => s.toggleSound);
   return (
-    <IconButton
-      label={soundEnabled ? 'Mute sound' : 'Unmute sound'}
-      pressed={soundEnabled}
-      onClick={toggleSound}
-    >
+    <IconButton label={soundEnabled ? 'Mute sound' : 'Unmute sound'} pressed={soundEnabled} onClick={toggleSound}>
       {soundEnabled ? <SoundOnIcon /> : <SoundOffIcon />}
     </IconButton>
   );
