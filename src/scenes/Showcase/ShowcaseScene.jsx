@@ -31,7 +31,13 @@ export default function ShowcaseScene() {
 
       <group position={[0, 0.1, 0]}>
         {usesOriginalAvatar(version) ? (
-          <AvatarBird avatar={skin} rotation={[0, -0.55, 0]} float={0.16} wingSpeed={5.5} />
+          skin.kind === 'flamebird' ? (
+            <DisplaySpin>
+              <AvatarBird avatar={skin} float={0.16} wingSpeed={5.5} />
+            </DisplaySpin>
+          ) : (
+            <AvatarBird avatar={skin} rotation={[0, -0.55, 0]} float={0.16} wingSpeed={5.5} />
+          )
         ) : (
           <PlayerAvatar
             version={version}
@@ -49,6 +55,29 @@ export default function ShowcaseScene() {
       <EmberParticles count={Math.round(emberCount * 0.75)} color={scene.ember} area={[12, 8, 6]} position={[0, 0, -1]} />
     </>
   );
+}
+
+const SPIN_SPEED = 0.9; // radians per second: a slow turn all the way round
+const FLIP_EVERY = 6.5; // seconds between flips
+const FLIP_TIME = 0.9; // seconds for one flip
+const easeInOut = (u) => (u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2);
+
+/**
+ * FlameBird on the home display: it turns slowly all the way round, and every FLIP_EVERY seconds does a quick
+ * somersault with a little hop. Only the menu display: in a run the bird keeps its flying orientation.
+ */
+function DisplaySpin({ children }) {
+  const g = useRef();
+  useFrame((state) => {
+    if (!g.current) return;
+    const t = state.clock.elapsedTime;
+    const p = (t % FLIP_EVERY) / FLIP_TIME; // 0..1 during a flip
+    const flipping = p < 1;
+    const e = flipping ? easeInOut(p) : 0;
+    g.current.rotation.set(-e * Math.PI * 2, t * SPIN_SPEED, 0, 'YXZ');
+    g.current.position.y = flipping ? Math.sin(Math.PI * p) * 0.35 : 0;
+  });
+  return <group ref={g}>{children}</group>;
 }
 
 /** Thin glowing rings slowly rotating behind the bird. */

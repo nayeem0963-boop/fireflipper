@@ -10,6 +10,10 @@
  *  - follow-through: damped springs for the head (it counters part of the body's pitch, so the face stays readable),
  *    the crest and the tail (they trail with speed, and each flap kicks them so they bounce and settle).
  *
+ *  - face: blinks (with an occasional double blink; eyes half shut after a crash) and the beak (a spring: each flap
+ *    pops it open, in menus the bird chirps now and then, and it hangs open after a crash), returned as 0..1 values
+ *    that FlameBird.jsx feeds to its material (the lids and the jaw are drawn by the bird's own shader).
+ *
  * Both clips are 0.8 s loops with the top of the upstroke at 0.2 s and the end of the downstroke at 0.6 s. Their wing
  * raise (Phase 4 of the rig) is FB_Fly 20 + 20 sin and FB_WingFlap 12.5 + 27.5 sin (degrees, sin of 2 pi t / 0.8); a new
  * stroke starts at the point of its upstroke whose raise matches the wing's current raise, so the cross-fade has
@@ -50,8 +54,18 @@ export function stepSpring(s, target, dt) {
   return s.x;
 }
 
-export function createMotion() {
+const BLINK_TIME = 0.17;
+
+export function createMotion(rng = Math.random) {
   return {
+    rng,
+    blinkNext: 1.2 + rng() * 2,
+    blinkT: -1,
+    closed: 0,
+    chirpNext: 1.5 + rng() * 2.5,
+    chirpT: -1,
+    popT: -1,
+    beak: createSpring(22, 0.55),
     flyTime: TOP,
     flySpeed: 1,
     slots: [
@@ -132,7 +146,47 @@ export function stepMotion(m, flight, dt, wingSpeed, t) {
   const strokes = m.slots.map((s) => ({ time: wrap(s.u), weight: s.weight * scale }));
   m.wing = (1 - flapW) * FLY_RAISE(m.flyTime) + strokes.reduce((a, s) => a + s.weight * FLAP_RAISE(s.time), 0);
 
+  // blinks: a quick close and open every few seconds (sometimes two in a row); half shut after a crash
+  m.blinkNext -= dt;
+  if (m.blinkT < 0 && m.blinkNext <= 0) m.blinkT = 0;
+  let blink = 0;
+  if (m.blinkT >= 0) {
+    m.blinkT += dt / BLINK_TIME;
+    if (m.blinkT >= 1) {
+      m.blinkT = -1;
+      m.blinkNext = m.rng() < 0.2 ? 0.12 : 2.2 + m.rng() * 3.3;
+    } else blink = Math.sin(m.blinkT * Math.PI);
+  }
+  m.closed = approach(m.closed, dead ? 0.8 : 0, dt, 0.08);
+
+  // beak: chirps in menus ("chirp-chirp": two quick openings), a pop on each flap, hanging open after a crash
+  if (!flight) {
+    m.chirpNext -= dt;
+    if (m.chirpT < 0 && m.chirpNext <= 0) m.chirpT = 0;
+  }
+  let chirp = 0;
+  if (m.chirpT >= 0) {
+    m.chirpT += dt;
+    const c = m.chirpT;
+    if (c < 0.13) chirp = Math.sin((Math.PI * c) / 0.13);
+    else if (c > 0.19 && c < 0.32) chirp = 0.8 * Math.sin((Math.PI * (c - 0.19)) / 0.13);
+    else if (c >= 0.32) {
+      m.chirpT = -1;
+      m.chirpNext = 2.5 + m.rng() * 3;
+    }
+  }
+  if (newFlap) m.popT = 0; // a small 'puff' on each flap
+  let pop = 0;
+  if (m.popT >= 0) {
+    m.popT += dt;
+    if (m.popT < 0.2) pop = 0.6 * Math.sin((Math.PI * m.popT) / 0.2);
+    else m.popT = -1;
+  }
+  const beak = clamp(stepSpring(m.beak, dead ? 0.6 : Math.max(chirp, pop), dt), 0, 1);
+
   return {
+    eyes: clamp(Math.max(blink, m.closed), 0, 1),
+    beak,
     flyTime: m.flyTime,
     flyWeight: 1 - flapW,
     strokes,

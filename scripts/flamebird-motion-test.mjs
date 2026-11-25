@@ -123,5 +123,35 @@ for (const [name, r] of [['calm', calm], ['regular', regular], ['rapid', frantic
   check('menu preview (no flight state): steady, smooth beat', max < 2.5, `${max.toFixed(2)} deg`);
 }
 
+// face: blinks and the beak
+{
+  let seed = 7;
+  const rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const m = createMotion(rng);
+  let blinks = 0;
+  let wasClosed = false;
+  let chirps = 0;
+  let wasOpen = false;
+  let inRange = true;
+  for (let f = 0; f < 60 * 20; f++) {
+    const o = stepMotion(m, null, DT, 5.5, f * DT);
+    inRange = inRange && o.eyes >= 0 && o.eyes <= 1 && o.beak >= 0 && o.beak <= 1;
+    if (o.eyes > 0.8 && !wasClosed) blinks++;
+    wasClosed = o.eyes > 0.8;
+    if (o.beak > 0.5 && !wasOpen) chirps++;
+    wasOpen = o.beak > 0.5;
+  }
+  check('menus: blinks every few seconds (3 to 12 in 20 s)', blinks >= 3 && blinks <= 12, `${blinks} blinks`);
+  check('menus: the beak chirps now and then (3 to 16 openings in 20 s)', chirps >= 3 && chirps <= 16, `${chirps} openings`);
+  check('face values stay within 0..1', inRange);
+  // in flight: no chirps, but each flap pops the beak open; after a crash the eyes half shut and the beak hangs open
+  const r = run([0.5, 1.5], 3, 2.2);
+  const nearFlap = Math.max(...r.outs.slice(Math.round(0.5 / DT), Math.round(0.75 / DT)).map((o) => o.beak));
+  const quiet = Math.max(...r.outs.slice(Math.round(1.0 / DT), Math.round(1.45 / DT)).map((o) => o.beak));
+  const end = r.outs[r.outs.length - 1];
+  check('flight: each flap pops the beak open, and it closes again between flaps', nearFlap > 0.3 && quiet < 0.05, `peak ${nearFlap.toFixed(2)}, between ${quiet.toFixed(3)}`);
+  check('crash: eyes half shut, beak hangs open', end.eyes > 0.6 && end.beak > 0.4, `eyes ${end.eyes.toFixed(2)}, beak ${end.beak.toFixed(2)}`);
+}
+
 console.log(failures ? `\n${failures} failed` : '\nflamebird motion tests passed');
 process.exit(failures ? 1 : 0);
