@@ -1,38 +1,31 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
-import { AdditiveBlending, AnimationMixer, Color } from 'three';
+import { AdditiveBlending, AnimationClip, AnimationMixer, Color, Quaternion, Vector3 } from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { getGlowTexture } from '../../utils/textures.js';
 import { modelUrl } from '../../systems/avatars/avatars.js';
+import { createMotion, stepMotion } from './flameBirdMotion.js';
 
 /**
  * FlameBird, the Fire Flipper mascot (see systems/avatars/avatars.js and public/models/CREDITS.md). A rigged GLB with
- * its own clips; this draws it with the real `FB_Fly` clip, timed by hand from the flight state like the Fire Eagle:
+ * its own clips; this draws it with the real `FB_Fly` and `FB_WingFlap` clips, timed from the flight state:
  *
- *  - in flight the wings beat at `wingSpeed`; each flap plays the clip's downstroke (top of the upstroke to the bottom)
- *    in STROKE_TIME, the same stroke length as every other bird; a dive slows the beat; after a crash the wings go still;
+ *  - the cruise beat (FB_Fly) runs at `wingSpeed`, easing slower in a dive and to a stop after a crash; each flap
+ *    cross-fades in FB_WingFlap's powered downstroke (STROKE_TIME, the same stroke as every other bird), so taps never
+ *    make the wings jump; the head, crest and tail follow through on springs (see flameBirdMotion.js);
  *  - Fire shows the model's own painted textures; Blue and White re-colour them by brightness (see `palette.mix`);
  *  - a soft halo and a warm light in the colour's `glow`, like the other fire birds.
  *
  * Purely cosmetic: the simulation never reads it, so collision and physics are the same for every bird.
- * The other clips in the file (FB_WingFlap, FB_Idle, FB_TailSway, FB_Celebrate) are available for later use.
+ * The other clips in the file (FB_Idle, FB_TailSway, FB_Celebrate) are available for later use.
  *
  * Props: avatar, float (bob amplitude), wingSpeed (radians/sec), glow (halo opacity), lightIntensity, flight
  * ({ vy, sinceFlap, dead } or omitted for menus), plus group props.
  */
-const STROKE_TIME = 0.26; // seconds for one powered wing stroke (the same as the Firebird's)
 const MODEL_HEIGHT = 1.903; // the model's own height in metres
 const SIZE = 2.6; // drawn height, in the Firebird's local units: matches the Fire Eagle's on-screen size (it is a chunky, upright bird, so it needs more height than the 2.0 to 2.4 length of the slim model birds)
 const MODEL_SCALE = SIZE / MODEL_HEIGHT;
-// FB_Fly (0.8 s): the wing raise is 20 + 20 sin(2 pi t / 0.8) degrees, so the upstroke peaks at 0.2 s and the downstroke ends at 0.6 s.
-const FLY_LEN = 0.8;
-const FLY_TOP = 0.2;
-const FLY_BOTTOM = 0.6;
-const FLY_RATE = (2 * Math.PI) / FLY_LEN; // radians of wing beat per second of clip
-
-const clamp01 = (v) => Math.min(1, Math.max(0, v));
-
 /** Re-colour the painted texture by brightness onto a low / mid / high ramp (Blue and White); `mix` 0 leaves it as painted. */
 function recolour(material, palette) {
   const m = material.clone();
@@ -64,7 +57,6 @@ export default function FlameBird({ avatar, float = 0.12, wingSpeed = 7, glow = 
   const palette = avatar.palette;
   const root = useRef();
   const halo = useRef();
-  const clipTime = useRef(FLY_TOP);
   const glowMap = useMemo(getGlowTexture, []);
 
   const rig = useMemo(() => {
@@ -80,13 +72,44 @@ export default function FlameBird({ avatar, float = 0.12, wingSpeed = 7, glow = 
   }, [gltf, palette]);
 
   const mixer = useMemo(() => {
-    const clip = gltf.animations.find((c) => c.name === 'FB_Fly') ?? gltf.animations[0];
+    const byName = (n) => gltf.animations.find((c) => c.name === n);
+    const fly = byName('FB_Fly') ?? gltf.animations[0];
+    const flap = byName('FB_WingFlap') ?? fly;
+    // Only the wings blend between the cruise beat and a stroke: FB_WingFlap is a standing flap (feet down), so its
+    // body and legs are left out and the flight clip keeps the legs tucked.
+    const isWing = (track) => track.name.startsWith('wing_');
+    const part = (clip, name, keep) => new AnimationClip(name, clip.duration, clip.tracks.filter(keep));
+    const clips = [
+      part(fly, 'FB_Fly_body', (tr) => !isWing(tr)),
+      part(fly, 'FB_Fly_wings', isWing),
+      part(flap, 'FB_WingFlap_A', isWing),
+      part(flap, 'FB_WingFlap_B', isWing), // a second slot, so a new stroke can start while the last one fades out
+    ];
     const m = new AnimationMixer(rig.scene);
-    const action = m.clipAction(clip);
-    action.play();
-    action.paused = true; // time is driven by hand
-    return { m, action };
+    const actions = clips.map((clip) => {
+      const a = m.clipAction(clip);
+      a.play();
+      a.paused = true; // times and weights are set by hand each frame (see flameBirdMotion.js)
+      return a;
+    });
+    const bone = (n) => rig.scene.getObjectByName(n);
+    return { m, flyBody: actions[0], flyWings: actions[1], strokes: actions.slice(2), bones: { head: bone('head'), crest: bone('head_crest'), tail: bone('tail_root'), fan: bone('tail_fan_root') } };
   }, [rig, gltf]);
+
+  const motion = useMemo(createMotion, [mixer]);
+  const tilt = useRef(0);
+  const tmp = useMemo(() => ({ rootQ: new Quaternion(), parentQ: new Quaternion(), add: new Quaternion(), axis: new Vector3() }), []);
+  const X = useMemo(() => new Vector3(1, 0, 0), []);
+  const Y = useMemo(() => new Vector3(0, 1, 0), []);
+
+  /** Rotate a bone by `angle` about an axis given in the model's own space (lateral X, up Y), on top of the clip pose. */
+  const addRotation = (bone, axisModel, angle) => {
+    if (!bone || !bone.parent || !angle) return;
+    rig.scene.getWorldQuaternion(tmp.rootQ).invert();
+    bone.parent.getWorldQuaternion(tmp.parentQ).premultiply(tmp.rootQ).invert();
+    tmp.axis.copy(axisModel).applyQuaternion(tmp.parentQ);
+    bone.quaternion.premultiply(tmp.add.setFromAxisAngle(tmp.axis, angle));
+  };
 
   useEffect(
     () => () => {
@@ -99,23 +122,30 @@ export default function FlameBird({ avatar, float = 0.12, wingSpeed = 7, glow = 
   useFrame((state, delta) => {
     const t = state.clock.elapsedTime;
     const dt = Math.min(delta, 0.05);
-    const rate = wingSpeed / FLY_RATE; // clip seconds per real second
+    const out = stepMotion(motion, flight ?? null, dt, wingSpeed, t);
 
-    if (flight && flight.dead) {
-      clipTime.current = 0.4; // wings half open, still
-    } else if (flight && flight.sinceFlap < STROKE_TIME) {
-      clipTime.current = FLY_TOP + (FLY_BOTTOM - FLY_TOP) * (flight.sinceFlap / STROKE_TIME); // the powered downstroke
-    } else {
-      const tuck = flight ? clamp01((-flight.vy - 5) / 7) : 0; // diving: slower beats
-      clipTime.current = (clipTime.current + dt * rate * (1 - tuck * 0.6)) % FLY_LEN;
-    }
-    mixer.action.time = clipTime.current;
+    mixer.flyBody.time = out.flyTime;
+    mixer.flyWings.time = out.flyTime;
+    mixer.flyWings.setEffectiveWeight(out.flyWeight);
+    out.strokes.forEach((s, i) => {
+      mixer.strokes[i].time = s.time;
+      mixer.strokes[i].setEffectiveWeight(s.weight);
+    });
     mixer.m.update(0);
 
+    // follow-through on top of the clip pose
+    rig.scene.updateMatrixWorld(true);
+    const b = mixer.bones;
+    addRotation(b.head, X, out.bones.head);
+    addRotation(b.crest, X, out.bones.crest);
+    addRotation(b.tail, X, out.bones.tail);
+    addRotation(b.fan, X, out.bones.fan);
+    addRotation(b.fan, Y, out.bones.fanSway);
+
     if (root.current) {
-      const beat = Math.sin((clipTime.current / FLY_LEN) * 2 * Math.PI);
-      root.current.position.y = Math.sin(t * 1.6) * float - beat * 0.03;
-      root.current.rotation.z = Math.sin(t * 1.1) * 0.05 + (flight?.dead ? -0.3 : 0);
+      tilt.current += ((flight?.dead ? -0.3 : 0) - tilt.current) * (1 - Math.exp(-dt / 0.25)); // ease into the crash slump
+      root.current.position.y = Math.sin(t * 1.6) * float - out.beat * 0.03;
+      root.current.rotation.z = Math.sin(t * 1.1) * 0.05 + tilt.current;
     }
     if (halo.current) {
       const target = flight?.dead ? glow * 0.35 : glow;
