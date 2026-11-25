@@ -131,11 +131,11 @@ The run also pauses automatically when the tab is hidden or the window loses foc
 
 ## Bird customisation
 
-Six birds (Bulbuli, Rainbow Macaw, Honeybell (the blue-and-yellow macaw), Toco Toucan, Morpho Butterfly, Fire Eagle),
-each in three skins (Fire, Blue, White): 18 in all. The Flipper and the Scarlet Macaw are no longer in the list; the Flipper's model remains only as the gold Celestial reward skin. Fire is always free; Blue and White unlock at best scores of
+Three birds (FlameBird, Honeybell (the blue-and-yellow macaw) and Morpho Butterfly),
+each in three skins (Fire, Blue, White): 9 in all. FlameBird, the Fire Flipper mascot, is first and is the bird a new player starts with (a saved choice of Honeybell or Morpho is kept; a save that chose a bird no longer offered shows FlameBird); it is a rigged model whose real flight clip drives its wings, and its Fire skin shows the model's own painted colours. Bulbuli, the Rainbow Macaw, the Toco Toucan and the Fire Eagle have been removed (their code and model files are gone; a save that chose one shows FlameBird). The Flipper and the Scarlet Macaw are also out of the list; the Flipper's model remains only as the gold Celestial reward skin. Fire is always free; Blue and White unlock at best scores of
 600 and 1,500. Each skin has its own cosmetic trail colours and tints the orb-pickup sparks. Everything is visual:
 birds share one hitbox and one physics model (`npm run test:avatars` guards against gameplay fields on a bird).
-Bird models are third-party (CC BY 4.0, except the Fire Eagle, which has its own licence that still needs confirming); see `public/models/CREDITS.md` and the in-app credits.
+Honeybell and the Morpho Butterfly are third-party models (CC BY 4.0); FlameBird was made for this game; see `public/models/CREDITS.md` and the in-app credits.
 The Fire Eagle (`public/models/birds/fire-eagle.glb`) is the one skeletal model: `FireEagle.jsx` plays its `Fly` clip from the flight state and
 re-skins it with the avatar's 8-colour palette, a flame shell and glow sprites. It falls back to the Firebird while loading.
 
@@ -326,9 +326,9 @@ particle systems use fixed buffers (no per-frame allocation).
 
 A Red | Blue switch on the home top bar (and in Settings) restyles the whole game. **Red** is the original Ember
 Valley; **Blue** is a Frost Cavern. A theme changes the interface colours (CSS variables, `styles/global.css`), the
-scenery (sky, ground, mountains, obstacles, orbs, embers, lights, `systems/theme/themes.js`), the game-over wording, and
-which bird colour is free: every bird starts in the theme's own colour (Fire in red, Blue in blue), the other warm/cool
-colour unlocks at a best score of 600 and White at 1,500. Each theme remembers its own bird choice. Themes are looks
+scenery (sky, ground, mountains, obstacles, orbs, embers, lights, `systems/theme/themes.js`), and the game-over wording.
+It does not colour the birds: a bird's colour is its own choice in every theme (Fire is free for every bird, Blue unlocks
+at a best score of 600 and White at 1,500), and switching theme keeps the bird you picked. Themes are looks
 only: the simulation has no theme input, and `npm run test:theme` checks both themes define every colour, that
 obstacles and orbs keep strong contrast against the background, and that a run is identical in both.
 

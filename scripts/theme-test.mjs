@@ -32,7 +32,7 @@ for (const t of THEME_LIST) {
     s.column.color, s.column.emissive, s.column.cap, s.block.color, s.block.emissive, s.block.cap, s.rock.color, s.rock.emissive,
     s.orbCore, s.orbHalo, s.ember, s.edgeWarn, s.ringA, s.ringB, t.swatch];
   check(`${t.id}: all colours are valid hex`, flat.every((c) => hex.test(c)), flat.filter((c) => !hex.test(c)).join());
-  check(`${t.id}: has copy and a free skin`, !!t.copy.over && !!t.copy.lava && ['fire', 'blue'].includes(t.freeSkin));
+  check(`${t.id}: has copy, and does not choose the bird's colour`, !!t.copy.over && !!t.copy.lava && !('freeSkin' in t));
   // Fairness: obstacles and their caps must stand out from the background in every theme.
   check(`${t.id}: obstacle caps stand out from the background`, contrast(s.column.cap, s.bg) > 6 && contrast(s.block.cap, s.bg) > 5, `${contrast(s.column.cap, s.bg).toFixed(1)}`);
   check(`${t.id}: obstacle bodies are not lost in the sky`, contrast(s.column.color, s.sky[1]) > 1.4 && contrast(s.rock.color, s.sky[1]) > 1.4);
@@ -40,27 +40,29 @@ for (const t of THEME_LIST) {
 }
 check('themes look different', THEMES.red.scene.bg !== THEMES.blue.scene.bg && THEMES.red.scene.column.cap !== THEMES.blue.scene.column.cap);
 
-// Skins: each theme's own colour is free for every bird, so birds start out matching the theme.
+// Skins: a bird's colour is its own choice and never follows the theme. Fire is free for every bird in every theme; Blue and White unlock by score.
 for (const t of THEME_LIST) {
   for (const sp of AVATAR_SPECIES) {
-    const own = avatarFor(sp.id, t.freeSkin);
-    check(`${t.id}/${sp.id}: own colour free`, isAvatarUnlocked(own, 0, t.id));
-    check(`${t.id}/${sp.id}: locked skin falls back to own colour`, resolveAvatar(`${sp.id}-white`, 0, t.id).id === own.id);
+    const fire = avatarFor(sp.id, 'fire');
+    check(`${t.id}/${sp.id}: Fire is free`, isAvatarUnlocked(fire, 0, t.id));
+    check(`${t.id}/${sp.id}: Blue is locked at 0, even in the blue theme`, !isAvatarUnlocked(avatarFor(sp.id, 'blue'), 0, t.id));
+    check(`${t.id}/${sp.id}: a locked skin falls back to Fire`, resolveAvatar(`${sp.id}-white`, 0, t.id).id === fire.id && resolveAvatar(`${sp.id}-blue`, 0, t.id).id === fire.id);
   }
   check(`${t.id}: one free skin per bird at the start`, collectionProgress(0, {}, t.id).unlocked === AVATAR_SPECIES.length);
   check(`${t.id}: everything unlocked eventually`, collectionProgress(1e9, {}, t.id).unlocked === AVATARS.length);
 }
-check('opposite colour unlocks at the Blue threshold', colorUnlockScore('fire', 'blue') === 600 && colorUnlockScore('blue', 'red') === 600);
-check('white unlocks at 1500 in both', colorUnlockScore('white', 'red') === 1500 && colorUnlockScore('white', 'blue') === 1500);
-check('unlock messages follow the theme', newlyUnlocked(0, 700, 'blue').map((k) => k.name).join() === 'Fire' && newlyUnlocked(0, 700, 'red').map((k) => k.name).join() === 'Blue');
+check('unlock scores are the same in both themes: Fire 0, Blue 600, White 1500', ['red', 'blue'].every((t) => colorUnlockScore('fire', t) === 0 && colorUnlockScore('blue', t) === 600 && colorUnlockScore('white', t) === 1500));
+check('unlock messages do not depend on the theme', newlyUnlocked(0, 700, 'blue').map((k) => k.name).join() === 'Blue' && newlyUnlocked(0, 700, 'red').map((k) => k.name).join() === 'Blue');
 
-// Store: theme choice is remembered per theme and never touches the run.
+// Store: the theme never touches the bird or the run.
 const st = () => useGameStore.getState();
-st().selectSkin('toco-toucan-fire');
+st().selectSkin('morpho-fire');
 st().setTheme('blue');
-check('switching theme keeps the species in the new theme colour', st().theme === 'blue' && st().skinId === 'toco-toucan-blue', st().skinId);
+check('switching theme does not change the bird (species or colour)', st().theme === 'blue' && st().skinId === 'morpho-fire', st().skinId);
+st().selectSkin('morpho-blue');
+check('a locked colour cannot be chosen, even in the blue theme', st().skinId === 'morpho-fire');
 st().setTheme('red');
-check('each theme remembers its bird', st().skinId === 'toco-toucan-fire');
+check('and switching back changes nothing either', st().skinId === 'morpho-fire');
 st().setTheme('nope');
 check('bad theme id is ignored', st().theme === 'red');
 

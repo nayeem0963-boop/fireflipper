@@ -3,7 +3,7 @@ import { THEME_LIST } from '../../systems/theme/themes.js';
 
 /**
  * Red / Blue theme switch. `compact` shows just the colour dots (for the top bar); otherwise the names too.
- * Changing theme restyles the interface, the scenery and the birds' free skin colour; it never touches gameplay.
+ * Changing theme restyles the interface and the scenery (never the bird's colour); it never touches gameplay.
  */
 export default function ThemeSwitch({ compact = false }) {
   const theme = useGameStore((s) => s.theme);

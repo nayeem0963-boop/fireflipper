@@ -15,10 +15,19 @@ const check = (name, cond, detail = '') => {
   }
 };
 
-const NAMES = ['Bulbuli', 'Rainbow Macaw', 'Honeybell', 'Toco Toucan', 'Morpho Butterfly', 'Fire Eagle'];
-check('exactly these six birds exist (no Flipper, no Scarlet Macaw)', NAMES.length === AVATAR_SPECIES.length && NAMES.every((n) => AVATAR_SPECIES.some((s) => s.name === n)), AVATAR_SPECIES.map((s) => s.name).join(', '));
-check('18 skins', AVATARS.length === 18);
+const NAMES = ['FlameBird', 'Honeybell', 'Morpho Butterfly'];
+check('exactly these three birds exist, FlameBird first (no Flipper, Bulbuli, Rainbow Macaw, Toco Toucan or Fire Eagle)', NAMES.length === AVATAR_SPECIES.length && NAMES.every((n, i) => AVATAR_SPECIES[i]?.name === n), AVATAR_SPECIES.map((s) => s.name).join(', '));
+check('9 skins', AVATARS.length === 9);
+check('FlameBird, the mascot, is the first bird and the default (Fire, its own painted colours)', AVATAR_SPECIES[0].id === 'flamebird' && AVATARS[0].id === 'flamebird-fire' && AVATARS[0].kind === 'flamebird' && AVATARS[0].palette.mix === 0 && AVATARS.filter((a) => a.species === 'flamebird').length === 3);
 check('unique ids', new Set(AVATARS.map((a) => a.id)).size === AVATARS.length);
+{
+  const { getAvatar } = await import('../src/systems/avatars/avatars.js');
+  const { CREDITS } = await import('../src/systems/avatars/credits.js');
+  const { existsSync } = await import('node:fs');
+  check('a saved choice of a removed bird shows FlameBird', ['bulbuli-fire', 'bulbuli-blue', 'macaw-flying-white', 'toco-toucan-fire', 'fire-eagle-blue', 'ember', 'scarlet-macaw'].every((id) => getAvatar(id).id === 'flamebird-fire'));
+  check('removed birds: model files and credits gone; the remaining birds have their files', ['fire-eagle', 'macaw-flying', 'toco-toucan'].every((f) => !existsSync(new URL(`../public/models/birds/${f}.glb`, import.meta.url))) && ['flamebird', 'macaw-blue-yellow', 'morpho'].every((f) => existsSync(new URL(`../public/models/birds/${f}.glb`, import.meta.url))) && CREDITS.map((c) => c.id).join() === 'macaw-blue-yellow,morpho');
+  check('Honeybell and Morpho keep their saved colours', getAvatar('macaw-blue-yellow-white').id === 'macaw-blue-yellow-white' && getAvatar('morpho-blue').id === 'morpho-blue');
+}
 for (const sp of AVATAR_SPECIES) {
   const fire = avatarFor(sp.id, 'fire');
   check(`${sp.name}: Fire skin free from the start`, isAvatarUnlocked(fire, 0));
@@ -33,8 +42,8 @@ check('every species has a distinct Fire trail', new Set(fireTrails).size === AV
 
 const none = collectionProgress(0, {});
 check('collection starts at the free skins', none.unlocked === AVATAR_SPECIES.length && none.nextUnlock > 0, JSON.stringify(none));
-const all = collectionProgress(1e9, { bulbuli: 2 });
-check('collection completes', all.unlocked === 18 && all.nextUnlock === null && all.flownSpecies === 1);
+const all = collectionProgress(1e9, { flamebird: 2, bulbuli: 5 }); // a bird no longer in the list does not count
+check('collection completes', all.unlocked === 9 && all.nextUnlock === null && all.flownSpecies === 1);
 
 // Mechanical equivalence: the simulation never sees the avatar, and a bird carries no gameplay fields.
 const FORBIDDEN = /gravity|impulse|speed|radius|hitbox|collision|score|multiplier|bonus/i;

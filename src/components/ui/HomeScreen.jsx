@@ -12,6 +12,7 @@ import { useTheme } from '../../hooks/useTheme.js';
 import { useGameVersion } from '../../hooks/useGameVersion.js';
 import { usesOriginalAvatar } from '../../systems/versions/versions.js';
 import { AVATAR_SPECIES, avatarFor, collectionProgress, isAvatarUnlocked } from '../../systems/avatars/avatars.js';
+import { FREE_COLOR } from '../../systems/skins/skins.js';
 import { REWARDS, ownedCount } from '../../systems/rewards/rewards.js';
 import { formatScore } from '../../systems/scoring/scoring.js';
 import { unlockAudio } from '../../systems/audio/sfx.js';
@@ -69,7 +70,7 @@ export default function HomeScreen() {
         <div className="home__birds" role="radiogroup" aria-label="Choose your bird">
           {AVATAR_SPECIES.map((sp) => {
             const shown = avatarFor(sp.id, skin.color);
-            const pick = isAvatarUnlocked(shown, bestScore, theme.id) ? shown : avatarFor(sp.id, theme.freeSkin);
+            const pick = isAvatarUnlocked(shown, bestScore, theme.id) ? shown : avatarFor(sp.id, FREE_COLOR);
             const active = skin.species === sp.id;
             const p = pick.kind === 'firebird' ? [pick.palette.wing ?? '#ff6a1a', pick.palette.belly ?? '#ffb347'] : [pick.palette.mid, pick.palette.high];
             return (

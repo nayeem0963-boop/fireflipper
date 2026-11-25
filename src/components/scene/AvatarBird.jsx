@@ -2,8 +2,7 @@ import { Component, Suspense } from 'react';
 import Firebird from './Firebird.jsx';
 import ModelBird from './ModelBird.jsx';
 import ButterflyBird from './ButterflyBird.jsx';
-import BulbuliBird from './BulbuliBird.jsx';
-import FireEagle from './FireEagle.jsx';
+import FlameBird from './FlameBird.jsx';
 
 /** If a model fails to load (offline, missing file), fall back to the original bird instead of breaking the scene. */
 class ModelBoundary extends Component {
@@ -29,14 +28,12 @@ class ModelBoundary extends Component {
 export default function AvatarBird({ avatar, ...props }) {
   if (avatar.kind === 'firebird')
     return <Firebird palette={avatar.palette} neutralGlow={avatar.color !== 'fire'} {...props} />;
-  // Code-built birds (no file to load, so no waiting).
-  if (avatar.kind === 'bird') return <BulbuliBird avatar={avatar} {...props} />;
   const stand = <Firebird {...props} />;
-  if (avatar.kind === 'eagle')
+  if (avatar.kind === 'flamebird')
     return (
       <ModelBoundary fallback={stand} key={avatar.id}>
         <Suspense fallback={stand}>
-          <FireEagle avatar={avatar} {...props} />
+          <FlameBird avatar={avatar} {...props} />
         </Suspense>
       </ModelBoundary>
     );

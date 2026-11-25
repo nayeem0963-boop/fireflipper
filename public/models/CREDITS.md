@@ -1,19 +1,18 @@
 # Model credits
 
-The in-app list is `src/systems/avatars/credits.js` (Settings > Credits). Most bird models are CC BY 4.0;
-the Fire Eagle is the exception.
+The in-app list is `src/systems/avatars/credits.js` (Settings > Credits). The two third-party bird models (Honeybell and the Morpho Butterfly)
+are CC BY 4.0; FlameBird was made for this game.
 
-## birds/fire-eagle.glb (Fire Eagle)
+## birds/flamebird.glb (FlameBird, the mascot)
 
-- Source: "Eagle" (rigged, animated `Fly` clip) from the Omabuarts Studio animal set,
-  Copyright 2020 Omabuarts Studio. Licence: https://omabuarts.com/license (not CC BY).
-- Obtained from the glTF copy at `mitmedialab/text2vid` (`animals/Eagle_Fly.gltf`).
-- Modified only by packing the .gltf into a single binary .glb (no geometry, skeleton or animation
-  changes). All fire styling (palette, glow, flame shell, wing-tip sparks) is applied at runtime in
-  `src/components/scene/FireEagle.jsx`.
+- Made for Fire Flipper: a Meshy AI character (the approved "FlameBird 50K" model), rigged and animated in Blender 5.3 by
+  the scripts in the FlameBird rig work folder (`fireflipper_upgrade/FlameBird/rig_work`): a 29-bone avian skeleton,
+  region-limited weights and five clips (FB_Idle, FB_WingFlap, FB_Fly, FB_TailSway, FB_Celebrate), exported with
+  2048 px WebP textures (about 5.2 MB). The mesh, UVs and painted textures are the original model's.
+- Drawn at runtime by `src/components/scene/FlameBird.jsx` (Blue and White re-colour the texture by brightness).
 
-TODO: the licence page could not be read when this model was added. Confirm it permits commercial use
-and note any required attribution before shipping.
+TODO: confirm the terms that apply to the Meshy-generated mesh (they depend on the Meshy plan it was made under) before
+shipping this publicly.
 
 ## v2/runner.glb (the v2 player: Aisha)
 

@@ -16,7 +16,7 @@ const seed = {
   flown: { bulbuli: 7 },
   journey: { rewards: { 'treasure-cache': 3 }, completions: 0, milestones: [1, 0, 0, 0, 0] },
   theme: 'red',
-  skinsByTheme: { red: 'bulbuli-fire' },
+  skinsByTheme: { red: 'bulbuli-fire' }, // an older save: one bird per theme
   soundEnabled: true,
   quality: 'auto',
 };

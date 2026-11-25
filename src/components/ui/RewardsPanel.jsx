@@ -3,6 +3,7 @@ import { useGameStore } from '../../store/useGameStore.js';
 import { REWARDS, howToEarn, ownedCount, owns } from '../../systems/rewards/rewards.js';
 import { WORLD_COUNT } from '../../systems/world/worlds.js';
 import { avatarFor, getAvatar } from '../../systems/avatars/avatars.js';
+import { FREE_COLOR } from '../../systems/skins/skins.js';
 import { useTheme } from '../../hooks/useTheme.js';
 import IconButton from './IconButton.jsx';
 import { CloseIcon } from './Icons.jsx';
@@ -70,7 +71,7 @@ export default function RewardsPanel() {
                     <button
                       type="button"
                       className="ghost-btn rcard__equip"
-                      onClick={() => selectSkin(wearing ? avatarFor('bulbuli', theme.freeSkin).id : 'flipper-celestial')}
+                      onClick={() => selectSkin(wearing ? avatarFor('flamebird', FREE_COLOR).id : 'flipper-celestial')}
                     >
                       {wearing ? 'Unequip' : 'Equip skin'}
                     </button>
