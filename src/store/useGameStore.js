@@ -102,32 +102,14 @@ export const useGameStore = create((set, get) => ({
   runsThisSession: 0,
 
   /** Selected bird skin id (species + colour). Cosmetic only: no effect on physics or collisions. */
-<<<<<<< HEAD
   skinId: initialSkin(),
-  /** Completed runs per bird species, for collection progress: { species: runs }. */
-  flown: loadValue('flown', {}),
-
-  // --- progression (see systems/progression) ---
-  stats: { ...EMPTY_STATS, ...loadValue('stats', {}) },
-  /** Earned achievements: { id: run number it was earned on }. */
-  earned: loadValue('achievements', {}),
-  /** Today's goal state: { key, done, streakDays, lastDoneKey }. */
-  daily: rollDaily(loadValue('daily', null), dayKey()),
-
-  /** The journey record (see systems/rewards): the permanent rewards owned, completions and how often each milestone was reached. Saved the moment a reward is granted. */
-  journey: sanitizeJourney(loadValue('journey', null)),
-=======
-  skinId: initialSkins().active,
   /**
    * Game version ('v1' | 'v2', see systems/versions): which avatar the player is drawn with. Looks only: every version runs the
    * same simulation. Starts from ?version= in the URL, else the saved choice, else v1.
    */
   versionId: START_VERSION,
-  /** Each theme remembers its own bird choice: { red: 'bulbuli-fire', blue: 'toco-toucan-blue', ... }. */
-  skinsByTheme: initialSkins().byTheme,
   // (also from loadProgress: `flown` (completed runs per bird species, for collection progress), `stats`, `earned` (earned achievements: id -> the run number it was earned on),
   // `daily` (today's goal state) and `journey` (the permanent rewards owned, completions and how often each milestone was reached; saved the moment a reward is granted))
->>>>>>> origin/claude/beautiful-pascal-htvkzb
 
   /** Visual theme id ('red' | 'blue'): looks only, no effect on gameplay. */
   theme: initialTheme(),
@@ -357,15 +339,6 @@ function initialTheme() {
   return theme;
 }
 
-<<<<<<< HEAD
-/**
- * The saved bird choice. Bird colour no longer follows the theme, so there is one choice. Older saves kept one per theme
- * (`skinsByTheme`): the one for the theme in use is kept, so players see the bird they last flew.
- */
-function initialSkin() {
-  const saved = loadValue('skinChoice', null);
-  if (saved) return saved;
-=======
 /** The key a piece of progress is saved under. v1 keeps the original keys (so nothing already saved moves); every other version has its own. */
 function progressKey(versionId, key) {
   return versionId === 'v1' ? key : `${versionId}:${key}`;
@@ -390,9 +363,13 @@ function initialVersionId() {
   return resolveInitialVersionId(search, loadValue(VERSION_STORAGE_KEY, null));
 }
 
-/** Saved bird choice per theme (the old single `skinId` becomes the red theme's), and the active theme's choice. */
-function initialSkins() {
->>>>>>> origin/claude/beautiful-pascal-htvkzb
+/**
+ * The saved bird choice. Bird colour no longer follows the theme, so there is one choice. Older saves kept one per theme
+ * (`skinsByTheme`): the one for the theme in use is kept, so players see the bird they last flew.
+ */
+function initialSkin() {
+  const saved = loadValue('skinChoice', null);
+  if (saved) return saved;
   const theme = getTheme(loadValue('theme', DEFAULT_THEME)).id;
   const legacy = loadValue('skinsByTheme', null);
   return legacy?.[theme] ?? legacy?.red ?? loadValue('skinId', 'bulbuli-fire');
