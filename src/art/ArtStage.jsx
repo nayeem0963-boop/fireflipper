@@ -202,7 +202,7 @@ export default function ArtStage({ piece, params, palette, speed, paused, preset
         </Suspense>
       </group>
 
-      <OrbitControls ref={controls} makeDefault enableDamping dampingFactor={0.08} minDistance={0.8} maxDistance={32} />
+      <OrbitControls ref={controls} makeDefault enableDamping dampingFactor={0.08} minDistance={0.8} maxDistance={piece.maxDistance ?? 32} />
       <CameraRig preset={preset} nonce={viewNonce} controls={controls} />
       <ViewShift x={shift.x} y={shift.y} />
       {bloom.on && (

@@ -13,6 +13,7 @@ import monolithGrid from './monolithGrid.js';
 import plasmaSphere from './plasmaSphere.js';
 import neuralLandscape from './neuralLandscape.js';
 import particleDancer from './particleDancer.js';
+import solarSystem from './solarSystem.js';
 
 /**
  * The Art Lab's exhibition: every art piece, in the order the HUD lists them.
@@ -40,6 +41,7 @@ export const PIECES = Object.freeze([
   piece(plasmaSphere, () => import('./PlasmaSphere.jsx')),
   piece(neuralLandscape, () => import('./NeuralLandscape.jsx')),
   piece(particleDancer, () => import('./ParticleDancer.jsx')),
+  piece(solarSystem, () => import('./SolarSystem.jsx')),
 ]);
 
 export function getPiece(id) {

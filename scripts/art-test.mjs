@@ -27,6 +27,7 @@ import { POINT_FRAGMENT, dynamicUniforms, dynamicVertex, emberUniforms, emberVer
 import { coronaFragment, coronaUniforms, coronaVertex, plasmaFragment, plasmaUniforms, plasmaVertex } from '../src/art/shaders/plasma.js';
 import { terrainFragment, terrainUniforms, terrainVertex } from '../src/art/shaders/terrain.js';
 import { BLOOM_DEFAULTS, BLOOM_PARAMS, bloomSamples } from '../src/art/bloom.js';
+import { PLANETS, SUN, beltPoints, colorizeField, moonPosition, orbitAngle, orbitLinePoints, orbitPosition, orbitSeconds, paletteStops, planetField, ringGeometry, ringStrip, sampleStops, starPoints } from '../src/art/geometry/solarSystem.js';
 import { useArtStore } from '../src/art/useArtStore.js';
 import { SCREENS } from '../src/store/useGameStore.js';
 
@@ -148,7 +149,7 @@ section('Shaders');
 
 section('The exhibition (every piece)');
 {
-  const ids = ['ribbon-knot', 'crystal-study', 'light-orbit', 'vortex-core', 'fractal-lattice', 'quantum-prism', 'starlight-canopy', 'cyber-helix', 'bioluminescent-lotus', 'monolith-grid', 'plasma-sphere', 'neural-landscape', 'particle-dancer'];
+  const ids = ['ribbon-knot', 'crystal-study', 'light-orbit', 'vortex-core', 'fractal-lattice', 'quantum-prism', 'starlight-canopy', 'cyber-helix', 'bioluminescent-lotus', 'monolith-grid', 'plasma-sphere', 'neural-landscape', 'particle-dancer', 'solar-system'];
   check('the exhibition has the three originals, the eight new pieces, the Neural Landscape and the Particle Dancer, in order', PIECES.map((p) => p.id).join() === ids.join(), PIECES.map((p) => p.id).join());
   check('every slider default sits on its own step (so the panel never shows a value the slider cannot reach)', PIECES.every((p) => Object.values(p.params).filter((d) => d.type === 'range').every((d) => clampParam(d, d.default) === d.default)));
   check('every range has at least a hundred values to choose from or a small whole-number span', PIECES.every((p) => Object.values(p.params).filter((d) => d.type === 'range').every((d) => (d.max - d.min) / d.step >= 3)));
@@ -162,7 +163,7 @@ section('The exhibition (every piece)');
     check(`${f}: takes its colours from the palette`, /usePaletteColors|palette\./.test(src));
     check(`${f}: takes its parameters from the params prop`, /\{[^}]*params[^}]*\}/.test(src.split('export default function')[1]?.split(')')[0] ?? ''));
   }
-  const heavy = ['VortexCore', 'FractalLattice', 'QuantumPrism', 'StarlightCanopy', 'CyberHelix', 'Lotus', 'MonolithGrid', 'PlasmaSphere', 'NeuralLandscape', 'ParticleDancer'];
+  const heavy = ['VortexCore', 'FractalLattice', 'QuantumPrism', 'StarlightCanopy', 'CyberHelix', 'Lotus', 'MonolithGrid', 'PlasmaSphere', 'NeuralLandscape', 'ParticleDancer', 'SolarSystem'];
   check('every new piece honours the quality tier (fewer points, vertices or transmission on low)', heavy.every((f) => /quality/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8')) && /low|Math\.min/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8'))));
   check('pieces that make geometry or materials dispose them', heavy.filter((f) => /new \w*Geometry|useMemo\(\s*\(\) =>\s*\{?\s*(const g = new)/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8')) || /TubeGeometry|BufferGeometry|petalGeometry|diamondGeometry/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8'))).every((f) => /dispose\(\)/.test(fs.readFileSync(path.join(dir, `${f}.jsx`), 'utf8'))));
   check('no piece needs a new dependency', !/postprocessing|leva|lil-gui/.test(read('package.json')));
@@ -255,6 +256,66 @@ section('Particle Dancer');
   check('colours: the picture\'s blue, purple, magenta, gold, or the palette through the same gradient', /#2f6bff.*#8a3dff.*#ff3fd0.*#ffc34a/.test(src) && /colours === 'image'/.test(src) && /usePaletteColors/.test(src));
   check('the colour setting offers the picture\'s colours and the palette', (() => { const sel = PIECES.find((x) => x.id === 'particle-dancer').params.colours; return sel.options.map((x) => x.value).join() === 'image,palette'; })());
   check('the piece asks for a black backdrop and the stage honours it', PIECES.find((x) => x.id === 'particle-dancer').backdrop === 'black' && /piece\.backdrop === 'black'/.test(read('src/art/ArtStage.jsx')));
+}
+
+section('Solar System');
+{
+  const by = Object.fromEntries(PLANETS.map((p) => [p.id, p]));
+  check('eight planets, in order from the Sun', PLANETS.map((p) => p.id).join() === 'mercury,venus,earth,mars,jupiter,saturn,uranus,neptune' && PLANETS.every((p, i) => i === 0 || p.a > PLANETS[i - 1].a));
+  check('relative sizes: Jupiter > Saturn > Uranus > Neptune > Earth > Venus > Mars > Mercury', (() => { const r = (id) => by[id].radius; return r('jupiter') > r('saturn') && r('saturn') > r('uranus') && r('uranus') > r('neptune') && r('neptune') > r('earth') && r('earth') > r('venus') && r('venus') > r('mars') && r('mars') > r('mercury'); })());
+  check('orbits never touch the Sun, and no two orbits come within the planets\' sizes of each other', PLANETS.every((p, i) => { if (p.a * (1 - p.e) <= SUN.radius + p.radius) return false; if (i === 0) return true; const A = orbitLinePoints(PLANETS[i - 1], 240); const B = orbitLinePoints(p, 240); let d = Infinity; for (let u = 0; u < 240; u++) for (let v = 0; v < 240; v++) d = Math.min(d, Math.hypot(A[u * 3] - B[v * 3], A[u * 3 + 2] - B[v * 3 + 2])); return d > PLANETS[i - 1].radius + p.radius; }));
+  check('only Earth has a moon; only Saturn and Uranus have rings', PLANETS.filter((p) => p.moon).map((p) => p.id).join() === 'earth' && PLANETS.filter((p) => p.rings).map((p) => p.id).join() === 'saturn,uranus');
+  check('Venus turns backwards and Uranus lies on its side', by.venus.spin < 0 && by.venus.tilt > Math.PI / 2 && by.uranus.tilt > 1.4);
+  check('every planet has a colour ramp that is ordered 0..1 with valid hex', PLANETS.every((p) => p.stops.every(([q, c], i) => /^#[0-9a-f]{6}$/i.test(c) && q >= 0 && q <= 1 && (i === 0 || q > p.stops[i - 1][0]))));
+
+  const o = [0, 0, 0];
+  check('orbit: nearest the Sun at angle 0 and furthest at pi, by a(1 - e) and a(1 + e)', PLANETS.every((p) => Math.abs(Math.hypot(...orbitPosition(p, 0, o)) - p.a * (1 - p.e)) < 1e-9 && Math.abs(Math.hypot(...orbitPosition(p, Math.PI, o)) - p.a * (1 + p.e)) < 1e-9));
+  check('orbit lines close up and match the orbit maths', PLANETS.every((p) => { const l = orbitLinePoints(p, 64); const q = orbitPosition(p, (16 / 64) * Math.PI * 2, [0, 0, 0]); return l.length === 192 && Math.abs(l[48] - q[0]) < 1e-4 && Math.abs(l[50] - q[2]) < 1e-4 && Math.abs(l[1]) < 1e-9; }));
+  check('outer planets are slower: periods grow with distance, Earth takes 12 s', PLANETS.every((p, i) => i === 0 || orbitSeconds(p.years) > orbitSeconds(PLANETS[i - 1].years)) && orbitSeconds(1) === 12);
+  check('orbit angle advances with time and is frozen at the same time', orbitAngle(by.earth, 6) > orbitAngle(by.earth, 0) && orbitAngle(by.earth, 3) === orbitAngle(by.earth, 3));
+  check('Earth is back where it started after 12 s', Math.abs(orbitAngle(by.earth, 12) - orbitAngle(by.earth, 0) - Math.PI * 2) < 1e-9);
+  check('the Moon circles Earth at its distance and returns', (() => { const m = by.earth.moon; const p = moonPosition(m, 1, o); const t = orbitSeconds(m.years); const q = moonPosition(m, 1 + t, [0, 0, 0]); return Math.abs(Math.hypot(p[0], p[2]) - m.a) < 1e-9 && Math.abs(p[0] - q[0]) < 1e-9; })());
+  check('the Moon stays clear of Earth\'s surface', by.earth.moon.a > by.earth.radius + by.earth.moon.radius);
+
+  const belt = beltPoints({ count: 600 });
+  const radii = Array.from({ length: 600 }, (_, i) => Math.hypot(belt.positions[i * 3], belt.positions[i * 3 + 2]));
+  check('the belt lies between Mars and Jupiter and is thin', Math.min(...radii) >= 10.8 - 1e-6 && Math.max(...radii) <= 12.4 + 1e-6 && Math.min(...radii) > by.mars.a * (1 + by.mars.e) && Math.max(...radii) < by.jupiter.a * (1 - by.jupiter.e) && Array.from({ length: 600 }, (_, i) => Math.abs(belt.positions[i * 3 + 1])).every((y) => y <= 0.5));
+  check('the belt is deterministic and has a random number per rock', belt.rands.length === 600 && beltPoints({ count: 600 }).positions.every((v, i) => v === belt.positions[i]));
+  const stars = starPoints({ count: 400 });
+  check('stars sit on a far shell, outside every orbit, with brightness and size in range', Array.from({ length: 400 }, (_, i) => Math.hypot(stars.positions[i * 3], stars.positions[i * 3 + 1], stars.positions[i * 3 + 2])).every((d) => d >= 70 && d <= 110) && stars.brightness.every((b) => b > 0 && b <= 1) && stars.sizes.every((s) => s > 0 && s < 2.5));
+  check('the camera can never leave the star shell (maxDistance < shell)', PIECES.find((x) => x.id === 'solar-system').maxDistance < 72);
+
+  const rg = ringGeometry({ inner: 1.5, outer: 2.5, segments: 32 });
+  const rp = rg.attributes.position;
+  const ru = rg.attributes.uv;
+  check('rings are flat, between their radii, with u running inner (0) to outer (1)', (() => { for (let i = 0; i < rp.count; i++) { const d = Math.hypot(rp.getX(i), rp.getZ(i)); const u = ru.getX(i); if (rp.getY(i) !== 0 || Math.abs(d - (1.5 + u)) > 1e-5) return false; } return rg.index.count / 3 === 64; })());
+  const strip = ringStrip(128, by.saturn.stops);
+  const alpha = (u) => strip[Math.round(u * 127) * 4 + 3];
+  check('the ring strip has a gap near two thirds out, soft edges and a faint variant', alpha(0.66) < 40 && alpha(0.5) > alpha(0.66) && alpha(0) < 40 && ringStrip(128, by.uranus.stops, true).reduce((m, v, i) => (i % 4 === 3 ? Math.max(m, v) : m), 0) < 120);
+
+  const fields = Object.fromEntries(PLANETS.map((p) => [p.id, planetField(p, 128, 64)]));
+  check('every planet field is the right size, in 0..1, and deterministic', PLANETS.every((p) => { const f = fields[p.id]; return f.length === 128 * 64 && f.every((v) => v >= 0 && v <= 1) && planetField(p, 128, 64).every((v, i) => v === f[i]); }));
+  check('every surface varies (not a flat colour) and planets differ from each other', PLANETS.every((p) => Math.max(...fields[p.id]) - Math.min(...fields[p.id]) > 0.25) && fields.mercury.some((v, i) => v !== fields.mars[i]));
+  check('the surface is seamless round the planet (left and right edges agree)', PLANETS.every((p) => { const f = fields[p.id]; let d = 0; for (let y = 0; y < 64; y++) d += Math.abs(f[y * 128] - f[y * 128 + 127]); return d / 64 < 0.12; }));
+  const earthRgb = colorizeField(fields.earth, by.earth.stops);
+  const count = (fn) => { let n = 0; for (let i = 0; i < earthRgb.length; i += 4) if (fn(earthRgb[i], earthRgb[i + 1], earthRgb[i + 2])) n++; return n; };
+  check('Earth has blue sea, green land and white ice', count((r, g, b) => b > r + 40 && b > g) > 800 && count((r, g, b) => g > r + 10 && g > b + 10) > 300 && count((r, g, b) => r > 220 && g > 220 && b > 220) > 100);
+  check('Earth\'s poles are ice', (() => { const f = fields.earth; let top = 0; for (let x = 0; x < 128; x++) top += f[x] > 0.9 ? 1 : 0; return top > 90; })());
+  check('Jupiter has horizontal bands and a red spot (rows differ more than columns)', (() => { const f = fields.jupiter; const rowMeans = []; for (let y = 0; y < 64; y++) { let m = 0; for (let x = 0; x < 128; x++) m += f[y * 128 + x]; rowMeans.push(m / 128); } const mean = rowMeans.reduce((a, b) => a + b) / 64; const sd = Math.sqrt(rowMeans.reduce((a, b) => a + (b - mean) ** 2, 0) / 64); return sd > 0.1; })());
+  check('colourising makes opaque RGBA bytes', earthRgb.length === 128 * 64 * 4 && earthRgb.every((v, i) => i % 4 !== 3 || v === 255));
+  check('sampleStops hits the ends and blends between', (() => { const st = [[0, '#000000'], [1, '#ffffff']]; return sampleStops(st, -1)[0] === 0 && sampleStops(st, 2)[0] === 255 && Math.abs(sampleStops(st, 0.5)[1] - 127.5) < 1e-9; })());
+  check('palette stops run darkest to lightest through the four colours', (() => { const st = paletteStops(['#111111', '#222222', '#333333', '#000000']); return st.length === 4 && st[0][1] === '#000000' && st[3][1] === '#333333' && st.every(([q], i) => i === 0 || q > st[i - 1][0]); })());
+
+  const def = PIECES.find((x) => x.id === 'solar-system');
+  check('the piece: black backdrop, dark lighting, wide hero and overview, positive maxDistance, valid schema', def.backdrop === 'black' && def.lighting === 'dark' && def.maxDistance > 40 && validateSchema(def.params).length === 0 && Math.hypot(...def.camera.hero.position) > 25 && Math.hypot(...def.camera.overview.position) > 40);
+  check('the stage honours a per-piece maxDistance', /maxDistance=\{piece\.maxDistance \?\? 32\}/.test(read('src/art/ArtStage.jsx')));
+  const sys = read('src/art/pieces/SolarSystem.jsx');
+  check('everything moves from the shared clock only (no wall clocks)', /clock\.current\.t/.test(sys) && !/state\.clock|Date\.now|performance\.now|new Clock/.test(sys));
+  check('the Sun is the plasma shader plus a corona and a real light the planets are lit by', /plasmaVertex/.test(sys) && /coronaVertex/.test(sys) && /<pointLight/.test(sys));
+  check('planets, rings, moon, belt, orbit lines and labels are all drawn', /<Planet/.test(sys) && /ringGeometry/.test(sys) && /moonPosition/.test(sys) && /beltPoints/.test(sys) && /<lineLoop/.test(sys) && /<Label/.test(sys));
+  check('textures and geometries are disposed', /map\.dispose\(\)/.test(sys) && /geo\.dispose\(\)/.test(sys) && /tex\.dispose\(\)/.test(sys));
+  check('natural colours or the palette, through the same surfaces', /colours === 'natural'/.test(sys) && /paletteStops/.test(sys) && def.params.colours.options.map((x) => x.value).join() === 'natural,palette');
+  check('the settings default on their own step', Object.values(def.params).filter((q) => q.type === 'range').every((q) => Math.abs(Math.round((q.default - q.min) / q.step) * q.step + q.min - q.default) < 1e-9));
 }
 
 section('Shaders (the new pieces)');

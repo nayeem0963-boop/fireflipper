@@ -216,7 +216,7 @@ small chunk per piece), so players who never open it never download it.
 Everything you set (piece, parameters, palette, camera preset, speed, helpers) is remembered between visits under its own
 storage key. The camera is a normal orbit camera: drag to orbit, scroll or pinch to zoom, right-drag to pan.
 
-**The thirteen pieces** (each is a definition plus a component in `src/art/pieces/`; every one responds to Speed, Pause, the four palettes and the quality tier):
+**The fourteen pieces** (each is a definition plus a component in `src/art/pieces/`; every one responds to Speed, Pause, the four palettes and the quality tier):
 
 | Piece | What it is | Made with |
 | --- | --- | --- |
@@ -233,6 +233,7 @@ storage key. The camera is a normal orbit camera: drag to orbit, scroll or pinch
 | Plasma Sphere | A boiling, sun-like sphere with glowing veins and a corona | A displaced sphere with a heat-ramp shader (`shaders/plasma.js`) |
 | Neural Landscape | A grid of glowing points rolling in waves, coloured by height | Points whose heights and colours are written into the geometry each frame |
 | Particle Dancer | A dancer in arabesque made of thousands of glowing points, with swirling ribbons, on rolling waves of particles | A procedural point-cloud figure (`geometry/dancer.js`) animated in a vertex shader (`shaders/dancer.js`), sine-wave terrain points, glowing `Line` ribbons; blue-purple-gold or the active palette |
+| Solar System | The Sun and its eight planets on elliptical orbits, with Earth's moon, the asteroid belt and Saturn's rings (a showcase: not to scale) | Plasma-shader Sun with a real point light, procedurally painted planet textures (`geometry/solarSystem.js`) in natural colours or the active palette, orbit lines, name labels, point-cloud belt and stars; the camera may travel further out (`maxDistance`) |
 
 **Bloom** (the **Bloom** section of the panel, on by default): the scene is drawn into a high-dynamic-range buffer, everything brighter than the *threshold* is blurred at several scales, and the blur is added back with the chosen *strength* and *radius*. It uses the post-processing passes that ship with three.js (`EffectComposer`, `UnrealBloomPass`, `OutputPass`), so it needs no extra dependency, and it is a separate lazy chunk (`src/art/Bloom.jsx`), loaded only when it is switched on. Turning it off gives rendering back to react-three-fiber exactly as before. **Save PNG** includes the bloom. The pieces' additive halos (`src/art/Glow.jsx`) and reflections from a procedural environment built from `Lightformer`s (nothing is fetched from the network) still work with it off. With bloom on, the whole picture goes through tone mapping, so backdrops and unlit colours look a little darker and more contrasty than with it off.
 
