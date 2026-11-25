@@ -1,5 +1,4 @@
-import { SKINS, colorUnlockScore, isUnlocked } from '../skins/skins.js';
-import { DEFAULT_THEME, getTheme } from '../theme/themes.js';
+import { FREE_COLOR, SKINS, colorUnlockScore, isUnlocked } from '../skins/skins.js';
 
 /**
  * Every bird the player can fly as: five species, each in three colours (Fire, Blue and White), so 15 avatars. (The Flipper is no longer in the list; its model is kept only for the Celestial reward skin.)
@@ -290,7 +289,7 @@ function make(species, color, extra) {
   return {
     ...rest,
     ...extra,
-    // Skins are visual only and unlock with the best score (the theme's own colour is always free); never a gameplay perk.
+    // Skins are visual only and unlock with the best score (Fire is always free; the theme never changes a bird's colour); never a gameplay perk.
     // `unlockScore` is the red-theme value; use colorUnlockScore(color, theme) for the active theme.
     unlockScore: skin ? skin.unlockScore : Infinity, // a reward skin has no score threshold: it unlocks by its journey reward
     trail: trailFor(species.id, color.id),
@@ -388,27 +387,27 @@ export function avatarFor(speciesId, colorId) {
 }
 
 /** Each species is free in the theme's colour; the other warm/cool skin and White unlock with the best score; a reward skin unlocks with its journey reward (`rewards`: the owned map). */
-export function isAvatarUnlocked(avatar, bestScore, themeId = DEFAULT_THEME, rewards = null) {
+export function isAvatarUnlocked(avatar, bestScore, themeId, rewards = null) {
   if (avatar.reward) return !!rewards?.[avatar.reward];
   return isUnlocked(avatar, bestScore, themeId);
 }
 
 /** Best score needed for this avatar in a theme (0 when free). */
-export function avatarUnlockScore(avatar, themeId = DEFAULT_THEME) {
+export function avatarUnlockScore(avatar, themeId) {
   return colorUnlockScore(avatar.color, themeId);
 }
 
-/** The avatar to actually show: the selected one if unlocked, otherwise that bird in the theme's free colour. */
-export function resolveAvatar(id, bestScore, themeId = DEFAULT_THEME, rewards = null) {
+/** The avatar to actually show: the selected one if unlocked, otherwise that bird in Fire, its free colour. */
+export function resolveAvatar(id, bestScore, themeId, rewards = null) {
   const avatar = getAvatar(id);
-  return isAvatarUnlocked(avatar, bestScore, themeId, rewards) ? avatar : avatarFor(avatar.species, getTheme(themeId).freeSkin);
+  return isAvatarUnlocked(avatar, bestScore, themeId, rewards) ? avatar : avatarFor(avatar.species, FREE_COLOR);
 }
 
 /**
  * Collection progress: skins unlocked out of all skins (a skin is one bird in one colour), and how many of the
  * species have been flown at least once. `flown` maps species id to completed runs.
  */
-export function collectionProgress(bestScore, flown = {}, themeId = DEFAULT_THEME) {
+export function collectionProgress(bestScore, flown = {}, themeId) {
   const unlocked = AVATARS.filter((a) => isAvatarUnlocked(a, bestScore, themeId)).length;
   const flownSpecies = AVATAR_SPECIES.filter((sp) => (flown[sp.id] ?? 0) > 0).length;
   return {
@@ -425,7 +424,7 @@ export function collectionProgress(bestScore, flown = {}, themeId = DEFAULT_THEM
 }
 
 /** Skins unlocked in one species. */
-export function speciesProgress(speciesId, bestScore, themeId = DEFAULT_THEME) {
+export function speciesProgress(speciesId, bestScore, themeId) {
   const all = AVATARS.filter((a) => a.species === speciesId);
   return { unlocked: all.filter((a) => isAvatarUnlocked(a, bestScore, themeId)).length, total: all.length };
 }

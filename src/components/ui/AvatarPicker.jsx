@@ -9,6 +9,7 @@ import {
   speciesProgress,
 } from '../../systems/avatars/avatars.js';
 import { LICENCE, getCredit } from '../../systems/avatars/credits.js';
+import { FREE_COLOR } from '../../systems/skins/skins.js';
 import { formatScore } from '../../systems/scoring/scoring.js';
 import { useSkin } from '../../hooks/useSkin.js';
 import { useTheme } from '../../hooks/useTheme.js';
@@ -42,8 +43,7 @@ export default function AvatarPicker() {
   const dialogRef = useRef(null);
   const credit = current.kind === 'model' ? getCredit(current.species) : null;
   const progress = collectionProgress(bestScore, flown, theme.id);
-  // The theme's own colour first, then the other warm/cool one, then White.
-  const order = { [theme.freeSkin]: 0, fire: 1, blue: 1, white: 2 };
+  const order = { fire: 0, blue: 1, white: 2 };
   const colours = [...AVATAR_SPECIES.find((sp) => sp.id === current.species).variants].sort(
     (a, b) => order[a.color] - order[b.color],
   );
@@ -58,7 +58,7 @@ export default function AvatarPicker() {
   // Choosing a bird keeps the colour you are on when it is unlocked for that bird, else its Fire colour.
   const pickSpecies = (species) => {
     const same = avatarFor(species.id, current.color);
-    selectSkin(isAvatarUnlocked(same, bestScore, theme.id) ? same.id : avatarFor(species.id, theme.freeSkin).id);
+    selectSkin(isAvatarUnlocked(same, bestScore, theme.id) ? same.id : avatarFor(species.id, FREE_COLOR).id);
   };
 
   return (
@@ -144,7 +144,7 @@ export default function AvatarPicker() {
                     role="radio"
                     aria-checked={active}
                     className={`skin skin--bird ${active ? 'is-active' : ''}`}
-                    style={swatch(isAvatarUnlocked(shown, bestScore, theme.id) ? shown : avatarFor(sp.id, theme.freeSkin))}
+                    style={swatch(isAvatarUnlocked(shown, bestScore, theme.id) ? shown : avatarFor(sp.id, FREE_COLOR))}
                     onClick={() => pickSpecies(sp)}
                   >
                     <span className="skin__swatch" aria-hidden="true" />

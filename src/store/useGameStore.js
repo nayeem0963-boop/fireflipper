@@ -13,7 +13,7 @@ import {
   nextGoal,
   rollDaily,
 } from '../systems/progression/progression.js';
-import { avatarFor, getAvatar, isAvatarUnlocked, resolveAvatar } from '../systems/avatars/avatars.js';
+import { getAvatar, isAvatarUnlocked, resolveAvatar } from '../systems/avatars/avatars.js';
 import { reachMilestone, sanitizeJourney } from '../systems/rewards/rewards.js';
 import { previewRewardIds, previewSeedFor } from '../systems/rewards/preview.js';
 import { WORLD_COUNT } from '../systems/world/worlds.js';
@@ -91,9 +91,7 @@ export const useGameStore = create((set, get) => ({
   runsThisSession: 0,
 
   /** Selected bird skin id (species + colour). Cosmetic only: no effect on physics or collisions. */
-  skinId: initialSkins().active,
-  /** Each theme remembers its own bird choice: { red: 'bulbuli-fire', blue: 'toco-toucan-blue', ... }. */
-  skinsByTheme: initialSkins().byTheme,
+  skinId: initialSkin(),
   /** Completed runs per bird species, for collection progress: { species: runs }. */
   flown: loadValue('flown', {}),
 
@@ -291,21 +289,17 @@ export const useGameStore = create((set, get) => ({
 
   // --- settings ---
   setTheme: (id) => {
-    const s = get();
     const theme = getTheme(id).id;
-    // Each theme remembers its own bird; the first time, keep the same species in the new theme's own colour.
-    const species = getAvatar(s.skinsByTheme[s.theme] ?? s.skinId).species;
-    const skinId = s.skinsByTheme[theme] ?? avatarFor(species, getTheme(theme).freeSkin).id;
+    // The theme changes only the scenery and the interface: the bird (species and colour) stays as chosen.
     saveValue('theme', theme);
     applyTheme(theme);
-    set({ theme, skinId });
+    set({ theme });
   },
   selectSkin: (id) => {
     const s = get();
     if (!isAvatarUnlocked(getAvatar(id), s.bestScore, s.theme, s.journey.rewards)) return;
-    const skinsByTheme = { ...s.skinsByTheme, [s.theme]: id };
-    saveValue('skinsByTheme', skinsByTheme);
-    set({ skinId: id, skinsByTheme });
+    saveValue('skinChoice', id);
+    set({ skinId: id });
   },
   toggleSound: () =>
     set((s) => {
@@ -325,13 +319,16 @@ function initialTheme() {
   return theme;
 }
 
-/** Saved bird choice per theme (the old single `skinId` becomes the red theme's), and the active theme's choice. */
-function initialSkins() {
+/**
+ * The saved bird choice. Bird colour no longer follows the theme, so there is one choice. Older saves kept one per theme
+ * (`skinsByTheme`): the one for the theme in use is kept, so players see the bird they last flew.
+ */
+function initialSkin() {
+  const saved = loadValue('skinChoice', null);
+  if (saved) return saved;
   const theme = getTheme(loadValue('theme', DEFAULT_THEME)).id;
-  const saved = loadValue('skinsByTheme', null);
-  const byTheme = saved ?? { red: loadValue('skinId', 'bulbuli-fire') };
-  const active = byTheme[theme] ?? avatarFor(getAvatar(byTheme.red ?? 'bulbuli-fire').species, getTheme(theme).freeSkin).id;
-  return { byTheme, active };
+  const legacy = loadValue('skinsByTheme', null);
+  return legacy?.[theme] ?? legacy?.red ?? loadValue('skinId', 'bulbuli-fire');
 }
 
 function freshRun(s, preview = s.preview) {

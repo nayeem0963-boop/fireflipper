@@ -1,14 +1,12 @@
 /**
  * Visual themes. Pure data plus two tiny DOM helpers. A theme changes only how the game LOOKS: interface colours
- * (CSS variables, see styles/global.css), the scenery's palette, and which bird skin colour is free. Nothing in a
+ * (CSS variables, see styles/global.css) and the scenery's palette. It never changes a bird's colour. Nothing in a
  * theme reaches the simulation, so physics, obstacles, scoring and fairness are identical in every theme.
  *
  *  - 'red'  (Ember): the original look, a lava valley.
  *  - 'blue' (Frost): the same valley as an ice cavern.
  *
- * `scene` colours are hex strings for three.js; `sky` and `grid` feed the canvas textures. `freeSkin` is the bird
- * colour that is unlocked from the start in this theme (the other warm/cool one unlocks with the best score, white
- * later), so every bird starts out matching the theme.
+ * `scene` colours are hex strings for three.js; `sky` and `grid` feed the canvas textures.
  */
 export const THEMES = Object.freeze({
   red: Object.freeze({
@@ -16,7 +14,6 @@ export const THEMES = Object.freeze({
     name: 'Red',
     flavour: 'Ember Valley',
     swatch: '#ff5a14',
-    freeSkin: 'fire',
     /** Plain glow textures are warm-tinted in the original look; blue needs a neutral white glow. */
     neutralGlow: false,
     /** Game-over wording that matches the setting (the simulation's cause codes are the same in every theme). */
@@ -54,7 +51,6 @@ export const THEMES = Object.freeze({
     name: 'Blue',
     flavour: 'Frost Cavern',
     swatch: '#2ea6ff',
-    freeSkin: 'blue',
     neutralGlow: true,
     copy: Object.freeze({ over: 'Frozen!', lava: 'Plunged into the frost' }),
     scene: Object.freeze({
