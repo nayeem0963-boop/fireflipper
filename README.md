@@ -130,8 +130,8 @@ The run also pauses automatically when the tab is hidden or the window loses foc
 
 ## Bird customisation
 
-Seven birds (FlameBird, Bulbuli, Rainbow Macaw, Honeybell (the blue-and-yellow macaw), Toco Toucan, Morpho Butterfly, Fire Eagle),
-each in three skins (Fire, Blue, White): 21 in all. FlameBird, the Fire Flipper mascot, is first and is the bird a new player starts with (a saved choice is kept); it is a rigged model whose real flight clip drives its wings, and its Fire skin shows the model's own painted colours. The Flipper and the Scarlet Macaw are no longer in the list; the Flipper's model remains only as the gold Celestial reward skin. Fire is always free; Blue and White unlock at best scores of
+Three birds (FlameBird, Honeybell (the blue-and-yellow macaw) and Morpho Butterfly),
+each in three skins (Fire, Blue, White): 9 in all. FlameBird, the Fire Flipper mascot, is first and is the bird a new player starts with (a saved choice of Honeybell or Morpho is kept; a save that chose a bird no longer offered shows FlameBird); it is a rigged model whose real flight clip drives its wings, and its Fire skin shows the model's own painted colours. Bulbuli, the Rainbow Macaw, the Toco Toucan and the Fire Eagle are no longer offered (their code and model files are kept, unlisted: see `LISTED_MODELS` in `src/systems/avatars/avatars.js`). The Flipper and the Scarlet Macaw are also out of the list; the Flipper's model remains only as the gold Celestial reward skin. Fire is always free; Blue and White unlock at best scores of
 600 and 1,500. Each skin has its own cosmetic trail colours and tints the orb-pickup sparks. Everything is visual:
 birds share one hitbox and one physics model (`npm run test:avatars` guards against gameplay fields on a bird).
 Bird models are third-party (CC BY 4.0, except FlameBird, made for this game, and the Fire Eagle, which has its own licence that still needs confirming); see `public/models/CREDITS.md` and the in-app credits.

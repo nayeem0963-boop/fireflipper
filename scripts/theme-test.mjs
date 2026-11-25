@@ -56,13 +56,13 @@ check('unlock messages do not depend on the theme', newlyUnlocked(0, 700, 'blue'
 
 // Store: the theme never touches the bird or the run.
 const st = () => useGameStore.getState();
-st().selectSkin('toco-toucan-fire');
+st().selectSkin('morpho-fire');
 st().setTheme('blue');
-check('switching theme does not change the bird (species or colour)', st().theme === 'blue' && st().skinId === 'toco-toucan-fire', st().skinId);
-st().selectSkin('toco-toucan-blue');
-check('a locked colour cannot be chosen, even in the blue theme', st().skinId === 'toco-toucan-fire');
+check('switching theme does not change the bird (species or colour)', st().theme === 'blue' && st().skinId === 'morpho-fire', st().skinId);
+st().selectSkin('morpho-blue');
+check('a locked colour cannot be chosen, even in the blue theme', st().skinId === 'morpho-fire');
 st().setTheme('red');
-check('and switching back changes nothing either', st().skinId === 'toco-toucan-fire');
+check('and switching back changes nothing either', st().skinId === 'morpho-fire');
 st().setTheme('nope');
 check('bad theme id is ignored', st().theme === 'red');
 

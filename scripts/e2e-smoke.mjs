@@ -59,13 +59,13 @@ for (const [name, opts, themeId] of CASES) {
     });
   });
   check(`${name}: welcome page fits the screen width`, clipped.length === 0, clipped.join());
-  check(`${name}: seven birds on the menu`, (await p.locator('.birdchip').count()) === 7);
+  check(`${name}: three birds on the menu`, (await p.locator('.birdchip').count()) === 3);
 
   // pick a bird, open the picker and achievements
   await p.getByRole('radio', { name: /toco toucan/i }).click();
   await p.getByRole('button', { name: /skins/i }).click();
   await p.waitForSelector('.birds');
-  check(`${name}: picker lists seven birds`, (await p.locator('.birds__grid [role=radio]').count()) === 7);
+  check(`${name}: picker lists three birds`, (await p.locator('.birds__grid [role=radio]').count()) === 3);
   await p.keyboard.press('Escape');
   await p.getByRole('button', { name: /achievements/i }).click();
   await p.waitForSelector('.prog');

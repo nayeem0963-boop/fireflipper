@@ -1,7 +1,7 @@
 import { FREE_COLOR, SKINS, colorUnlockScore, isUnlocked } from '../skins/skins.js';
 
 /**
- * Every bird the player can fly as: seven species, each in three colours (Fire, Blue and White), so 21 avatars. FlameBird, the mascot, is first (the default bird). (The Flipper is no longer in the list; its model is kept only for the Celestial reward skin.)
+ * Every bird the player can fly as: three species (FlameBird, Honeybell, Morpho Butterfly), each in three colours (Fire, Blue and White), so 9 avatars. FlameBird, the mascot, is first (the default bird). Other species below are defined but not listed (see LISTED_MODELS). (The Flipper is no longer in the list; its model is kept only for the Celestial reward skin.)
  * A species is named for what it is (never for its colour); the colour is chosen separately.
  *
  * Each avatar carries its species' fields plus `species` (the species id), `color` ('fire' | 'blue' | 'white'),
@@ -371,17 +371,22 @@ function make(species, color, extra) {
 }
 
 /** The full list: every species in each colour, species in the order the picker shows them. */
+/**
+ * The model birds in the list. Bulbuli, the Rainbow Macaw, the Toco Toucan and the Fire Eagle are no longer offered
+ * (their definitions, components and files are kept, so one can come back by adding it here or to AVATARS). A save that
+ * chose one of them shows the default bird, FlameBird (see getAvatar).
+ */
+const LISTED_MODELS = ['macaw-blue-yellow', 'morpho'];
+
 export const AVATARS = Object.freeze([
   ...COLOURS.map((c) => make(FLAMEBIRD_SPECIES, c, { palette: FLAMEBIRD_SPECIES.variants[c.id] })),
-  ...COLOURS.map((c) =>
-    make(BULBULI_SPECIES, c, {
-      kind: 'bird',
-      palette: { eye: '#ffe9b0', ...BULBULI_SPECIES.variants[c.id] },
-    }),
+  ...LISTED_MODELS.map((id) => MODEL_BIRDS.find((m) => m.id === id)).flatMap((m) =>
+    COLOURS.map((c) => make(m, c, { kind: 'model', palette: m.variants[c.id] })),
   ),
-  ...MODEL_BIRDS.flatMap((m) => COLOURS.map((c) => make(m, c, { kind: 'model', palette: m.variants[c.id] }))),
-  ...COLOURS.map((c) => make(EAGLE_SPECIES, c, { palette: EAGLE_SPECIES.variants[c.id] })),
 ]);
+
+/** Species defined here but not in the list (kept for later; nothing reads them now). */
+export const UNLISTED_SPECIES = Object.freeze([BULBULI_SPECIES.id, EAGLE_SPECIES.id, ...MODEL_BIRDS.map((m) => m.id).filter((id) => !LISTED_MODELS.includes(id))]);
 
 /** The species in picker order, each with its three colours: [{ id, name, tagline, kind, variants: [avatar x3] }]. */
 export const AVATAR_SPECIES = Object.freeze(
@@ -393,7 +398,7 @@ export const AVATAR_SPECIES = Object.freeze(
 );
 
 /**
- * Reward skins: earned by journey rewards, never by score, and NOT part of the 21-skin collection above (its counts and the picker are unchanged). Purely cosmetic: like every
+ * Reward skins: earned by journey rewards, never by score, and NOT part of the 9-skin collection above (its counts and the picker are unchanged). Purely cosmetic: like every
  * bird it only changes how the bird LOOKS; the simulation never reads an avatar, so the hitbox, the physics and the scoring are the same.
  */
 const CELESTIAL_PALETTE = {
