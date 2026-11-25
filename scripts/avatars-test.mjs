@@ -15,9 +15,10 @@ const check = (name, cond, detail = '') => {
   }
 };
 
-const NAMES = ['Bulbuli', 'Rainbow Macaw', 'Honeybell', 'Toco Toucan', 'Morpho Butterfly', 'Fire Eagle'];
-check('exactly these six birds exist (no Flipper, no Scarlet Macaw)', NAMES.length === AVATAR_SPECIES.length && NAMES.every((n) => AVATAR_SPECIES.some((s) => s.name === n)), AVATAR_SPECIES.map((s) => s.name).join(', '));
-check('18 skins', AVATARS.length === 18);
+const NAMES = ['FlameBird', 'Bulbuli', 'Rainbow Macaw', 'Honeybell', 'Toco Toucan', 'Morpho Butterfly', 'Fire Eagle'];
+check('exactly these seven birds exist (no Flipper, no Scarlet Macaw)', NAMES.length === AVATAR_SPECIES.length && NAMES.every((n) => AVATAR_SPECIES.some((s) => s.name === n)), AVATAR_SPECIES.map((s) => s.name).join(', '));
+check('21 skins', AVATARS.length === 21);
+check('FlameBird, the mascot, is the first bird and the default (Fire, its own painted colours)', AVATAR_SPECIES[0].id === 'flamebird' && AVATARS[0].id === 'flamebird-fire' && AVATARS[0].kind === 'flamebird' && AVATARS[0].palette.mix === 0 && AVATARS.filter((a) => a.species === 'flamebird').length === 3);
 check('unique ids', new Set(AVATARS.map((a) => a.id)).size === AVATARS.length);
 for (const sp of AVATAR_SPECIES) {
   const fire = avatarFor(sp.id, 'fire');
@@ -34,7 +35,7 @@ check('every species has a distinct Fire trail', new Set(fireTrails).size === AV
 const none = collectionProgress(0, {});
 check('collection starts at the free skins', none.unlocked === AVATAR_SPECIES.length && none.nextUnlock > 0, JSON.stringify(none));
 const all = collectionProgress(1e9, { bulbuli: 2 });
-check('collection completes', all.unlocked === 18 && all.nextUnlock === null && all.flownSpecies === 1);
+check('collection completes', all.unlocked === 21 && all.nextUnlock === null && all.flownSpecies === 1);
 
 // Mechanical equivalence: the simulation never sees the avatar, and a bird carries no gameplay fields.
 const FORBIDDEN = /gravity|impulse|speed|radius|hitbox|collision|score|multiplier|bonus/i;

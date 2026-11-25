@@ -41,7 +41,7 @@ check('crash -> DYING', st().status === STATUS.DYING);
 st().endRun(run());
 check('end -> OVER with result', st().status === STATUS.OVER && st().lastResult?.score === 120);
 check('first score is a new best', st().lastResult.isNewBest && st().bestScore === 120);
-check('progression recorded', st().stats.runs === 1 && st().stats.totalOrbs === 4 && st().flown.bulbuli === 1);
+check('progression recorded', st().stats.runs === 1 && st().stats.totalOrbs === 4 && st().flown.flamebird === 1); // a new player flies the default bird, FlameBird
 st().endRun(run({ score: 999 }));
 check('a run can only end once', st().stats.runs === 1 && st().lastResult.score === 120 && st().bestScore === 120);
 

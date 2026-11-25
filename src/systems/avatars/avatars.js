@@ -1,7 +1,7 @@
 import { FREE_COLOR, SKINS, colorUnlockScore, isUnlocked } from '../skins/skins.js';
 
 /**
- * Every bird the player can fly as: six species, each in three colours (Fire, Blue and White), so 18 avatars. (The Flipper is no longer in the list; its model is kept only for the Celestial reward skin.)
+ * Every bird the player can fly as: seven species, each in three colours (Fire, Blue and White), so 21 avatars. FlameBird, the mascot, is first (the default bird). (The Flipper is no longer in the list; its model is kept only for the Celestial reward skin.)
  * A species is named for what it is (never for its colour); the colour is chosen separately.
  *
  * Each avatar carries its species' fields plus `species` (the species id), `color` ('fire' | 'blue' | 'white'),
@@ -14,6 +14,9 @@ import { FREE_COLOR, SKINS, colorUnlockScore, isUnlocked } from '../skins/skins.
  *  - 'model': a real 3D bird model re-lit as a fire bird at run time (colour-tinted plumage, glow and a flame
  *    tail). The models are third-party (CC BY 4.0); credits are in credits.js and shown in the app. They are
  *    free to choose: the choice is cosmetic and changes nothing about the physics or the collision size.
+ *
+ *  - 'flamebird': FlameBird, the Fire Flipper mascot: a rigged GLB with real clips (flight, wing beat, idle, celebrate) drawn by
+ *    FlameBird.jsx. Made for Fire Flipper (see public/models/CREDITS.md).
  *
  *  - 'eagle': the Fire Eagle, a rigged, animated GLB (a real `Fly` clip drives its wings) re-skinned as a fire bird at
  *    run time by FireEagle.jsx. Its colours are 8-texel palettes (see `EAGLE_SPECIES`). Its licence is not CC BY (see credits.js).
@@ -239,6 +242,25 @@ const EAGLE_SPECIES = {
   },
 };
 
+/**
+ * FlameBird, the Fire Flipper mascot (goggles, scarf, flame crest): a rigged GLB with its own clips (FB_Fly, FB_WingFlap,
+ * FB_Idle, FB_TailSway, FB_Celebrate), drawn by FlameBird.jsx. Fire shows the model's own painted textures unchanged
+ * (mix 0); Blue and White re-colour them by brightness onto low / mid / high (mix = how much of that ramp replaces the
+ * original). `glow` tints the halo and the bird's light. It is the first species, so it is the default bird.
+ */
+const FLAMEBIRD_SPECIES = {
+  id: 'flamebird',
+  name: 'FlameBird',
+  tagline: 'The Fire Flipper mascot, goggles on',
+  kind: 'flamebird',
+  file: 'flamebird.glb',
+  variants: {
+    fire: { mix: 0, glow: '#ff7a2a', low: '#a3120a', mid: '#ff5a14', high: '#ffd070' },
+    blue: { mix: 0.85, glow: '#3aa8ff', low: '#0b3fb8', mid: '#2ea6ff', high: '#d8f6ff' },
+    white: { mix: 0.85, glow: '#cfe4ff', low: '#8fa3c4', mid: '#e6edf8', high: '#ffffff' },
+  },
+};
+
 /** Bulbuli the red-whiskered bulbul, in three colours. */
 const BULBULI_SPECIES = {
   id: 'bulbuli',
@@ -309,6 +331,7 @@ const FIRE_TRAILS = {
   'toco-toucan': { stops: ['#ffd36b', '#e0361a', '#5a0a06'], spark: '#ffb33a', style: 'sparks' },
   morpho: { stops: ['#ffe9a8', '#ff7a3a', '#b21e6a'], spark: '#ffb3e0', style: 'shimmer' },
   'fire-eagle': { stops: ['#fff0a0', '#ff6a14', '#a51402'], spark: '#ffd070', style: 'flame' },
+  flamebird: { stops: ['#ffe9a8', '#ff5a14', '#a3120a'], spark: '#ffb347', style: 'flame' },
 };
 const COOL_TRAILS = {
   blue: { stops: ['#e8fbff', '#2ea6ff', '#0b3fb8'], spark: '#9fe8ff' },
@@ -349,6 +372,7 @@ function make(species, color, extra) {
 
 /** The full list: every species in each colour, species in the order the picker shows them. */
 export const AVATARS = Object.freeze([
+  ...COLOURS.map((c) => make(FLAMEBIRD_SPECIES, c, { palette: FLAMEBIRD_SPECIES.variants[c.id] })),
   ...COLOURS.map((c) =>
     make(BULBULI_SPECIES, c, {
       kind: 'bird',
@@ -369,7 +393,7 @@ export const AVATAR_SPECIES = Object.freeze(
 );
 
 /**
- * Reward skins: earned by journey rewards, never by score, and NOT part of the 18-skin collection above (its counts and the picker are unchanged). Purely cosmetic: like every
+ * Reward skins: earned by journey rewards, never by score, and NOT part of the 21-skin collection above (its counts and the picker are unchanged). Purely cosmetic: like every
  * bird it only changes how the bird LOOKS; the simulation never reads an avatar, so the hitbox, the physics and the scoring are the same.
  */
 const CELESTIAL_PALETTE = {

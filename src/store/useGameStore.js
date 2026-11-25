@@ -13,7 +13,7 @@ import {
   nextGoal,
   rollDaily,
 } from '../systems/progression/progression.js';
-import { getAvatar, isAvatarUnlocked, resolveAvatar } from '../systems/avatars/avatars.js';
+import { DEFAULT_AVATAR_ID, getAvatar, isAvatarUnlocked, resolveAvatar } from '../systems/avatars/avatars.js';
 import { reachMilestone, sanitizeJourney } from '../systems/rewards/rewards.js';
 import { previewRewardIds, previewSeedFor } from '../systems/rewards/preview.js';
 import { WORLD_COUNT } from '../systems/world/worlds.js';
@@ -372,7 +372,7 @@ function initialSkin() {
   if (saved) return saved;
   const theme = getTheme(loadValue('theme', DEFAULT_THEME)).id;
   const legacy = loadValue('skinsByTheme', null);
-  return legacy?.[theme] ?? legacy?.red ?? loadValue('skinId', 'bulbuli-fire');
+  return legacy?.[theme] ?? legacy?.red ?? loadValue('skinId', DEFAULT_AVATAR_ID); // a new player starts as FlameBird; a saved choice is kept
 }
 
 function freshRun(s, preview = s.preview) {
