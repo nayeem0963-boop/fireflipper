@@ -1,7 +1,10 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import AvatarBird from '../../components/scene/AvatarBird.jsx';
+import PlayerAvatar from '../../components/scene/PlayerAvatar.jsx';
 import { useSkin } from '../../hooks/useSkin.js';
+import { useGameVersion } from '../../hooks/useGameVersion.js';
+import { previewSizeFactor, usesOriginalAvatar } from '../../systems/versions/versions.js';
 import EmberParticles from '../../components/scene/EmberParticles.jsx';
 import { useTheme } from '../../hooks/useTheme.js';
 import { useRenderSettings } from '../../hooks/useRenderSettings.js';
@@ -15,6 +18,7 @@ import { damp } from '../../utils/math.js';
 export default function ShowcaseScene() {
   const { emberCount } = useRenderSettings();
   const skin = useSkin();
+  const version = useGameVersion();
   const { scene } = useTheme();
 
   return (
@@ -26,7 +30,19 @@ export default function ShowcaseScene() {
       <CameraParallax />
 
       <group position={[0, 0.1, 0]}>
-        <AvatarBird avatar={skin} rotation={[0, -0.55, 0]} float={0.16} wingSpeed={5.5} />
+        {usesOriginalAvatar(version) ? (
+          <AvatarBird avatar={skin} rotation={[0, -0.55, 0]} float={0.16} wingSpeed={5.5} />
+        ) : (
+          <PlayerAvatar
+            version={version}
+            sizeFactor={previewSizeFactor(version)}
+            // an avatar that stands on its origin is lifted so its body (not its feet) sits at the ring's centre
+            position={[0, -(version.playerConfig.centre ?? 0) * version.playerConfig.scale[1] * previewSizeFactor(version), 0]}
+            rotation={[0, -0.55, 0]}
+            float={0.16}
+            wingSpeed={5.5}
+          />
+        )}
         <FireRing a={scene.ringA} b={scene.ringB} />
       </group>
 

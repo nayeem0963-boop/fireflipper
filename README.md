@@ -4,7 +4,7 @@
 
 > Status: **pass 2: core flight gameplay.** Playable one-touch flying with physics, procedural
 > obstacles, fire orbs, collisions, scoring, game over and retry. Backend, accounts and deployment
-> are intentionally not implemented yet. The firebird is still a placeholder built from primitives.
+> are intentionally not implemented yet.
 
 ## Tech stack
 
@@ -113,7 +113,8 @@ scripts/
 - Obstacles and orbs are pooled records rendered through InstancedMesh: about 7 draw calls for
   the whole field, with no per-frame allocations. Spark bursts use one pooled `THREE.Points`.
 - Procedural textures are disposed on unmount; JSX geometries and materials are disposed by R3F.
-- GLB models will load via drei's `useGLTF` from `public/models/`.
+- GLB models load via drei's `useGLTF` from `public/models/birds/`. The Fire Eagle (`fire-eagle.glb`, ~100 kB)
+  is re-skinned in `FireEagle.jsx`; the Firebird stands in while it loads. See `public/models/CREDITS.md`.
 
 ## Controls
 
@@ -129,11 +130,13 @@ The run also pauses automatically when the tab is hidden or the window loses foc
 
 ## Bird customisation
 
-Five birds (Bulbuli, Rainbow Macaw, Honeybell (the blue-and-yellow macaw), Toco Toucan, Morpho Butterfly),
-each in three skins (Fire, Blue, White): 15 in all. The Flipper and the Scarlet Macaw are no longer in the list; the Flipper's model remains only as the gold Celestial reward skin. Fire is always free; Blue and White unlock at best scores of
+Six birds (Bulbuli, Rainbow Macaw, Honeybell (the blue-and-yellow macaw), Toco Toucan, Morpho Butterfly, Fire Eagle),
+each in three skins (Fire, Blue, White): 18 in all. The Flipper and the Scarlet Macaw are no longer in the list; the Flipper's model remains only as the gold Celestial reward skin. Fire is always free; Blue and White unlock at best scores of
 600 and 1,500. Each skin has its own cosmetic trail colours and tints the orb-pickup sparks. Everything is visual:
 birds share one hitbox and one physics model (`npm run test:avatars` guards against gameplay fields on a bird).
-Bird models are third-party (CC BY 4.0); see `public/models/CREDITS.md` and the in-app credits.
+Bird models are third-party (CC BY 4.0, except the Fire Eagle, which has its own licence that still needs confirming); see `public/models/CREDITS.md` and the in-app credits.
+The Fire Eagle (`public/models/birds/fire-eagle.glb`) is the one skeletal model: `FireEagle.jsx` plays its `Fly` clip from the flight state and
+re-skins it with the avatar's 8-colour palette, a flame shell and glow sprites. It falls back to the Firebird while loading.
 
 ## Search engines and sharing (SEO)
 
@@ -147,6 +150,39 @@ The game is one page (`https://fireflipper.com/`) drawn on a canvas, so its sear
 - **Cache rules:** the new small files are revalidated (`public/_headers`).
 
 To do by hand (they need your accounts): add `https://fireflipper.com/` in Google Search Console (and Bing Webmaster Tools), submit `https://fireflipper.com/sitemap.xml`, request indexing of the home page, and make sure the Netlify primary domain is `fireflipper.com` (redirect `www` to it) so it matches the canonical URL. Update `lastmod` in `sitemap.xml` when you ship a notable change.
+
+## Game versions
+
+The menu lists **v1 (Original)** and **v2 (New Runner)**. Switching is instant (no reload), the choice is saved, and `?version=v1` /
+`?version=v2` opens straight into a version (a link beats the saved choice).
+
+- **v1 is the original flying game**, exactly as it was: you fly a bird (and skin) through corridors of rocks, over a lava floor.
+- **v2 is a ground-runner.** You run as **Aisha** (from the Frost game) **on the land**: the floor of whichever of the five worlds you are in (canyon
+  dust, snowfield, starlit sea, pink floor, cloud sea), with no lava. TAP jumps, HOLD jumps higher (a quick release is a short hop), and Down drops
+  fast. Its own obstacles are low rocks, ice spikes and fallen logs to jump, and pits (crevasses) in the land to jump across, each drawn in the
+  world's own palette, with orb lines on the ground and orb arcs over what you jump. Flying-only layers (hazards, flying hazards, power-ups) are off.
+- **Shared by both:** the five worlds and their scenery, the 10,000 m journey and its milestones, the run speed curve, the scoring, the HUD, the
+  controls, the effects and **Auto play** (each version has its own bot).
+- **Progress is separate per version:** best score, stats, achievements, the daily goal and the journey record are kept per version, so a runner score
+  is never compared with a flyer score. v1 keeps the original storage keys, so nothing already saved moves.
+
+How it is built:
+
+- `src/systems/versions/versions.js`: the registry (`GAMES_CONFIG`). v1 is the baseline; v2 is v1 plus overrides: a `ruleset` (`'flight'` or `'runner'`)
+  and `playerConfig` (`avatarType`, `assetPath`, `scale`, `offset`, `centre`, `rotation`, `upright`, `clips`, `trailColor`).
+- `src/systems/runner/`: the runner simulation (`createRunnerSim.js`), its movement (`physics.js`), constants (`constants.js`), obstacle generator
+  (`track.js`) and Auto play bot (`autopilot.js`). It has the same outward shape as the flying simulation, so the loop, HUD, events and scene work
+  with either. It never reads an avatar or a version; the store and the scene choose the simulation (`hooks/useGameSim.js`).
+- **Fair by construction:** her full jump is known exactly, so a section is only built when one held jump clears all of it (at the slowest speed it can
+  be met at), pits are held well under a jump's reach, and there is always room to land, react and jump again. `npm run test:runner` re-checks every
+  section on 24 full tracks and has the bot fly the finish line on many seeds.
+- `components/scene/PlayerAvatar.jsx` draws the avatar for a version; `PlayerBird` only places the player from the simulation. v2 draws Aisha
+  (`public/models/v2/runner.glb`, from `nayeem0963-boop/frostgirl`; see `public/models/CREDITS.md`) with `RunnerAvatar.jsx`: idle while waiting, a run
+  cycle matched to the ground speed (no sliding feet), a jump pose while rising, a fall pose while dropping, and a stumble when the run ends. If the
+  file is missing, the v1 bird stands in (with one console note). `RunnerObstacleField.jsx` draws v2's obstacles and pits.
+- **To use a different runner:** replace `public/models/v2/runner.glb` (or change `assetPath`), then tune `scale`, `offset`, `rotation`, `upright` and
+  `clips` in `versions.js` so her feet stand on the land and she faces +X.
+- `npm run test:versions` and `npm run test:runner` guard all of this, including that neither simulation can see a version or an avatar.
 
 ## Progression
 
@@ -382,7 +418,7 @@ Everything the player must see before a hazard acts is drawn (nothing is drawn o
 - **Difficulty (`spawner.js`, `patterns.js`, `constants.js`).** Before, difficulty and speed reached their maximum at about 1,600 m and stayed there. Now difficulty climbs in a straight line from 0 (at 40 m) to 1 at the finish line (world averages 0.1, 0.3, 0.5, 0.7, 0.9), so there is no step at any border, and the speed ramp is stretched from 1,500 m to 6,000 m. Nothing is harder than the old maximum (same gaps and spacing at the end). The hard patterns arrive later: boulders after 250 m, wall formations after 600 m, tunnels (the canyon's arches) after 1,000 m. **This makes the first worlds noticeably easier and slower than before: it is a deliberate change that has not been playtested by a human.**
 - **Milestones.** The simulation announces a `MILESTONE` event when the bird survives a border (2,000 / 4,000 / 6,000 / 8,000 m); a compact banner under the HUD shows "World N completed" for 3.6 s (it ignores the pointer, never pauses anything, one at a time). A crash in the same step as a border wins: nothing is announced.
 - **The ending.** The track stops building 40 m before the line. Crossing 10,000 m alive moves the simulation to a new `COMPLETE` phase (once; a crash wins a same-step tie; scored distance is exactly 10,000 m): obstacles stop, input is ignored, the bird glides on untouchable. The screen shows a 6.8 s celebration over the live scene (the Celestial City painting fades in, "Journey Complete", sparkles; skippable with Skip, Enter or Escape after 1.2 s so the last taps cannot skip it; plain results at once under reduced motion), then the final screen (distance, score, orbs, worlds 5/5, rewards, Replay Journey / View Rewards / Return to Main Menu). No camera change was made. Auto play reaching the line just restarts, with no rewards.
-- **Rewards (`src/systems/rewards/rewards.js`).** Treasure Cache at 2,000 m; Celestial City Orb at 4,000 m; Celestial Bird Skin at 8,000 m; Journey Champion Trophy and **Celestial Feather** (legendary, the primary prize) at the finish line. 6,000 m has a banner only. Granting is pure and idempotent, happens only when the simulation reports a survived milestone, and is saved at once in localStorage (`fireflipper:journey`, through the existing `utils/storage.js`; a corrupt save is sanitised). Replaying never grants twice; opening the collection grants nothing. The Celestial skin is a gold Flipper (`REWARD_AVATARS`, outside the 15-skin collection) equipped from the Rewards screen; like every bird it is cosmetic only (a test checks that no gameplay module imports avatars, skins or rewards).
+- **Rewards (`src/systems/rewards/rewards.js`).** Treasure Cache at 2,000 m; Celestial City Orb at 4,000 m; Celestial Bird Skin at 8,000 m; Journey Champion Trophy and **Celestial Feather** (legendary, the primary prize) at the finish line. 6,000 m has a banner only. Granting is pure and idempotent, happens only when the simulation reports a survived milestone, and is saved at once in localStorage (`fireflipper:journey`, through the existing `utils/storage.js`; a corrupt save is sanitised). Replaying never grants twice; opening the collection grants nothing. The Celestial skin is a gold Flipper (`REWARD_AVATARS`, outside the 18-skin collection) equipped from the Rewards screen; like every bird it is cosmetic only (a test checks that no gameplay module imports avatars, skins or rewards).
 - **Screens.** `RewardsPanel` (collection, locked/unlocked, rarity, how to earn, progress), `JourneyEnding` (celebration and final screen), `MilestoneToast`, a Rewards button and the edition title on the home screen, rewards and worlds lines on Game Over. Reward art is original inline SVG (`RewardArt.jsx`); the reference sheet is not shipped.
 - **Tests.** `npm run test:journey` (boundaries, difficulty, milestones, the ending and its races, rewards, persistence across a "refresh", UI wiring); the rest of `test:all` was updated to the new borders (the golden layout fingerprint now compares shapes on against off). `test:e2e` and `test:matrix` pass (77 cases, at most 61 draw calls, 27 textures).
 - **Not verified:** nothing was run on a physical phone (only emulated viewports in Chromium with software GL); the ending's sound and timing were not heard or felt; the new difficulty feel needs human play; Auto play was only checked headlessly to 10 km.

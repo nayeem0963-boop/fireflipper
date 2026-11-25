@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { MathUtils } from 'three';
 import { BASE_FOV, PORTRAIT_LEAD, cameraDistance } from './cameraConfig.js';
+import { WORLD } from '../../systems/physics/constants.js';
 
 /**
  * Side-on follow camera.
@@ -11,7 +12,7 @@ import { BASE_FOV, PORTRAIT_LEAD, cameraDistance } from './cameraConfig.js';
  *  - Small FOV kicks on flap / orb pickup and a short, decaying crash shake.
  */
 
-export default function CameraRig({ sim }) {
+export default function CameraRig({ sim, runner = false }) {
   const base = useRef({ x: 0, y: 0.5, initialised: false });
 
   useFrame((state, delta) => {
@@ -26,7 +27,10 @@ export default function CameraRig({ sim }) {
     const lead = aspect < 1 ? PORTRAIT_LEAD : 0.45;
     const targetX = Math.min(halfWidth * lead, 6);
     const birdY = sim.renderBirdY();
-    const targetY = MathUtils.clamp(birdY * 0.3 + 0.55, -0.4, 1.6) + sim.fx.lift * 0.08;
+    // The flyer's camera follows the bird's height loosely. The runner stays on the land, so its camera is held low (the land fills the lower part of the screen) and only rises a little as she jumps.
+    const targetY = runner
+      ? -0.15 + MathUtils.clamp((birdY - WORLD.groundY) * 0.18, 0, 0.5) + sim.fx.lift * 0.05
+      : MathUtils.clamp(birdY * 0.3 + 0.55, -0.4, 1.6) + sim.fx.lift * 0.08;
 
     const b = base.current;
     if (!b.initialised) {

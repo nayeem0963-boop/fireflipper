@@ -3,10 +3,13 @@ import { useGameStore } from '../../store/useGameStore.js';
 import IconButton from './IconButton.jsx';
 import SoundToggle from './SoundToggle.jsx';
 import ThemeSwitch from './ThemeSwitch.jsx';
+import VersionPicker from './VersionPicker.jsx';
 import { FlameIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
 import { useSkin } from '../../hooks/useSkin.js';
 import { ACHIEVEMENTS, achievementProgress, dailyGoalFor } from '../../systems/progression/progression.js';
 import { useTheme } from '../../hooks/useTheme.js';
+import { useGameVersion } from '../../hooks/useGameVersion.js';
+import { usesOriginalAvatar } from '../../systems/versions/versions.js';
 import { AVATAR_SPECIES, avatarFor, collectionProgress, isAvatarUnlocked } from '../../systems/avatars/avatars.js';
 import { FREE_COLOR } from '../../systems/skins/skins.js';
 import { REWARDS, ownedCount } from '../../systems/rewards/rewards.js';
@@ -27,6 +30,7 @@ export default function HomeScreen() {
   const openAvatars = useGameStore((s) => s.openAvatars);
   const flown = useGameStore((s) => s.flown);
   const skin = useSkin();
+  const version = useGameVersion();
   const theme = useTheme();
   const selectSkin = useGameStore((s) => s.selectSkin);
   const stats = useGameStore((s) => s.stats);
@@ -59,7 +63,9 @@ export default function HomeScreen() {
           </Suspense>
         </section>
 
-        {/* Every bird is one tap away: the five species, in the colour you have chosen when it is unlocked */}
+        {/* Every bird is one tap away: the six species, in the colour you have chosen when it is unlocked */}
+        {/* The bird strip picks the v1 bird; other versions draw their own avatar, so it is hidden there */}
+        {usesOriginalAvatar(version) && (
         <div className="home__birds" role="radiogroup" aria-label="Choose your bird">
           {AVATAR_SPECIES.map((sp) => {
             const shown = avatarFor(sp.id, skin.color);
@@ -82,6 +88,7 @@ export default function HomeScreen() {
             );
           })}
         </div>
+        )}
       </div>
 
       <section className="home__brand">
@@ -94,6 +101,7 @@ export default function HomeScreen() {
       </section>
 
       <section className="home__actions">
+        <VersionPicker />
         <button
           type="button"
           className="play-btn"

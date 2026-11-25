@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Color } from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import EmberParticles from '../../components/scene/EmberParticles.jsx';
 import EdgeWarning from '../../components/scene/EdgeWarning.jsx';
 import PlayerBird from '../../components/scene/PlayerBird.jsx';
 import ObstacleField from '../../components/scene/ObstacleField.jsx';
+import RunnerObstacleField from '../../components/scene/RunnerObstacleField.jsx';
 import HazardTelegraph from './HazardTelegraph.jsx';
 import OrbField from '../../components/scene/OrbField.jsx';
 import ItemField from '../../components/scene/ItemField.jsx';
@@ -29,13 +30,16 @@ import { BIOMES, ZONE_IDS, biomeWeights } from '../../systems/world/biomes.js';
  * Ember Valley: the first level. Composition only. Gameplay lives in the
  * simulation (systems/game); each child renders one aspect of it.
  */
-const emberScroll = () => (game.phase === PHASE.RUNNING || game.phase === PHASE.DYING ? game.speed * 0.6 : 0);
-
-export default function EmberValleyScene() {
+/**
+ * `sim` is the simulation to draw (the flying game's by default) and `runner` says it is the ground-runner's (v2): the scenery, lighting, orbs and
+ * player are shared, but the runner has its own obstacles and none of the flying-only layers (hazard telegraphs, flying hazards, power-ups, edge warning).
+ */
+export default function EmberValleyScene({ sim = game, runner = false }) {
+  const emberScroll = useCallback(() => (sim.phase === PHASE.RUNNING || sim.phase === PHASE.DYING ? sim.speed * 0.6 : 0), [sim]);
   const { emberCount } = useRenderSettings();
   const { scene } = useTheme();
   const portrait = useThree((s) => s.size.width < s.size.height);
-  useGameLoop(game);
+  useGameLoop(sim);
 
   // Lights, fog and background blend from the theme's colours to each zone's colours: a weighted mix, base * (1 - total) + sum(zone * weight), so a
   // cross-fade between two zones is exact. It loops over every zone (systems/world/biomes.js), so a new zone needs nothing here.
@@ -64,7 +68,7 @@ export default function EmberValleyScene() {
     lastKey.current = -1; // re-apply the blend after a theme change
   }, [colors]);
   useFrame((state) => {
-    const bw = biomeWeights(game.renderDistance());
+    const bw = biomeWeights(sim.renderDistance());
     let k = 1;
     for (let i = 0; i < ZONE_IDS.length; i++) {
       weights[i] = bw[ZONE_IDS[i]];
@@ -90,23 +94,23 @@ export default function EmberValleyScene() {
       {/* Key light from the front so obstacle faces read clearly */}
       <directionalLight ref={key} position={[-3, 6, 10]} intensity={1.6} color={scene.key} />
 
-      <CameraRig sim={game} />
-      <Backdrop sim={game} />
-      <CanyonBackdrop sim={game} />
-      <ArcticBackdrop sim={game} />
-      <CelestialBackdrop sim={game} />
-      <PalaceBackdrop sim={game} />
-      <SanctuaryBackdrop sim={game} />
-      <ObstacleField sim={game} />
-      <HazardTelegraph sim={game} />
-      <OrbField sim={game} />
-      <ItemField sim={game} />
-      <FlierField sim={game} />
-      <ForegroundLayer sim={game} />
-      <PlayerBird sim={game} />
-      <BurstParticles sim={game} />
+      <CameraRig sim={sim} runner={runner} />
+      <Backdrop sim={sim} />
+      <CanyonBackdrop sim={sim} />
+      <ArcticBackdrop sim={sim} />
+      <CelestialBackdrop sim={sim} />
+      <PalaceBackdrop sim={sim} />
+      <SanctuaryBackdrop sim={sim} />
+      {runner ? <RunnerObstacleField sim={sim} /> : <ObstacleField sim={sim} />}
+      {!runner && <HazardTelegraph sim={sim} />}
+      <OrbField sim={sim} />
+      {!runner && <ItemField sim={sim} />}
+      {!runner && <FlierField sim={sim} />}
+      <ForegroundLayer sim={sim} />
+      <PlayerBird sim={sim} />
+      <BurstParticles sim={sim} />
       {/* Narrow screens see less track ahead, so warn about obstacles just off-screen */}
-      <EdgeWarning sim={game} enabled={portrait} />
+      <EdgeWarning sim={sim} enabled={portrait && !runner} />
       <EmberParticles count={emberCount} color={scene.ember} area={[34, 14, 10]} position={[4, 0, -3]} scroll={emberScroll} />
     </>
   );
