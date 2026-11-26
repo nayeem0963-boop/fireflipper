@@ -18,6 +18,8 @@ import { reachMilestone, sanitizeJourney } from '../systems/rewards/rewards.js';
 import { previewRewardIds, previewSeedFor } from '../systems/rewards/preview.js';
 import { WORLD_COUNT } from '../systems/world/worlds.js';
 import {
+  GAME_MODES,
+  VERSION_IDS,
   VERSION_STORAGE_KEY,
   getVersion,
   isRunner,
@@ -27,6 +29,23 @@ import {
 } from '../systems/versions/versions.js';
 
 export const SCREENS = Object.freeze({ HOME: 'home', GAME: 'game' });
+
+/**
+ * Which game mode is on screen: 'MENU' on the home screen, otherwise the mode of the selected version ('PHOENIX_FLIGHT' = v1, the flying
+ * game; 'FLAME_RUNNER' = v2, the ground-runner). It is DERIVED from `screen` and `versionId`, not a second copy of them, so it can never disagree.
+ */
+export const gameModeOf = (s) => (s.screen === SCREENS.GAME ? getVersion(s.versionId).mode : GAME_MODES.MENU);
+
+/**
+ * Fire orbs collected over every run in every mode: this version's live count plus the other version's saved one. Each version keeps its own
+ * stats (see `progressKey`), so this reads them, it stores nothing new.
+ */
+export function totalOrbsOf(s) {
+  const own = s.stats?.totalOrbs ?? 0;
+  let others = 0;
+  for (const id of VERSION_IDS) if (id !== s.versionId) others += loadValue(progressKey(id, 'stats'), {}).totalOrbs ?? 0;
+  return own + others;
+}
 
 /**
  * Run lifecycle (mirrors the simulation's phases, plus PAUSED):

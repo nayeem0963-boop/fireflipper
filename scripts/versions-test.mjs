@@ -19,7 +19,8 @@ import {
   isRunner,
   trailForVersion,
 } from '../src/systems/versions/versions.js';
-import { useGameStore, SCREENS } from '../src/store/useGameStore.js';
+import { useGameStore, SCREENS, gameModeOf, totalOrbsOf } from '../src/store/useGameStore.js';
+import { GAME_MODES } from '../src/systems/versions/versions.js';
 import { createGameSim, PHASE } from '../src/systems/game/createGameSim.js';
 import { PHYSICS } from '../src/systems/physics/constants.js';
 
@@ -155,6 +156,20 @@ check('PlayerBird still places the player only from the simulation', /sim\.rende
 check('only an upright (running) version skips the flight pitch; the flying bird keeps it', /upright \? 0 : sim\.bird\.pitch \+ sim\.bird\.spin/.test(playerBird));
 const avatarSrc = strip(read('src/components/scene/PlayerAvatar.jsx') + read('src/components/scene/RunnerAvatar.jsx'));
 check('the avatar components never import the simulation', !/systems\/(game|physics|obstacles|scoring)/.test(avatarSrc));
+
+// ---- the two named modes on the menu (ModeSelect)
+const [flight, runnerV] = GAMES_CONFIG;
+check('the menu offers two modes: Phoenix Flight (v1) and Flame Runner (v2)', flight.id === 'v1' && flight.mode === 'PHOENIX_FLIGHT' && flight.title === 'FireFlipper: Phoenix Flight' && runnerV.id === 'v2' && runnerV.mode === 'FLAME_RUNNER' && runnerV.title === 'FireFlipper: Flame Runner');
+check('each mode has its subtitle and its keys', flight.subtitle === 'Soar through the fiery canyons' && runnerV.subtitle === 'Dash across the volcanic terrain' && flight.controls.map((c) => `${c.keys}:${c.label}`).join() === 'Space:Flap / climb,S:Dive' && runnerV.controls.map((c) => `${c.keys}:${c.label}`).join() === 'Space:Jump,S:Drop');
+check('the modes still map to the two simulations', flight.ruleset === 'flight' && runnerV.ruleset === 'runner' && Object.keys(GAME_MODES).join() === 'MENU,PHOENIX_FLIGHT,FLAME_RUNNER');
+check('gameMode is derived: MENU on the home screen, then the mode of the version', gameModeOf({ screen: SCREENS.HOME, versionId: 'v2' }) === 'MENU' && gameModeOf({ screen: SCREENS.GAME, versionId: 'v1' }) === 'PHOENIX_FLIGHT' && gameModeOf({ screen: SCREENS.GAME, versionId: 'v2' }) === 'FLAME_RUNNER');
+check('total orbs counts this version live and the other from its saved stats (nothing new is stored)', (() => {
+  const own = st().stats.totalOrbs ?? 0;
+  return totalOrbsOf({ versionId: 'v1', stats: { totalOrbs: own + 7 } }) >= own + 7 && typeof totalOrbsOf(st()) === 'number';
+})());
+const modeSrc = strip(read('src/components/ModeSelect.jsx'));
+check('ModeSelect lists every version from the registry and selects through the store', /GAMES_CONFIG\.map/.test(modeSrc) && /selectVersion\(v\.id\)/.test(modeSrc) && /role="radiogroup"/.test(modeSrc));
+check('the home screen shows the mode cards and the orbs total', /<ModeSelect \/>/.test(read('src/components/ui/HomeScreen.jsx')) && /totalOrbsOf/.test(read('src/components/ui/HomeScreen.jsx')));
 
 console.log(failures ? `${failures} failed` : 'version tests passed');
 process.exit(failures ? 1 : 0);

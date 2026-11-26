@@ -62,7 +62,7 @@ for (const [name, opts, themeId] of CASES) {
   check(`${name}: three birds on the menu`, (await p.locator('.birdchip').count()) === 3);
 
   // pick a bird, open the picker and achievements
-  await p.getByRole('radio', { name: /toco toucan/i }).click();
+  await p.getByRole('radio', { name: /honeybell/i }).click();
   await p.getByRole('button', { name: /skins/i }).click();
   await p.waitForSelector('.birds');
   check(`${name}: picker lists three birds`, (await p.locator('.birds__grid [role=radio]').count()) === 3);
@@ -142,15 +142,15 @@ for (const [name, opts] of CASES) {
   p.on('pageerror', (e) => errors.push(e.message));
   const radio = (re) => p.getByRole('radio', { name: re });
   await p.goto(`http://localhost:${PORT}/?version=v2`);
-  await p.waitForSelector('.versioncard', { timeout: 20000 });
-  check(`${name} (versions): ?version=v2 opens v2`, (await radio(/^v2/i).getAttribute('aria-checked')) === 'true' && (await radio(/^v1/i).getAttribute('aria-checked')) === 'false');
+  await p.waitForSelector('.modecard', { timeout: 20000 });
+  check(`${name} (versions): ?version=v2 opens v2`, (await radio(/flame runner/i).getAttribute('aria-checked')) === 'true' && (await radio(/phoenix flight/i).getAttribute('aria-checked')) === 'false');
   check(`${name} (versions): the v1 bird strip is hidden in v2`, (await p.locator('.birdchip').count()) === 0);
   await p.evaluate(() => (window.__noReload = true));
-  await radio(/^v1/i).click();
+  await radio(/phoenix flight/i).click();
   check(`${name} (versions): switching to v1 does not reload the page`, await p.evaluate(() => window.__noReload === true));
-  check(`${name} (versions): v1 brings the bird strip back`, (await p.locator('.birdchip').count()) === 6);
+  check(`${name} (versions): v1 brings the bird strip back`, (await p.locator('.birdchip').count()) === 3);
   check(`${name} (versions): the address bar follows the choice`, new URL(p.url()).searchParams.get('version') === 'v1', p.url());
-  await radio(/^v2/i).click();
+  await radio(/flame runner/i).click();
   check(`${name} (versions): the address bar says v2`, new URL(p.url()).searchParams.get('version') === 'v2', p.url());
 
   await p.getByRole('button', { name: /^play/i }).first().click();
@@ -167,17 +167,17 @@ for (const [name, opts] of CASES) {
   await p.waitForSelector('.start-prompt');
   check(`${name} (versions): v2 starts, ends and retries`, true);
   await p.getByRole('button', { name: /back|menu/i }).first().click().catch(() => {});
-  await p.waitForSelector('.versioncard', { timeout: 20000 });
-  check(`${name} (versions): back on the menu it is still v2`, (await radio(/^v2/i).getAttribute('aria-checked')) === 'true');
+  await p.waitForSelector('.modecard', { timeout: 20000 });
+  check(`${name} (versions): back on the menu it is still v2`, (await radio(/flame runner/i).getAttribute('aria-checked')) === 'true');
   await p.goto(`http://localhost:${PORT}/`);
-  await p.waitForSelector('.versioncard', { timeout: 20000 });
-  check(`${name} (versions): a plain reload remembers v2`, (await radio(/^v2/i).getAttribute('aria-checked')) === 'true');
+  await p.waitForSelector('.modecard', { timeout: 20000 });
+  check(`${name} (versions): a plain reload remembers v2`, (await radio(/flame runner/i).getAttribute('aria-checked')) === 'true');
   await p.getByRole('button', { name: /watch auto play/i }).click();
   await p.waitForSelector('.demo__badge', { timeout: 20000 });
   await p.waitForTimeout(2500);
   check(`${name} (versions): Auto play works in v2`, true);
   await p.getByRole('button', { name: /^exit/i }).click().catch(() => {});
-  await p.waitForSelector('.versioncard', { timeout: 20000 });
+  await p.waitForSelector('.modecard', { timeout: 20000 });
   const v2Saved = () => p.evaluate(() => ['stats', 'bestScore', 'achievements', 'journey'].map((k) => localStorage.getItem(`fireflipper:v2:${k}`)).join('|'));
   const savedBefore = await v2Saved();
   await p.getByRole('button', { name: /journey preview/i }).click();

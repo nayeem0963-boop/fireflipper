@@ -153,8 +153,14 @@ To do by hand (they need your accounts): add `https://fireflipper.com/` in Googl
 
 ## Game versions
 
-The menu lists **v1 (Original)** and **v2 (New Runner)**. Switching is instant (no reload), the choice is saved, and `?version=v1` /
-`?version=v2` opens straight into a version (a link beats the saved choice).
+The menu shows two mode cards (`src/components/ModeSelect.jsx`), side by side, each with a picture, a one-line subtitle and its keys:
+**FireFlipper: Phoenix Flight** (v1, "Soar through the fiery canyons", `Space` flap / climb, `S` dive) and **FireFlipper: Flame Runner**
+(v2, "Dash across the volcanic terrain", `Space` jump, `S` drop). The names, subtitles and keys live with each version in
+`systems/versions/versions.js`. Switching is instant (no reload), the choice is saved, and `?version=v1` / `?version=v2` opens straight
+into a version (a link beats the saved choice). The home top bar also shows the **orbs collected in every mode** (read from each
+version's own saved stats, so nothing new is stored). The store's `gameModeOf(state)` names what is on screen (`'MENU'`,
+`'PHOENIX_FLIGHT'` or `'FLAME_RUNNER'`); it is derived from the screen and the version, not a second copy of them. Best scores, stats,
+achievements and daily goals are kept per version, as before.
 
 - **v1 is the original flying game**, exactly as it was: you fly a bird (and skin) through corridors of rocks, over a lava floor.
 - **v2 is a ground-runner.** You run as **Aisha** (from the Frost game) **on the land**: the floor of whichever of the five worlds you are in (canyon
