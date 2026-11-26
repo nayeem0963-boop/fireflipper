@@ -1,9 +1,9 @@
 import { lazy, Suspense } from 'react';
-import { useGameStore } from '../../store/useGameStore.js';
+import { totalOrbsOf, useGameStore } from '../../store/useGameStore.js';
 import IconButton from './IconButton.jsx';
 import SoundToggle from './SoundToggle.jsx';
 import ThemeSwitch from './ThemeSwitch.jsx';
-import VersionPicker from './VersionPicker.jsx';
+import ModeSelect from '../ModeSelect.jsx';
 import { FlameIcon, PlayIcon, SettingsIcon, TrophyIcon } from './Icons.jsx';
 import { useSkin } from '../../hooks/useSkin.js';
 import { ACHIEVEMENTS, achievementProgress, dailyGoalFor } from '../../systems/progression/progression.js';
@@ -21,6 +21,7 @@ const HomeStage = lazy(() => import('../scene/HomeStage.jsx'));
 
 export default function HomeScreen() {
   const bestScore = useGameStore((s) => s.bestScore);
+  const totalOrbs = useGameStore(totalOrbsOf);
   const startGame = useGameStore((s) => s.startGame);
   const startDemo = useGameStore((s) => s.startDemo);
   const startPreview = useGameStore((s) => s.startPreview);
@@ -47,6 +48,11 @@ export default function HomeScreen() {
     <main className="home">
       <header className="home__topbar">
         <span className="home__domain">fireflipper.com</span>
+        <span className="home__orbs" title="Fire orbs collected in every mode">
+          <span className="orb-dot" aria-hidden="true" />
+          <span className="sr-only">Orbs collected: </span>
+          <strong>{totalOrbs.toLocaleString()}</strong> orbs
+        </span>
         <div className="home__topbar-actions">
           <ThemeSwitch compact />
           <SoundToggle />
@@ -101,7 +107,7 @@ export default function HomeScreen() {
       </section>
 
       <section className="home__actions">
-        <VersionPicker />
+        <ModeSelect />
         <button
           type="button"
           className="play-btn"

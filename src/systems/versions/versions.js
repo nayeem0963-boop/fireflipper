@@ -48,9 +48,12 @@
  *
  * @typedef {Object} GameVersion
  * @property {'v1' | 'v2'} id
+ * @property {'PHOENIX_FLIGHT' | 'FLAME_RUNNER'} mode  The game mode this version is shown as on the menu (see `gameModeOf`).
  * @property {'flight' | 'runner'} ruleset  Which simulation this version runs (see above).
  * @property {string} title
+ * @property {string} subtitle        One line for the mode card on the menu.
  * @property {string} description
+ * @property {{keys: string[], label: string}[]} controls  The controls the mode card lists. (The simulation reads TAP / HOLD / Down for both modes.)
  * @property {string} [thumbnail]     Optional image URL for the picker card (under public/, e.g. 'images/versions/v2.jpg').
  * @property {PlayerConfig} playerConfig
  */
@@ -113,9 +116,15 @@ const V2_PLAYER = {
 /** @type {GameVersion} */
 const V1 = {
   id: 'v1',
+  mode: 'PHOENIX_FLIGHT',
   ruleset: 'flight',
-  title: 'v1 · Original',
+  title: 'FireFlipper: Phoenix Flight',
+  subtitle: 'Soar through the fiery canyons',
   description: 'The original flying game: fly as the bird and skin you choose.',
+  controls: [
+    { keys: ['Space'], label: 'Flap / climb' },
+    { keys: ['S'], label: 'Dive' },
+  ],
   thumbnail: undefined,
   playerConfig: V1_PLAYER,
 };
@@ -124,8 +133,14 @@ const V1 = {
 const V2 = {
   ...V1,
   id: 'v2',
+  mode: 'FLAME_RUNNER',
   ruleset: 'runner',
-  title: 'v2 · New Runner',
+  title: 'FireFlipper: Flame Runner',
+  subtitle: 'Dash across the volcanic terrain',
+  controls: [
+    { keys: ['Space'], label: 'Jump' },
+    { keys: ['S'], label: 'Drop' },
+  ],
   description: 'A new way to play: run the five worlds on foot as Aisha from Frost, jumping rocks, ice and pits.',
   thumbnail: undefined, // PLACEHOLDER: e.g. 'images/versions/v2.jpg'
   playerConfig: V2_PLAYER,
@@ -142,6 +157,9 @@ export const DEFAULT_VERSION_ID = 'v1';
 export const VERSION_PARAM = 'version';
 /** Key under which the player's last choice is saved (see utils/storage.js). */
 export const VERSION_STORAGE_KEY = 'gameVersion';
+
+/** The game modes the menu offers, by name. 'MENU' (no run on screen) is not a mode of a version: see `gameModeOf` in the store. */
+export const GAME_MODES = Object.freeze({ MENU: 'MENU', PHOENIX_FLIGHT: 'PHOENIX_FLIGHT', FLAME_RUNNER: 'FLAME_RUNNER' });
 
 export const isVersionId = (id) => VERSION_IDS.includes(id);
 
