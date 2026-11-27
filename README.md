@@ -58,7 +58,7 @@ src/
     scoring/            pure scoring helpers
     input/              input action bus (flap press/release, dive, pause)
     events/             gameplay event bus (start, flap, orb, crash, over)
-    audio/              synthesized Web Audio sound effects
+    audio/              synthesized Web Audio sound effects (sfx.js) and the procedural background music (music.js)
   hooks/                React hooks: input binding, audio, render quality, auto-pause
 scripts/
   sim-test.mjs          headless tests (npm run test:sim)
@@ -497,3 +497,10 @@ The original bird (`components/scene/Firebird.jsx`, still built from primitive s
 - **Colourways:** the Flipper's base colour (still called "Fire", like every bird's base colour) is the macaw's own blue and yellow (an empty palette: the bird's defaults). Blue and White recolour the same macaw, as does the gold Celestial reward skin; each defines its own `crown`, `face` and `chin` colours (`systems/skins/skins.js`, `avatars.js`).
 - **Cosmetic only:** the same size, animation system (wing beats, tuck, limp, secondary motion) and 0.36 hitbox as before; the simulation never reads the avatar (`npm run test:avatars` checks the design and that).
 - **There is now also a separate "Blue-and-Yellow Macaw" bird** in the picker (a GLB model, wings spread), which looks similar; it was left as it was.
+
+## Background music
+
+A slow, dark A-minor arpeggio over a drifting pad plays while a run is live (`src/systems/audio/music.js`). It is generated with Web
+Audio, so there are no audio files, and a look-ahead scheduler keeps it in time when the page hitches. It fades in on the first flap
+or jump, fades out on pause and at the end of a run, follows the sound toggle, and stays quiet in plain Auto play (the Journey Preview
+plays it). It is the same loop in every world and mode. `npm run test:music` checks it against a fake audio context.

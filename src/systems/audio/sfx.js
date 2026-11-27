@@ -24,6 +24,11 @@ function context() {
   return ctx;
 }
 
+/** The shared audio graph, for other audio modules (the music). Null until the first user gesture creates it. */
+export function getAudio() {
+  return ctx && master ? { ctx, master } : null;
+}
+
 export function unlockAudio() {
   const c = context();
   if (c && c.state === 'suspended') c.resume().catch(() => {});
