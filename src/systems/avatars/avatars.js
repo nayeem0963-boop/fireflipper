@@ -1,7 +1,7 @@
 import { FREE_COLOR, SKINS, colorUnlockScore, isUnlocked } from '../skins/skins.js';
 
 /**
- * Every bird the player can fly as: three species (FlameBird, Honeybell, Morpho Butterfly), each in three colours (Fire, Blue and White), so 9 avatars. FlameBird, the mascot, is first (the default bird). (The Flipper is not in the list; its model is kept only for the Celestial reward skin.)
+ * Every bird the player can fly as: three species (Phoenix, Honeybell, Morpho Butterfly), each in three colours (Fire, Blue and White), so 9 avatars. The Phoenix is first (the default bird). (The Flipper is not in the list; its model is kept only for the Celestial reward skin.)
  * A species is named for what it is (never for its colour); the colour is chosen separately.
  *
  * Each avatar carries its species' fields plus `species` (the species id), `color` ('fire' | 'blue' | 'white'),
@@ -13,8 +13,8 @@ import { FREE_COLOR, SKINS, colorUnlockScore, isUnlocked } from '../skins/skins.
  *    tail). The models are third-party (CC BY 4.0); credits are in credits.js and shown in the app. They are
  *    free to choose: the choice is cosmetic and changes nothing about the physics or the collision size.
  *
- *  - 'flamebird': FlameBird, the Fire Flipper mascot: a rigged GLB with real clips (flight, wing beat, idle, celebrate) drawn by
- *    FlameBird.jsx. Made for Fire Flipper (see public/models/CREDITS.md).
+ *  - 'flamebird': the Phoenix (it replaced FlameBird and keeps its kind): a rigged GLB with real clips (flight, wing beat,
+ *    idle, glide, celebrate) drawn by FlameBird.jsx. Made for Fire Flipper (see public/models/CREDITS.md).
  *
  * Model transform fields (units: the Firebird's own local size, so a model fits where the Firebird does):
  *  - file:    path under public/models/birds
@@ -149,17 +149,18 @@ export const MODEL_BIRDS = Object.freeze(
 
 
 /**
- * FlameBird, the Fire Flipper mascot (goggles, scarf, flame crest): a rigged GLB with its own clips (FB_Fly, FB_WingFlap,
- * FB_Idle, FB_TailSway, FB_Celebrate), drawn by FlameBird.jsx. Fire shows the model's own painted textures unchanged
+ * The Phoenix, the Phoenix Flight bird (flame crest and tail, navy wing tips): a rigged GLB with its own clips (FB_Fly,
+ * FB_WingFlap, FB_Idle, FB_Glide, FB_TailSway, FB_Celebrate), drawn by FlameBird.jsx. It replaced FlameBird in the same
+ * slot: the id and kind stay 'flamebird', so saved choices, unlocks and flown counts carry over unchanged. Fire shows the model's own painted textures unchanged
  * (mix 0); Blue and White re-colour them by brightness onto low / mid / high (mix = how much of that ramp replaces the
  * original). `glow` tints the halo and the bird's light. It is the first species, so it is the default bird.
  */
 const FLAMEBIRD_SPECIES = {
   id: 'flamebird',
-  name: 'FlameBird',
-  tagline: 'The Fire Flipper mascot, goggles on',
+  name: 'Phoenix',
+  tagline: 'A blazing phoenix with wings of flame',
   kind: 'flamebird',
-  file: 'flamebird.glb',
+  file: 'phoenix.glb',
   variants: {
     fire: { mix: 0, glow: '#ff7a2a', low: '#a3120a', mid: '#ff5a14', high: '#ffd070' },
     blue: { mix: 0.85, glow: '#3aa8ff', low: '#0b3fb8', mid: '#2ea6ff', high: '#d8f6ff' },
