@@ -1,18 +1,20 @@
 # Model credits
 
 The in-app list is `src/systems/avatars/credits.js` (Settings > Credits). The two third-party bird models (Honeybell and the Morpho Butterfly)
-are CC BY 4.0; FlameBird was made for this game.
+are CC BY 4.0; the Phoenix was made for this game.
 
-## birds/flamebird.glb (FlameBird, the mascot)
+## birds/phoenix.glb (the Phoenix, the default bird; replaced FlameBird)
 
-- Made for Fire Flipper: a Meshy AI character (the approved "FlameBird 50K" model), rigged and animated in Blender 5.3 by
-  the scripts in the FlameBird rig work folder (`fireflipper_upgrade/FlameBird/rig_work`): a 29-bone avian skeleton,
-  region-limited weights and five clips (FB_Idle, FB_WingFlap, FB_Fly, FB_TailSway, FB_Celebrate), exported with
-  2048 px WebP textures (about 5.2 MB). The mesh, UVs and painted textures are the original model's.
+- Made for Fire Flipper from `fireflipper_upgrade/FlameBird/phoenix_hawk_model.glb` (2.6M triangles), by the scripts in
+  `fireflipper_upgrade/FlameBird/phoenix_work`: reduced to 50K triangles in Blender 5.3, a 28-bone avian skeleton with
+  region-limited weights, six clips (FB_Idle, FB_WingFlap, FB_Fly, FB_Glide, FB_TailSway, FB_Celebrate; Fly and WingFlap
+  follow the beat timing in `flameBirdMotion.js`), then gltf-transform: dedup, prune, resample, WebP textures (colour
+  2048 px, normal and roughness/metal 1024 px) and EXT_meshopt_compression (about 2.4 MB). The UVs and painted textures
+  are the original model's.
 - Drawn at runtime by `src/components/scene/FlameBird.jsx` (Blue and White re-colour the texture by brightness).
 
-TODO: confirm the terms that apply to the Meshy-generated mesh (they depend on the Meshy plan it was made under) before
-shipping this publicly.
+TODO: record where `phoenix_hawk_model.glb` came from (for example a Meshy AI generation) and confirm the terms that apply
+to it before shipping this publicly.
 
 ## v2/runner.glb (the v2 player: Aisha)
 
